@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -7,40 +7,91 @@ import {
   Image,
   TouchableOpacity,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import {useDispatch} from 'react-redux';
+import {useDispatch, useSelector} from 'react-redux';
 import * as Keychain from 'react-native-keychain';
 import {clearUserCredentials} from '../store/slices/userSlice';
+import LiveTvImage from '../assets/livetv.jpg';
+import MoviesImage from '../assets/movies-tv.jpg';
+import seriresImage from '../assets/series-tv.jpg';
+import axios from 'axios';
+
+type CategoryItem = {
+  id: string;
+  name: string;
+  navigateName: string;
+  imageUrl: any; // React Native resolves imported images to a number
+  description: string;
+};
 
 export default function HomeScreenBrand({navigation}) {
   const dispatch = useDispatch();
-  const categories = [
+
+  const {username, password, serverDomain, serverPort} = useSelector(
+    (s: RootState) => s.user,
+  );
+
+  const [accountInfo, setAccountInfo] = useState<null | {
+    status: string;
+    expiration_date: string;
+    created_at: string;
+  }>(null);
+  const [loadingAccount, setLoadingAccount] = useState(true);
+
+  useEffect(() => {
+    const fetchAccountInfo = async () => {
+      try {
+        const url = `http://${serverDomain}:${serverPort}/player_api.php?username=${username}&password=${password}&action=get_account_info`;
+
+        const res = await axios.get(url);
+        setAccountInfo({
+          status: res.data.user_info.status ?? 'Unknown',
+          expiration_date: res.data.user_info.exp_date
+            ? new Date(res.data.user_info.exp_date * 1000).toLocaleDateString()
+            : '-',
+          created_at: res.data.user_info.created_at
+            ? new Date(
+                res.data.user_info.created_at * 1000,
+              ).toLocaleDateString()
+            : '-',
+        });
+      } catch (e) {
+        await Keychain.resetGenericPassword({
+          service: 'my-iptv-credentials',
+        });
+        dispatch(clearUserCredentials());
+        navigation.navigate('Login');
+
+        console.warn('Account info fetch failed', e);
+      } finally {
+        setLoadingAccount(false);
+      }
+    };
+    fetchAccountInfo();
+  }, [username, password, serverDomain, serverPort]);
+
+  const categories: CategoryItem[] = [
     {
       id: 'live-tv',
       name: 'Live TV',
       navigateName: 'LiveTV',
-      icon: 'fa-tv', // Placeholder for icon (replace with vector icon if needed)
-      imageUrl:
-        'https://readdy.ai/api/search-image?query=3D%20icon%20of%20a%20modern%20television%20with%20live%20broadcast%20symbol%2C%20minimalist%20design%2C%20clean%20lines%2C%20vibrant%20blue%20glow%2C%20floating%20on%20white%20background%2C%20centered%20composition%2C%20soft%20shadows%2C%20professional%20product%20photography%20style%2C%20high%20quality%20render&width=200&height=200&seq=1&orientation=squarish',
+      imageUrl: LiveTvImage,
       description: 'Watch live channels from around the world',
     },
     {
       id: 'movies',
       name: 'Movies',
-      icon: 'fa-film',
       navigateName: 'Movies',
-      imageUrl:
-        'https://readdy.ai/api/search-image?query=3D%20icon%20of%20a%20film%20reel%20with%20movie%20strip%2C%20minimalist%20design%2C%20clean%20lines%2C%20vibrant%20blue%20glow%2C%20floating%20on%20white%20background%2C%20centered%20composition%2C%20soft%20shadows%2C%20professional%20product%20photography%20style%2C%20high%20quality%20render&width=200&height=200&seq=2&orientation=squarish',
+      imageUrl: MoviesImage,
       description: 'Explore thousands of movies on demand',
     },
     {
       id: 'series',
       name: 'Series',
-      icon: 'fa-tv-alt',
       navigateName: 'Series',
-      imageUrl:
-        'https://readdy.ai/api/search-image?query=3D%20icon%20of%20a%20TV%20series%20symbol%20with%20multiple%20episodes%2C%20minimalist%20design%2C%20clean%20lines%2C%20vibrant%20blue%20glow%2C%20floating%20on%20white%20background%2C%20centered%20composition%2C%20soft%20shadows%2C%20professional%20product%20photography%20style%2C%20high%20quality%20render&width=200&height=200&seq=3&orientation=squarish',
+      imageUrl: seriresImage,
       description: 'Binge watch your favorite TV shows',
     },
   ];
@@ -64,15 +115,19 @@ export default function HomeScreenBrand({navigation}) {
     },
   ];
 
+  /* ------------------------------------------------------------------ */
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* ------------ Header ------------- */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>ScreenIPTV</Text>
+
         <View style={styles.headerIcons}>
           <TouchableOpacity style={styles.iconButton}>
             <FontAwesome5 name="search" color="#fff" size={16} />
           </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.iconButton}
             onPress={async () => {
@@ -87,7 +142,10 @@ export default function HomeScreenBrand({navigation}) {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      {/* ------------ Main scrollable content ------------- */}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
         {/* Welcome */}
         <View style={styles.welcomeBox}>
           <Text style={styles.welcomeTitle}>Welcome Back!</Text>
@@ -101,16 +159,9 @@ export default function HomeScreenBrand({navigation}) {
           <TouchableOpacity
             key={cat.id}
             style={styles.card}
-            onPress={() => {
-              // Navigate to the respective screen
-              navigation.navigate(cat.navigateName);
-            }}
-            activeOpacity={0.8}>
-            <Image
-              source={{uri: cat.imageUrl}}
-              style={styles.cardImage}
-              resizeMode="cover"
-            />
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate(cat.navigateName)}>
+            <Image source={cat.imageUrl} style={styles.cardImage} />
             <View style={styles.cardTextBox}>
               <Text style={styles.cardTitle}>{cat.name}</Text>
               <Text style={styles.cardDesc}>{cat.description}</Text>
@@ -119,19 +170,13 @@ export default function HomeScreenBrand({navigation}) {
           </TouchableOpacity>
         ))}
 
-        {/* Continue watching */}
+        {/* Continue Watching */}
         <Text style={styles.sectionTitle}>Continue Watching</Text>
         <View style={styles.continueGrid}>
           {continueWatching.map((item, idx) => (
-            <TouchableOpacity
-              key={idx}
-              style={styles.continueCard}
-              activeOpacity={0.9}>
-              <Image
-                source={{uri: item.image}}
-                style={styles.continueImage}
-                resizeMode="cover"
-              />
+            <TouchableOpacity key={idx} style={styles.continueCard}>
+              <Image source={{uri: item.image}} style={styles.continueImage} />
+              {/* progress bar */}
               <View style={styles.progressBarWrapper}>
                 <View
                   style={[styles.progressBar, {width: `${item.progress}%`}]}
@@ -148,17 +193,82 @@ export default function HomeScreenBrand({navigation}) {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* ------------ NEW: Account Information block ------------- */}
+        {loadingAccount ? (
+          <ActivityIndicator style={{marginTop: 16}} size="large" />
+        ) : (
+          accountInfo && (
+            <View style={styles.accountBox}>
+              <Text style={styles.accountTitle}>Account Information</Text>
+
+              {/* Username */}
+              <View style={styles.accountRow}>
+                <Text style={styles.accountLabel}>Username:</Text>
+                <Text style={styles.accountValue}>{username}</Text>
+              </View>
+
+              {/* Subscription status */}
+              <View style={styles.accountRow}>
+                <Text style={styles.accountLabel}>Subscription Status:</Text>
+                <Text
+                  style={[
+                    styles.accountValue,
+                    {
+                      color:
+                        accountInfo.status === 'Active' ? '#4A90E2' : '#E53935',
+                    },
+                  ]}>
+                  {accountInfo.status}
+                </Text>
+              </View>
+
+              {/* Activation date */}
+              <View style={styles.accountRow}>
+                <Text style={styles.accountLabel}>Activated On:</Text>
+                <Text style={styles.accountValue}>
+                  {accountInfo.created_at}
+                </Text>
+              </View>
+
+              {/* Expiration */}
+              <View style={styles.accountRow}>
+                <Text style={styles.accountLabel}>Expiration Date:</Text>
+                <Text style={styles.accountValue}>
+                  {accountInfo.expiration_date}
+                </Text>
+              </View>
+
+              {/* CTA */}
+              <TouchableOpacity style={styles.extendBtn} activeOpacity={0.8}>
+                <Text style={styles.extendBtnText}>Extend Subscription</Text>
+              </TouchableOpacity>
+            </View>
+          )
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+/* ------------------------------------------------------------------- */
+/* Styles */
+/* ------------------------------------------------------------------- */
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#2D3B55'}, // F3F4F6
+  /* layout */
+  // container: {flex: 1, backgroundColor: '#2D3B55'},
+  container: {flex: 1, backgroundColor: '#F3F4F6'},
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 20, // enough space above tab bar
+    backgroundColor: '#F3F4F6',
+  },
+
+  /* header */
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#2D3B55',
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -170,14 +280,17 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: '#4A90E2',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: 8,
   },
-  scrollContent: {padding: 16, paddingBottom: 120, backgroundColor: '#F3F4F6'},
+
+  /* welcome */
   welcomeBox: {marginBottom: 16},
   welcomeTitle: {fontSize: 24, fontWeight: '600', color: '#2D3B55'},
   welcomeSubtitle: {fontSize: 16, color: '#555', marginTop: 4},
+
+  /* category cards */
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -191,16 +304,20 @@ const styles = StyleSheet.create({
   cardTextBox: {flex: 1},
   cardTitle: {fontSize: 18, fontWeight: '600', color: '#2D3B55'},
   cardDesc: {fontSize: 14, color: '#555', marginTop: 4},
+
+  /* section title */
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#2D3B55',
     marginVertical: 12,
   },
+
+  /* continue watching */
   continueGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   continueCard: {
     width: '48%',
@@ -223,11 +340,41 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: '#e0e0e0',
   },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#4A90E2',
-  },
+  progressBar: {height: '100%', backgroundColor: '#4A90E2'},
   continueTextBox: {padding: 8},
   continueTitle: {fontSize: 14, fontWeight: '500', color: '#2D3B55'},
   continueSubtitle: {fontSize: 12, color: '#888', marginTop: 2},
+
+  /* ------------ Account Information ------------ */
+  accountBox: {
+    marginTop: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    elevation: 2,
+  },
+  accountTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2D3B55',
+    marginBottom: 12,
+  },
+  accountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  accountLabel: {color: '#666', fontSize: 14},
+  accountValue: {fontSize: 14, fontWeight: '600', color: '#2D3B55'},
+  expireWrapper: {flexDirection: 'row', alignItems: 'center'},
+
+  extendBtn: {
+    marginTop: 20,
+    backgroundColor: '#4A90E2',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  extendBtnText: {color: '#fff', fontSize: 15, fontWeight: '600'},
 });
