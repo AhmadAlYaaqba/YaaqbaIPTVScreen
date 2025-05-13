@@ -7,7 +7,9 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "build:android-apk": "cd android && ./gradlew assembleDebug",
+    "build:android-apk-release": "cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
     "@react-navigation/bottom-tabs": "^7.3.10",
@@ -23,6 +25,8 @@
     "react-native-fast-image": "^8.6.3",
     "react-native-gesture-handler": "^2.25.0",
     "react-native-keychain": "^10.0.0",
+    "react-native-network-logger": "^1.17.0",
+    "react-native-orientation-locker": "^1.7.0",
     "react-native-reanimated": "^3.17.3",
     "react-native-safe-area-context": "^5.3.0",
     "react-native-screens": "^4.10.0",

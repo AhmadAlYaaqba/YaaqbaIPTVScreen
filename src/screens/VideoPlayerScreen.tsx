@@ -1,8 +1,9 @@
 // src/screens/VideoPlayerScreen.tsx
 import React, {useEffect, useRef} from 'react';
-import {View, StyleSheet} from 'react-native';
+import {View, StyleSheet, Platform} from 'react-native';
 import Video, {OnLoadData, OnVideoErrorData} from 'react-native-video';
 import {VLCPlayer, VlCPlayerView} from 'react-native-vlc-media-player';
+import Orientation from 'react-native-orientation-locker';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {RouteProp} from '@react-navigation/native';
 import {RootStackParamList} from '../../RootNavigator'; // Adjust path to your stack params
@@ -36,9 +37,19 @@ const VideoPlayerScreen: React.FC<Props> = ({route, navigation}) => {
 
   useEffect(() => {
     navigation.setOptions({headerShown: false});
-  });
+
+    // Lock to landscape when the screen mounts
+    Orientation.lockToLandscape();
+
+    // Unlock when the screen unmounts
+    return () => {
+      Orientation.unlockAllOrientations(); // or Orientation.lockToPortrait(); if you want to force portrait
+    };
+  }, [navigation]);
+
   console.log('rerendering ???');
-  if (playerStatus) {
+  // Conditionally render based on platform and playerStatus
+  if (Platform.OS !== 'android' && playerStatus) {
     return (
       <View style={styles.container}>
         <VlCPlayerView
@@ -49,7 +60,7 @@ const VideoPlayerScreen: React.FC<Props> = ({route, navigation}) => {
           // showGG={true}
           isLive={isLive}
           playInBackground={true}
-          // showTitle={true}
+          showTitle={!isLive}
           // title="Big Buck Bunny"
           showBack={true}
           style={{flex: 1}}

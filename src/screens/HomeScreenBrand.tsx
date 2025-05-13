@@ -171,12 +171,11 @@ export default function HomeScreenBrand({navigation}) {
         ))}
 
         {/* Continue Watching */}
-        <Text style={styles.sectionTitle}>Continue Watching</Text>
+        {/* <Text style={styles.sectionTitle}>Continue Watching</Text>
         <View style={styles.continueGrid}>
           {continueWatching.map((item, idx) => (
             <TouchableOpacity key={idx} style={styles.continueCard}>
               <Image source={{uri: item.image}} style={styles.continueImage} />
-              {/* progress bar */}
               <View style={styles.progressBarWrapper}>
                 <View
                   style={[styles.progressBar, {width: `${item.progress}%`}]}
@@ -192,7 +191,7 @@ export default function HomeScreenBrand({navigation}) {
               </View>
             </TouchableOpacity>
           ))}
-        </View>
+        </View> */}
 
         {/* ------------ NEW: Account Information block ------------- */}
         {loadingAccount ? (

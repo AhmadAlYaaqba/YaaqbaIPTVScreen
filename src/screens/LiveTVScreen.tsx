@@ -21,7 +21,7 @@ import {
 } from '../store/slices/iptvSlice';
 
 const {width} = Dimensions.get('window');
-const CARD_SIZE = (width - 48) / 3; // 3‑column grid with 16px gutter
+const CARD_SIZE = (width - 56) / 3; // 3‑column grid with 16px gutter
 
 const LiveTVScreen = ({navigation}) => {
   const dispatch = useDispatch<AppDispatch>();

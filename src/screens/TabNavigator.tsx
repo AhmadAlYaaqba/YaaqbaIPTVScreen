@@ -1,6 +1,7 @@
 import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import HomeScreenBrand from './HomeScreenBrand';
 import LiveTVScreen from './LiveTVScreen';
@@ -23,7 +24,11 @@ export default function TabNavigator() {
             Movies: 'photo-video',
             Favorites: 'heart',
             Settings: 'cog',
+            Series: 'tv',
           };
+          if (route.name === 'LiveTV') {
+            return <MaterialIcons name="live-tv" size={size} color={color} />;
+          }
           return (
             <FontAwesome5 name={map[route.name]} size={size} color={color} />
           );
