@@ -304,7 +304,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
                       'mp4';
                     const url = `http://${serverDomain}:${serverPort}/movie/${username}/${password}/${selectedMovie.stream_id}.${ext}`;
                     setSelectedMovie(null);
-                    navigation.navigate('VideoPlayer', { streamUrl: url });
+                    navigation.navigate('VideoPlayer', { streamUrl: url, isLive: false, title:  selectedMovie.name});
                   }}>
                   <FontAwesome5 name="play" size={16} color="#fff" />
                   <Text style={styles.playText}>Play Movie</Text>

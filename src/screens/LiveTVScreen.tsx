@@ -32,13 +32,8 @@ const LiveTVScreen = ({navigation}) => {
   );
 
   // IPTV slice state
-  const {
-    liveCategories,
-    liveChannels,
-    loadingCategories,
-    loading,
-    error,
-  } = useSelector((state: RootState) => state.iptv);
+  const {liveCategories, liveChannels, loadingCategories, loading, error} =
+    useSelector((state: RootState) => state.iptv);
 
   const [activeCategory, setActiveCategory] = useState(null);
   const [search, setSearch] = useState('');
@@ -101,7 +96,7 @@ const LiveTVScreen = ({navigation}) => {
             navigation.navigate('VideoPlayer', {
               streamUrl,
               channelName: item.name,
-              isLive: true
+              isLive: true,
             })
           }>
           {icon ? (
@@ -163,20 +158,22 @@ const LiveTVScreen = ({navigation}) => {
       </View>
 
       {/* Search */}
-      <View style={styles.searchWrapper}>
-        <FontAwesome5
-          name="search"
-          size={14}
-          color="#777"
-          style={styles.searchIcon}
-        />
-        <TextInput
-          placeholder="Search channels"
-          style={styles.searchInput}
-          value={search}
-          onChangeText={setSearch}
-          placeholderTextColor="#999"
-        />
+      <View style={styles.searchContainer}>
+        <View style={styles.searchWrapper}>
+          <FontAwesome5
+            name="search"
+            size={14}
+            color="#777"
+            style={styles.searchIcon}
+          />
+          <TextInput
+            placeholder="Search channels"
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholderTextColor="#999"
+          />
+        </View>
       </View>
       <View style={styles.contentContainer}>
         {/* Category pills */}
@@ -212,12 +209,12 @@ const LiveTVScreen = ({navigation}) => {
 export default LiveTVScreen;
 
 // ---------- styles ---------- //
-const HEADER_HEIGHT = 56;
+const HEADER_HEIGHT = 32;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     backgroundColor: '#2D3B55',
     paddingTop: HEADER_HEIGHT + 8, // leave space for custom header
   },
@@ -245,7 +242,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    elevation: 4,
+    // elevation: 4,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -281,6 +278,9 @@ const styles = StyleSheet.create({
   avatarImg: {
     width: '100%',
     height: '100%',
+  },
+  searchContainer: {
+    paddingHorizontal: 8,
   },
   // search bar
   searchWrapper: {

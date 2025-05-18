@@ -23,7 +23,7 @@ interface Props {
 
 const VideoPlayerScreen: React.FC<Props> = ({route, navigation}) => {
   // streamUrl is passed from the previous screen
-  const {streamUrl, channelName, isLive} = route.params;
+  const {streamUrl, channelName, isLive, title} = route.params;
   const videoRef = useRef<any>(null);
   const playerStatus = useSelector((state: RootState) => state.user.useVLC);
 
@@ -43,7 +43,7 @@ const VideoPlayerScreen: React.FC<Props> = ({route, navigation}) => {
 
     // Unlock when the screen unmounts
     return () => {
-      Orientation.unlockAllOrientations(); // or Orientation.lockToPortrait(); if you want to force portrait
+      Orientation.lockToPortrait() // or Orientation.lockToPortrait(); if you want to force portrait
     };
   }, [navigation]);
 
@@ -55,14 +55,15 @@ const VideoPlayerScreen: React.FC<Props> = ({route, navigation}) => {
         <VlCPlayerView
           // autoplay={true}
           url={streamUrl}
-          // Orientation={"landscape"}
-          ggUrl=""
+          Orientation={"landscape"}
+
           // showGG={true}
           isLive={isLive}
           playInBackground={true}
           showTitle={!isLive}
-          // title="Big Buck Bunny"
+          title={title}
           showBack={true}
+          isFull={true}
           style={{flex: 1}}
           onLeftPress={() => {navigation.goBack()}}
         />

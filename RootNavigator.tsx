@@ -32,7 +32,7 @@ export type RootStackParamList = {
   Series: undefined;
   Settings: undefined;
   LiveChannels: {categoryId: string; categoryName: string};
-  VideoPlayer: {streamUrl: string; channelName?: string, isLive?: boolean};
+  VideoPlayer: {streamUrl: string; channelName?: string, isLive?: boolean, title?: string};
   MovieList: {categoryId: string; categoryName: string};
   MovieDetail: {movie: any};
   SeriesCategories: undefined;

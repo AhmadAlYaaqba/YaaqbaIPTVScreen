@@ -33,7 +33,7 @@
     "react-native-swiper": "^1.6.0",
     "react-native-vector-icons": "^10.2.0",
     "react-native-video": "^6.12.0",
-    "react-native-vlc-media-player": "^1.0.82",
+    "react-native-vlc-media-player": "^1.0.84",
     "react-redux": "^9.2.0"
   },
   "devDependencies": {

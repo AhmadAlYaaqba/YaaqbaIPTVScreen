@@ -16,6 +16,7 @@ import DeviceInfo from 'react-native-device-info';
 import {useDispatch, useSelector} from 'react-redux';
 import {AppDispatch, RootState} from '../store';
 import {setUserCredentials} from '../store/slices/userSlice';
+import NetworkLogger from 'react-native-network-logger';
 
 const SECRET_KEY = '5w.=:uehB3#jwUJ';
 
@@ -80,7 +81,7 @@ const ActivationScreen: React.FC<Props> = ({navigation}) => {
       body.append('json', encryptedPayload);
 
       const {data: encryptedResponse} = await axios.post(
-        'http://calcioa.vip/iptv/V7.php/',
+        'https://calcioa.vip/iptv/V7.php/',
         body.toString(),
         {
           headers: {
@@ -124,7 +125,6 @@ const ActivationScreen: React.FC<Props> = ({navigation}) => {
       navigation.replace('Main');
     } catch (e: any) {
       console.error(e);
-      debugger
       setError('Activation failed. Please check your code or try again later.');
       Alert.alert('Activation failed', e.message ?? 'Unknown error');
     } finally {
@@ -163,10 +163,13 @@ const ActivationScreen: React.FC<Props> = ({navigation}) => {
       </TouchableOpacity>
 
       {error && (
-        <View style={styles.errorBox}>
-          <FontAwesome5 name="exclamation-circle" color="#D8000C" size={14} />
-          <Text style={styles.errorText}> {error}</Text>
-        </View>
+        <>
+          <View style={styles.errorBox}>
+            <FontAwesome5 name="exclamation-circle" color="#D8000C" size={14} />
+            <Text style={styles.errorText}> {error}</Text>
+          </View>
+          {/* <NetworkLogger /> */}
+        </>
       )}
 
       <View style={styles.footer}>
