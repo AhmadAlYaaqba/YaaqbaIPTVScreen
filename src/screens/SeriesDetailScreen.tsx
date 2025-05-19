@@ -7,9 +7,10 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  SafeAreaView
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import { useSafeAreaInsets} from 'react-native-safe-area-context';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import {useDispatch, useSelector} from 'react-redux';
 import {RouteProp} from '@react-navigation/native';
@@ -36,7 +37,7 @@ interface Props {
 const {width} = Dimensions.get('window');
 const THUMB_W = 120;
 const THUMB_H = 80;
-const GAP = 12;
+const GAP = 14;
 
 /* ───────────────────────────── Component */
 const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {

@@ -1,6 +1,6 @@
 // src/screens/VideoPlayerScreen.tsx
 import React, {useEffect, useRef} from 'react';
-import {View, StyleSheet, Platform} from 'react-native';
+import {View, StyleSheet, Platform, Alert} from 'react-native';
 import Video, {OnLoadData, OnVideoErrorData} from 'react-native-video';
 import {VLCPlayer, VlCPlayerView} from 'react-native-vlc-media-player';
 import Orientation from 'react-native-orientation-locker';
@@ -33,6 +33,7 @@ const VideoPlayerScreen: React.FC<Props> = ({route, navigation}) => {
 
   const onError = (error: OnVideoErrorData) => {
     console.log('Video error', error);
+    Alert.alert(`Video Error ${JSON.stringify(error.error)}`);
   };
 
   useEffect(() => {
@@ -43,7 +44,7 @@ const VideoPlayerScreen: React.FC<Props> = ({route, navigation}) => {
 
     // Unlock when the screen unmounts
     return () => {
-      Orientation.lockToPortrait() // or Orientation.lockToPortrait(); if you want to force portrait
+      Orientation.lockToPortrait(); // or Orientation.lockToPortrait(); if you want to force portrait
     };
   }, [navigation]);
 
@@ -55,8 +56,7 @@ const VideoPlayerScreen: React.FC<Props> = ({route, navigation}) => {
         <VlCPlayerView
           // autoplay={true}
           url={streamUrl}
-          Orientation={"landscape"}
-
+          Orientation={'landscape'}
           // showGG={true}
           isLive={isLive}
           playInBackground={true}
@@ -65,7 +65,9 @@ const VideoPlayerScreen: React.FC<Props> = ({route, navigation}) => {
           showBack={true}
           isFull={true}
           style={{flex: 1}}
-          onLeftPress={() => {navigation.goBack()}}
+          onLeftPress={() => {
+            navigation.goBack();
+          }}
         />
         {/* <VLCPlayer
           style={[styles.video]}

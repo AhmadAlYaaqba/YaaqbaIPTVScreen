@@ -202,10 +202,10 @@ export default function HomeScreenBrand({navigation}) {
               <Text style={styles.accountTitle}>Account Information</Text>
 
               {/* Username */}
-              <View style={styles.accountRow}>
+              {/* <View style={styles.accountRow}>
                 <Text style={styles.accountLabel}>Username:</Text>
                 <Text style={styles.accountValue}>{username}</Text>
-              </View>
+              </View> */}
 
               {/* Subscription status */}
               <View style={styles.accountRow}>
@@ -271,6 +271,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2D3B55',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    paddingTop: 32,
   },
   headerTitle: {color: '#fff', fontSize: 20, fontWeight: '700'},
   headerIcons: {flexDirection: 'row'},
