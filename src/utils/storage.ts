@@ -1,14 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface WatchProgress {
-  seriesId: string;
-  episodeId: string;
+  contentId: string;
   progress: number; // in seconds
   timestamp: number;
   totalDuration: number;
-  seriesName: string;
-  episodeName: string;
+  title: string;
   thumbnail?: string;
+  seriesId?: string; // For episodes
+  episodeId?: string; // For episodes
 }
 
 interface RecentlyWatched {
@@ -20,30 +20,40 @@ interface RecentlyWatched {
 }
 
 const STORAGE_KEYS = {
-  WATCH_PROGRESS: '@watch_progress',
+  MOVIE_PROGRESS: '@movie_progress',
+  SERIES_PROGRESS: '@series_progress',
   RECENTLY_WATCHED: '@recently_watched',
 };
 
 export const storage = {
   // Save watch progress
-  saveWatchProgress: async (progress: WatchProgress) => {
+  saveWatchProgress: async (progress: WatchProgress, isMovie: boolean) => {
     try {
-      const existing = await AsyncStorage.getItem(STORAGE_KEYS.WATCH_PROGRESS);
+      const key = isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS;
+      const existing = await AsyncStorage.getItem(key);
       const progressMap = existing ? JSON.parse(existing) : {};
-      progressMap[progress.seriesId] = progress;
-      await AsyncStorage.setItem(STORAGE_KEYS.WATCH_PROGRESS, JSON.stringify(progressMap));
+      
+      // For series episodes, use both seriesId and episodeId as the key
+      const storageKey = isMovie ? progress.contentId : `${progress.seriesId}_${progress.episodeId}`;
+      progressMap[storageKey] = progress;
+      
+      await AsyncStorage.setItem(key, JSON.stringify(progressMap));
     } catch (error) {
       console.error('Error saving watch progress:', error);
     }
   },
 
-  // Get watch progress for a series
-  getWatchProgress: async (seriesId: string): Promise<WatchProgress | null> => {
+  // Get watch progress for content
+  getWatchProgress: async (contentId: string, isMovie: boolean, seriesId?: string, episodeId?: string): Promise<WatchProgress | null> => {
     try {
-      const existing = await AsyncStorage.getItem(STORAGE_KEYS.WATCH_PROGRESS);
+      const key = isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS;
+      const existing = await AsyncStorage.getItem(key);
       if (!existing) return null;
+      
       const progressMap = JSON.parse(existing);
-      return progressMap[seriesId] || null;
+      // For series episodes, use both seriesId and episodeId as the key
+      const storageKey = isMovie ? contentId : `${seriesId}_${episodeId}`;
+      return progressMap[storageKey] || null;
     } catch (error) {
       console.error('Error getting watch progress:', error);
       return null;
@@ -82,16 +92,33 @@ export const storage = {
     }
   },
 
-  // Clear watch progress for a series
-  clearWatchProgress: async (seriesId: string) => {
+  // Clear watch progress for content
+  clearWatchProgress: async (contentId: string, isMovie: boolean, seriesId?: string, episodeId?: string) => {
     try {
-      const existing = await AsyncStorage.getItem(STORAGE_KEYS.WATCH_PROGRESS);
+      const key = isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS;
+      const existing = await AsyncStorage.getItem(key);
       if (!existing) return;
+      
       const progressMap = JSON.parse(existing);
-      delete progressMap[seriesId];
-      await AsyncStorage.setItem(STORAGE_KEYS.WATCH_PROGRESS, JSON.stringify(progressMap));
+      // For series episodes, use both seriesId and episodeId as the key
+      const storageKey = isMovie ? contentId : `${seriesId}_${episodeId}`;
+      delete progressMap[storageKey];
+      
+      await AsyncStorage.setItem(key, JSON.stringify(progressMap));
     } catch (error) {
       console.error('Error clearing watch progress:', error);
+    }
+  },
+
+  // Get all progress for a type
+  getAllProgress: async (isMovie: boolean): Promise<Record<string, WatchProgress>> => {
+    try {
+      const key = isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS;
+      const existing = await AsyncStorage.getItem(key);
+      return existing ? JSON.parse(existing) : {};
+    } catch (error) {
+      console.error('Error getting all progress:', error);
+      return {};
     }
   }
 }; 

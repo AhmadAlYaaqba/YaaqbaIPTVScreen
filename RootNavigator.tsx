@@ -41,6 +41,8 @@ export type RootStackParamList = {
     episodeId?: string;
     episodeList?: any[];
     currentEpisodeIndex?: number;
+    movieId?: string;
+    continueTime?: string | number;
   };
   MovieList: {categoryId: string; categoryName: string};
   MovieDetail: {movie: any};

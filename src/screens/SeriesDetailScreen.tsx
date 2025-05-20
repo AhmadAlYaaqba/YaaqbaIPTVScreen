@@ -29,6 +29,18 @@ export type SeriesDetailNavProp = StackNavigationProp<
   RootStackParamList,
   'SeriesDetail'
 >;
+
+interface WatchProgress {
+  contentId: string;
+  progress: number;
+  timestamp: number;
+  totalDuration: number;
+  title: string;
+  thumbnail?: string;
+  seriesId?: string;
+  episodeId?: string;
+}
+
 interface Props {
   route: SeriesDetailRouteProp;
   navigation: SeriesDetailNavProp;
@@ -53,7 +65,7 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
     (s: RootState) => s.iptv,
   );
 
-  const [watchProgress, setWatchProgress] = useState<any>(null);
+  const [watchProgress, setWatchProgress] = useState<Record<string, WatchProgress>>({});
 
   /* Fetch full details */
   useEffect(() => {
@@ -86,17 +98,30 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
     [selectedSeason, episodes],
   );
 
-  // Load watch progress when component mounts
+  // Load watch progress when component mounts or season changes
   useEffect(() => {
     const loadProgress = async () => {
-      if (seriesId) {
-        const progress = await storage.getWatchProgress(seriesId);
-        console.log('seriesId ===>', progress)
-        setWatchProgress(progress);
+      if (seriesId && selectedSeason && episodes[selectedSeason]) {
+        const progressMap: Record<string, WatchProgress> = {};
+        
+        // Load progress for each episode in the current season
+        for (const episode of episodes[selectedSeason]) {
+          const progress = await storage.getWatchProgress(
+            seriesId,
+            false,
+            seriesId,
+            episode.id
+          );
+          if (progress) {
+            progressMap[episode.id] = progress;
+          }
+        }
+        
+        setWatchProgress(progressMap);
       }
     };
     loadProgress();
-  }, [seriesId]);
+  }, [seriesId, selectedSeason, episodes]);
 
   /* Play episode */
   const playEpisode = (ep: any, index: number) => {
@@ -113,13 +138,14 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
       episodeId: ep.id,
       episodeList: currentEpisodes,
       currentEpisodeIndex: index,
+      continueTime: watchProgress[ep.id] || 0
     });
   };
 
   // Render episode with continue watching indicator
   const renderEpisode = (ep: any, index: number) => {
-    const isWatched = watchProgress?.episodeId === ep.id;
-    const progress = isWatched ? (watchProgress.progress / watchProgress.totalDuration) * 100 : 0;
+    const episodeProgress = watchProgress[ep.id];
+    const progress = episodeProgress ? (episodeProgress.progress / episodeProgress.totalDuration) * 100 : 0;
 
     return (
       <TouchableOpacity
@@ -138,7 +164,7 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
           <View style={styles.thumbOverlay}>
             <FontAwesome5 name="play" size={14} color="#fff" />
           </View>
-          {isWatched && (
+          {episodeProgress && (
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: `${progress}%` }]} />
             </View>
@@ -427,7 +453,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 3,
+    height: 4,
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   progressFill: {

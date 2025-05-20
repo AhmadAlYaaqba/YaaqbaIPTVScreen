@@ -24,6 +24,7 @@ import {
   fetchMovieCategories,
   fetchMoviesInCategory,
 } from '../store/slices/iptvSlice';
+import { storage } from '../utils/storage';
 
 const { width } = Dimensions.get('window');
 const GAP = 12;
@@ -50,6 +51,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedMovie, setSelectedMovie] = useState<any>(null);
+  const [watchProgress, setWatchProgress] = useState<Record<string, any>>({});
 
   /* ─── Fetch categories once */
   useEffect(() => {
@@ -79,6 +81,21 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
       );
     }
   }, [loadingCategories, movieCategories]);
+
+  // Load watch progress when component mounts
+  useEffect(() => {
+    const loadProgress = async () => {
+      const progressMap: Record<string, any> = {};
+      for (const movie of movieList) {
+        const progress = await storage.getWatchProgress(movie.stream_id.toString(), true);
+        if (progress) {
+          progressMap[movie.stream_id] = progress;
+        }
+      }
+      setWatchProgress(progressMap);
+    };
+    loadProgress();
+  }, [movieList]);
 
   const handleCategoryPress = (id: string) => {
     if (id === activeCategory) return;
@@ -133,31 +150,41 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
     );
   };
 
-  const renderMovie = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => {
-        try {
-          if (!item.stream_id) {
-            console.warn('Movie stream_id is missing');
-            Alert.alert('Movie stream_id is missing');
-            return;
+  const renderMovie = ({ item }: { item: any }) => {
+    const progress = watchProgress[item.stream_id];
+    const progressPercent = progress ? (progress.progress / progress.totalDuration) * 100 : 0;
+
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => {
+          try {
+            if (!item.stream_id) {
+              console.warn('Movie stream_id is missing');
+              Alert.alert('Movie stream_id is missing');
+              return;
+            }
+            setSelectedMovie(item);
+          } catch (error) {
+            console.error('Error selecting movie:', error);
+            Alert.alert('Error selecting movie:' + error);
           }
-          setSelectedMovie(item);
-        } catch (error) {
-          console.error('Error selecting movie:', error);
-          Alert.alert('Error selecting movie:' + error);
-        }
-      }}>
-      <Poster uri={item.stream_icon?.trim()} style={styles.cardImage} />
-      <View style={styles.playBadge}>
-        <FontAwesome5 name="play" size={10} color="#fff" />
-      </View>
-      <Text style={styles.cardTitle} numberOfLines={1}>
-        {item.name}
-      </Text>
-    </TouchableOpacity>
-  );
+        }}>
+        <Poster uri={item.stream_icon?.trim()} style={styles.cardImage} />
+        <View style={styles.playBadge}>
+          <FontAwesome5 name="play" size={10} color="#fff" />
+        </View>
+        {progress && (
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+          </View>
+        )}
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {item.name}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   /* ─── Loading / error */
   if (loadingCategories || !activeCategory)
@@ -327,6 +354,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
                           streamUrl: url,
                           isLive: false,
                           title: selectedMovie.name || 'Unknown Movie',
+                          movieId: selectedMovie.stream_id.toString(),
                         });
                       } catch (error) {
                         console.error('Error playing movie:', error);
@@ -479,4 +507,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   playText: { color: '#fff', marginLeft: 8, fontWeight: '600' },
+
+  progressBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#E53935',
+  },
 });
