@@ -19,7 +19,7 @@ import { storage, LatestWatched } from '../utils/storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { RootState } from '../store/types';
-import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import {  useIsFocused } from '@react-navigation/native';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
