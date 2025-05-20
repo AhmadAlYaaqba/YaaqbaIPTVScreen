@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, {useEffect, useState, useRef, useMemo} from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,36 +11,41 @@ import {
   Dimensions,
   Modal,
   Alert,
-  SafeAreaView
+  SafeAreaView,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useSelector, useDispatch} from 'react-redux';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector, useDispatch } from 'react-redux';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Swiper from 'react-native-swiper';
 
-import {RootState, AppDispatch} from '../store';
+import { RootState, AppDispatch } from '../store';
 import {
   fetchMovieCategories,
   fetchMoviesInCategory,
 } from '../store/slices/iptvSlice';
 
-const {width} = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const GAP = 12;
 const CARD_W = (width - GAP * 3) / 2; // two‑column grid
 
 /* ─────────────────────────────────────────────── Component */
-const MoviesScreen: React.FC<any> = ({navigation}) => {
+const MoviesScreen: React.FC<any> = ({ navigation }) => {
   /* ─── Hooks / Redux */
   const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
   const searchRef = useRef<TextInput>(null);
 
-  const {username, password, serverDomain, serverPort} = useSelector(
+  const { username, password, serverDomain, serverPort } = useSelector(
     (s: RootState) => s.user,
   );
-  const {movieCategories, movieList, loadingCategories, loadingMovies, error} =
-    useSelector((s: RootState) => s.iptv);
+  const {
+    movieCategories,
+    movieList,
+    loadingCategories,
+    loadingMovies,
+    error,
+  } = useSelector((s: RootState) => s.iptv);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -100,11 +105,11 @@ const MoviesScreen: React.FC<any> = ({navigation}) => {
   );
 
   /* ─── Helper components */
-  const Poster = ({uri, style}: {uri?: string; style: any}) =>
+  const Poster = ({ uri, style }: { uri?: string; style: any }) =>
     uri ? (
       <FastImage
         style={style}
-        source={{uri, priority: FastImage.priority.normal}}
+        source={{ uri, priority: FastImage.priority.normal }}
         resizeMode={FastImage.resizeMode.cover}
       />
     ) : (
@@ -113,7 +118,7 @@ const MoviesScreen: React.FC<any> = ({navigation}) => {
       </View>
     );
 
-  const renderCategory = ({item}: {item: any}) => {
+  const renderCategory = ({ item }: { item: any }) => {
     const selected = item.category_id === activeCategory;
     return (
       <TouchableOpacity
@@ -128,7 +133,7 @@ const MoviesScreen: React.FC<any> = ({navigation}) => {
     );
   };
 
-  const renderMovie = ({item}: {item: any}) => (
+  const renderMovie = ({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.card}
       onPress={() => {
@@ -164,7 +169,7 @@ const MoviesScreen: React.FC<any> = ({navigation}) => {
   if (error)
     return (
       <View style={styles.center}>
-        <Text style={{color: 'red'}}>{error}</Text>
+        <Text style={{ color: 'red' }}>{error}</Text>
       </View>
     );
 
@@ -172,12 +177,12 @@ const MoviesScreen: React.FC<any> = ({navigation}) => {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, {paddingTop: insets.top + 4}]}>
+      <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <FontAwesome5 name="arrow-left" size={16} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Movies</Text>
-        <View style={{width: 16}} />
+        <View style={{ width: 16 }} />
       </View>
 
       {/* Search */}
@@ -187,7 +192,7 @@ const MoviesScreen: React.FC<any> = ({navigation}) => {
             name="search"
             size={14}
             color="#777"
-            style={{marginRight: 8}}
+            style={{ marginRight: 8 }}
           />
           <TextInput
             ref={searchRef}
@@ -211,11 +216,11 @@ const MoviesScreen: React.FC<any> = ({navigation}) => {
             {featuredMovies?.map(m => (
               <TouchableOpacity
                 key={`${activeCategory}-${m.stream_id}`}
-                style={{flex: 1}}
+                style={{ flex: 1 }}
                 onPress={() => setSelectedMovie(m)}>
                 <Poster
                   uri={m.stream_icon?.trim()}
-                  style={{width: '100%', height: '100%'}}
+                  style={{ width: '100%', height: '100%' }}
                 />
                 <View style={styles.featuredOverlay}>
                   <Text style={styles.featuredTitle}>{m.name}</Text>
@@ -251,7 +256,7 @@ const MoviesScreen: React.FC<any> = ({navigation}) => {
             justifyContent: 'space-between',
             marginBottom: GAP,
           }}
-          contentContainerStyle={{paddingHorizontal: GAP, paddingBottom: 80}}
+          contentContainerStyle={{ paddingHorizontal: GAP, paddingBottom: 80 }}
           initialNumToRender={12}
           maxToRenderPerBatch={10}
           windowSize={5}
@@ -264,7 +269,7 @@ const MoviesScreen: React.FC<any> = ({navigation}) => {
         animationType="slide"
         onRequestClose={() => setSelectedMovie(null)}>
         <SafeAreaView
-          style={{flex: 1, backgroundColor: '#fff'}}
+          style={{ flex: 1, backgroundColor: '#fff' }}
           edges={['top', 'bottom']}>
           {selectedMovie &&
             (() => {
@@ -280,7 +285,7 @@ const MoviesScreen: React.FC<any> = ({navigation}) => {
                     style={styles.modalPoster}
                   />
                   <TouchableOpacity
-                    style={[styles.modalClose, {top: insets.top + 10}]}
+                    style={[styles.modalClose, { top: insets.top + 10 }]}
                     onPress={() => setSelectedMovie(null)}>
                     <FontAwesome5 name="times" size={18} color="#fff" />
                   </TouchableOpacity>
@@ -305,7 +310,7 @@ const MoviesScreen: React.FC<any> = ({navigation}) => {
                   <TouchableOpacity
                     style={[
                       styles.playButton,
-                      {paddingBottom: insets.bottom || 16},
+                      { paddingBottom: insets.bottom || 16 },
                     ]}
                     onPress={() => {
                       try {
@@ -344,8 +349,8 @@ export default MoviesScreen;
 
 /* ─────────────────────────────── Styles */
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#F3F4F6'},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center'},
+  container: { flex: 1, backgroundColor: '#F3F4F6' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   /* Header */
   header: {
@@ -356,10 +361,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
-  headerTitle: {color: '#fff', fontSize: 18, fontWeight: 'bold'},
+  headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 
   /* Search */
-  searchContainer: {backgroundColor: '#2D3B55'},
+  searchContainer: { backgroundColor: '#2D3B55' },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -369,10 +374,10 @@ const styles = StyleSheet.create({
     marginVertical: 12,
     paddingHorizontal: 12,
   },
-  searchInput: {flex: 1, height: 40, fontSize: 14},
+  searchInput: { flex: 1, height: 40, fontSize: 14 },
 
   /* Slider */
-  sliderWrapper: {height: 180, marginBottom: 12},
+  sliderWrapper: { height: 180, marginBottom: 12 },
   featuredOverlay: {
     position: 'absolute',
     bottom: 0,
@@ -381,7 +386,7 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  featuredTitle: {color: '#fff', fontSize: 16, fontWeight: '600'},
+  featuredTitle: { color: '#fff', fontSize: 16, fontWeight: '600' },
 
   /* Category pills */
   pillContainer: {
@@ -399,9 +404,9 @@ const styles = StyleSheet.create({
     marginRight: 8,
     alignSelf: 'center',
   },
-  catPillActive: {backgroundColor: '#4A90E2'},
-  catText: {fontSize: 13, color: '#555', textAlign: 'center'},
-  catTextActive: {color: '#fff', fontWeight: '600'},
+  catPillActive: { backgroundColor: '#4A90E2' },
+  catText: { fontSize: 13, color: '#555', textAlign: 'center' },
+  catTextActive: { color: '#fff', fontWeight: '600' },
 
   /* Movie card */
   card: {
@@ -411,7 +416,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     overflow: 'hidden',
   },
-  cardImage: {width: '100%', height: CARD_W * 1.5},
+  cardImage: { width: '100%', height: CARD_W * 1.5 },
   playBadge: {
     position: 'absolute',
     top: 8,
@@ -438,7 +443,7 @@ const styles = StyleSheet.create({
   },
 
   /* Modal */
-  modalPoster: {width: '100%', height: 250},
+  modalPoster: { width: '100%', height: 250 },
   modalClose: {
     position: 'absolute',
     right: 16,
@@ -450,7 +455,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
   },
-  modalBody: {flex: 1, padding: 16},
+  modalBody: { flex: 1, padding: 16 },
   modalTitle: {
     fontSize: 22,
     fontWeight: '700',
@@ -462,8 +467,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  metaText: {color: '#555', fontSize: 14},
-  metaDot: {color: '#555', marginHorizontal: 6},
+  metaText: { color: '#555', fontSize: 14 },
+  metaDot: { color: '#555', marginHorizontal: 6 },
 
   /* Play bar */
   playButton: {
@@ -473,5 +478,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#4A90E2',
     paddingVertical: 16,
   },
-  playText: {color: '#fff', marginLeft: 8, fontWeight: '600'},
+  playText: { color: '#fff', marginLeft: 8, fontWeight: '600' },
 });

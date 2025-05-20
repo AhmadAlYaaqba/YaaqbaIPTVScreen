@@ -1,5 +1,5 @@
 // src/screens/VideoPlayerScreen.tsx
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {View, StyleSheet, Platform, Alert} from 'react-native';
 import Video, {OnLoadData, OnVideoErrorData} from 'react-native-video';
 import {VLCPlayer, VlCPlayerView} from 'react-native-vlc-media-player';
@@ -9,8 +9,25 @@ import {RouteProp} from '@react-navigation/native';
 import {RootStackParamList} from '../../RootNavigator'; // Adjust path to your stack params
 import {useSelector} from 'react-redux';
 import {RootState} from '../store';
+import {storage} from '../utils/storage';
 
-type VideoPlayerScreenRouteProp = RouteProp<RootStackParamList, 'VideoPlayer'>;
+type VideoPlayerScreenRouteProp = RouteProp<
+  RootStackParamList,
+  'VideoPlayer'
+>;
+
+// Update the RootStackParamList type in your RootNavigator.tsx to include these params
+interface VideoPlayerParams {
+  streamUrl: string;
+  channelName?: string;
+  isLive?: boolean;
+  title?: string;
+  seriesId?: string;
+  episodeId?: string;
+  episodeList?: any[];
+  currentEpisodeIndex?: number;
+}
+
 type VideoPlayerScreenNavProp = StackNavigationProp<
   RootStackParamList,
   'VideoPlayer'
@@ -22,13 +39,91 @@ interface Props {
 }
 
 const VideoPlayerScreen: React.FC<Props> = ({route, navigation}) => {
-  // streamUrl is passed from the previous screen
-  const {streamUrl, channelName, isLive, title} = route.params;
+  const {streamUrl, channelName, isLive, title, seriesId, episodeId, episodeList, currentEpisodeIndex} = route.params;
   const videoRef = useRef<any>(null);
   const playerStatus = useSelector((state: RootState) => state.user.useVLC);
+  const {username, password, serverDomain, serverPort} = useSelector(
+    (state: RootState) => state.user
+  );
+
+  const [duration, setDuration] = useState(0);
+  const [isCompleted, setIsCompleted] = useState(false);
+
+  // Save progress periodically
+  const saveProgress = async (currentProgress: number) => {
+    if (!seriesId || !episodeId || isLive) return;
+    
+    await storage.saveWatchProgress({
+      seriesId,
+      episodeId,
+      progress: currentProgress,
+      timestamp: Date.now(),
+      totalDuration: duration,
+      seriesName: title || '',
+      episodeName: title || '',
+    });
+  };
+
+  // Handle video progress
+  const onProgress = (data: any) => {
+    console.log('data ===>', data)
+    if (isLive) return;
+    const currentProgress = data.currentTime;
+    
+    // Save progress every 30 seconds
+    if (currentProgress % 30 < 1) {
+      saveProgress(currentProgress);
+    }
+
+    // Check if video is completed (within last 5 seconds)
+    if (duration > 0 && currentProgress >= duration - 5) {
+      setIsCompleted(true);
+    }
+  };
+
+  // Handle video completion
+  useEffect(() => {
+    if (isCompleted && seriesId && episodeList && currentEpisodeIndex !== undefined) {
+      const nextEpisodeIndex = currentEpisodeIndex + 1;
+      
+      if (nextEpisodeIndex < episodeList.length) {
+        // Auto-play next episode
+        const nextEpisode = episodeList[nextEpisodeIndex];
+        const ext = nextEpisode.container_extension?.replace('.', '') || 'mp4';
+        const nextUrl = `http://${serverDomain}:${serverPort}/series/${username}/${password}/${nextEpisode.id}.${ext}`;
+        
+        navigation.replace('VideoPlayer', {
+          streamUrl: nextUrl,
+          isLive: false,
+          title: nextEpisode.title,
+          seriesId,
+          episodeId: nextEpisode.id,
+          episodeList,
+          currentEpisodeIndex: nextEpisodeIndex,
+        });
+      } else {
+        // Series completed
+        storage.clearWatchProgress(seriesId);
+        navigation.goBack();
+      }
+    }
+  }, [isCompleted]);
+
+  // Save to recently watched when component mounts
+  useEffect(() => {
+    if (!isLive && (seriesId || title)) {
+      storage.saveRecentlyWatched({
+        id: seriesId || title,
+        type: seriesId ? 'series' : 'movie',
+        name: title || '',
+        timestamp: Date.now(),
+      });
+    }
+  }, []);
 
   const onLoad = (data: OnLoadData) => {
     console.log('Video loaded', data);
+    setDuration(data.duration);
   };
 
   const onError = (error: OnVideoErrorData) => {
@@ -54,10 +149,8 @@ const VideoPlayerScreen: React.FC<Props> = ({route, navigation}) => {
     return (
       <View style={styles.container}>
         <VlCPlayerView
-          // autoplay={true}
           url={streamUrl}
           Orientation={'landscape'}
-          // showGG={true}
           isLive={isLive}
           playInBackground={true}
           showTitle={!isLive}
@@ -68,6 +161,7 @@ const VideoPlayerScreen: React.FC<Props> = ({route, navigation}) => {
           onLeftPress={() => {
             navigation.goBack();
           }}
+          onProgress={onProgress}
         />
         {/* <VLCPlayer
           style={[styles.video]}
@@ -89,16 +183,11 @@ const VideoPlayerScreen: React.FC<Props> = ({route, navigation}) => {
         fullscreenAutorotate={true}
         fullscreenOrientation="landscape"
         enterPictureInPictureOnLeave={true}
-        // fullscreen={true}
-        // Show built-in controls (play/pause/seek, etc.)
         controls={true}
-        // Try "contain", "cover", or "stretch"
         resizeMode="contain"
         onLoad={onLoad}
         onError={onError}
-        // Additional props you may want:
-        // paused={false} // auto-play
-        // bufferConfig={{...}}
+        onProgress={onProgress}
       />
     </View>
   );

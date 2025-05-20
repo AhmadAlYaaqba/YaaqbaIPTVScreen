@@ -18,6 +18,7 @@ import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList} from '../../RootNavigator';
 import {RootState, AppDispatch} from '../store';
 import {fetchSeriesInfo} from '../store/slices/iptvSlice';
+import { storage } from '../utils/storage';
 
 /* ───────────────────────────── Types */
 export type SeriesDetailRouteProp = RouteProp<
@@ -52,6 +53,8 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
     (s: RootState) => s.iptv,
   );
 
+  const [watchProgress, setWatchProgress] = useState<any>(null);
+
   /* Fetch full details */
   useEffect(() => {
     navigation.setOptions({title: seriesName});
@@ -83,13 +86,69 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
     [selectedSeason, episodes],
   );
 
+  // Load watch progress when component mounts
+  useEffect(() => {
+    const loadProgress = async () => {
+      if (seriesId) {
+        const progress = await storage.getWatchProgress(seriesId);
+        console.log('seriesId ===>', progress)
+        setWatchProgress(progress);
+      }
+    };
+    loadProgress();
+  }, [seriesId]);
+
   /* Play episode */
-  const playEpisode = (ep: any) => {
+  const playEpisode = (ep: any, index: number) => {
     if (!ep) return;
     const url = `http://${serverDomain}:${serverPort}/series/${username}/${password}/${
       ep.id
     }.${ep.container_extension || 'mp4'}`;
-    navigation.navigate('VideoPlayer', {streamUrl: url});
+    
+    navigation.navigate('VideoPlayer', {
+      streamUrl: url,
+      isLive: false,
+      title: ep.title,
+      seriesId: seriesId,
+      episodeId: ep.id,
+      episodeList: currentEpisodes,
+      currentEpisodeIndex: index,
+    });
+  };
+
+  // Render episode with continue watching indicator
+  const renderEpisode = (ep: any, index: number) => {
+    const isWatched = watchProgress?.episodeId === ep.id;
+    const progress = isWatched ? (watchProgress.progress / watchProgress.totalDuration) * 100 : 0;
+
+    return (
+      <TouchableOpacity
+        key={ep.id}
+        style={styles.epCard}
+        onPress={() => playEpisode(ep, index)}>
+        <View style={styles.thumbWrapper}>
+          {ep.info.movie_image ? (
+            <FastImage
+              source={{uri: ep.info.movie_image}}
+              style={styles.thumbImg}
+            />
+          ) : (
+            <View style={[styles.thumbImg, {backgroundColor: '#ccc'}]} />
+          )}
+          <View style={styles.thumbOverlay}>
+            <FontAwesome5 name="play" size={14} color="#fff" />
+          </View>
+          {isWatched && (
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: `${progress}%` }]} />
+            </View>
+          )}
+        </View>
+        <Text style={styles.epTitle} numberOfLines={2}>
+          {ep.title}
+        </Text>
+      </TouchableOpacity>
+    );
   };
 
   /* Loading / error states */
@@ -169,7 +228,7 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
             <View style={styles.playRow}>
               <TouchableOpacity
                 style={[styles.playBtn, {flex: 1}]}
-                onPress={() => playEpisode(currentEpisodes[0])}>
+                onPress={() => playEpisode(currentEpisodes[0], 0)}>
                 <FontAwesome5 name="play" size={14} color="#fff" />
                 <Text style={styles.playText}>Play</Text>
               </TouchableOpacity>
@@ -235,29 +294,7 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
 
         {/* ───── Episodes grid ───── */}
         <View style={styles.episodeGrid}>
-          {currentEpisodes.map(ep => (
-            <TouchableOpacity
-              key={ep.id}
-              style={styles.epCard}
-              onPress={() => playEpisode(ep)}>
-              <View style={styles.thumbWrapper}>
-                {ep.info.movie_image ? (
-                  <FastImage
-                    source={{uri: ep.info.movie_image}}
-                    style={styles.thumbImg}
-                  />
-                ) : (
-                  <View style={[styles.thumbImg, {backgroundColor: '#ccc'}]} />
-                )}
-                <View style={styles.thumbOverlay}>
-                  <FontAwesome5 name="play" size={14} color="#fff" />
-                </View>
-              </View>
-              <Text style={styles.epTitle} numberOfLines={2}>
-                {ep.title}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {currentEpisodes.map((ep, index) => renderEpisode(ep, index))}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -385,4 +422,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   epTitle: {marginTop: 4, fontSize: 12, color: '#2D3B55', textAlign: 'center'},
+  progressBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#E53935',
+  },
 });
