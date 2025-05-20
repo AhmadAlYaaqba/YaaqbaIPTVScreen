@@ -48,6 +48,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     currentEpisodeIndex,
     movieId,
     continueTime,
+    thumbnail = '',
   } = route.params;
   const videoRef = useRef<any>(null);
   const playerStatus = useSelector((state: RootState) => state.user.useVLC);
@@ -134,11 +135,40 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   // Save to recently watched when component mounts
   useEffect(() => {
     if (!isLive && (seriesId || movieId)) {
+      // Save to recently watched (all episodes)
       storage.saveRecentlyWatched({
         id: seriesId || movieId || '',
         type: seriesId ? 'series' : 'movie',
         name: title || '',
         timestamp: Date.now(),
+        progress: 0,
+        totalDuration: duration,
+        seriesId,
+        episodeId,
+        thumbnail, // You can add thumbnail if available
+      });
+
+      // Save to latest watched (only latest episode per series)
+      storage.saveLatestWatched({
+        id: seriesId || movieId || '',
+        type: seriesId ? 'series' : 'movie',
+        name: title || '',
+        timestamp: Date.now(),
+        progress: 0,
+        totalDuration: duration,
+        seriesId,
+        episodeId,
+        thumbnail, // You can add thumbnail if available
+      });
+    } else if (isLive && channelName) {
+      // Save live stream to latest watched only
+      storage.saveLatestWatched({
+        id: streamUrl,
+        type: 'live',
+        name: channelName,
+        timestamp: Date.now(),
+        channelName,
+        thumbnail, // You can add thumbnail if available
       });
     }
   }, []);

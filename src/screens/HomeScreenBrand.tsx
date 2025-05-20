@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,28 +8,46 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import {useDispatch, useSelector} from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import * as Keychain from 'react-native-keychain';
-import {clearUserCredentials} from '../store/slices/userSlice';
-import LiveTvImage from '../assets/livetv.jpg';
-import MoviesImage from '../assets/movies-tv.jpg';
-import seriresImage from '../assets/series-tv.jpg';
+import { clearUserCredentials } from '../store/slices/userSlice';
 import axios from 'axios';
+import { storage, LatestWatched } from '../utils/storage';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/types';
+import { RootState } from '../store/types';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+
+type HomeScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'Home'
+>;
+
+interface HomeScreenProps {
+  navigation: HomeScreenNavigationProp;
+}
 
 type CategoryItem = {
   id: string;
-  name: string;
-  navigateName: string;
-  imageUrl: any; // React Native resolves imported images to a number
+  title: string;
+  image: any; // React Native resolves imported images to a number
+  onPress: () => void;
   description: string;
 };
 
-export default function HomeScreenBrand({navigation}) {
-  const dispatch = useDispatch();
+// Import images
+const liveTvImage = require('../assets/livetv.jpg');
+const moviesImage = require('../assets/movies-tv.jpg');
+const seriesImage = require('../assets/series-tv.jpg');
 
-  const {username, password, serverDomain, serverPort} = useSelector(
+export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
+  const dispatch = useDispatch();
+  const isFocused = useIsFocused();
+
+  const { username, password, serverDomain, serverPort } = useSelector(
     (s: RootState) => s.user,
   );
 
@@ -39,6 +57,7 @@ export default function HomeScreenBrand({navigation}) {
     created_at: string;
   }>(null);
   const [loadingAccount, setLoadingAccount] = useState(true);
+  const [recentWatches, setRecentWatches] = useState<RecentlyWatched[]>([]);
 
   useEffect(() => {
     const fetchAccountInfo = async () => {
@@ -72,49 +91,38 @@ export default function HomeScreenBrand({navigation}) {
     fetchAccountInfo();
   }, [username, password, serverDomain, serverPort]);
 
+  // Load recent watches
+  useEffect(() => {
+    const loadRecentWatches = async () => {
+      const watches = await storage.getLatestWatched();
+      setRecentWatches(watches);
+    };
+    if (isFocused) loadRecentWatches();
+  }, [isFocused]);
+
   const categories: CategoryItem[] = [
     {
-      id: 'live-tv',
-      name: 'Live TV',
-      navigateName: 'LiveTV',
-      imageUrl: LiveTvImage,
+      id: '1',
+      title: 'Live TV',
+      image: liveTvImage,
       description: 'Watch live channels from around the world',
+      onPress: () => navigation.navigate('LiveTV'),
     },
     {
-      id: 'movies',
-      name: 'Movies',
-      navigateName: 'Movies',
-      imageUrl: MoviesImage,
+      id: '2',
+      title: 'Movies',
+      image: moviesImage,
       description: 'Explore thousands of movies on demand',
+      onPress: () => navigation.navigate('Movies'),
     },
     {
-      id: 'series',
-      name: 'Series',
-      navigateName: 'Series',
-      imageUrl: seriresImage,
+      id: '3',
+      title: 'Series',
+      image: seriesImage,
       description: 'Binge watch your favorite TV shows',
+      onPress: () => navigation.navigate('Series'),
     },
   ];
-
-  const continueWatching = [
-    {
-      title: 'Breaking News',
-      channel: 'World News 24',
-      type: 'Live TV',
-      progress: 45,
-      image:
-        'https://images.unsplash.com/photo-1525182008055-f88b95ff7980?auto=format&fit=crop&w=600&q=80',
-    },
-    {
-      title: 'The Last Kingdom',
-      episode: 'S04E08',
-      type: 'Series',
-      progress: 75,
-      image:
-        'https://images.unsplash.com/photo-1606112219348-204d7d8b94ee?auto=format&fit=crop&w=600&q=80',
-    },
-  ];
-
   /* ------------------------------------------------------------------ */
 
   return (
@@ -155,47 +163,100 @@ export default function HomeScreenBrand({navigation}) {
         </View>
 
         {/* Categories */}
-        {categories.map(cat => (
-          <TouchableOpacity
-            key={cat.id}
-            style={styles.card}
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate(cat.navigateName)}>
-            <Image source={cat.imageUrl} style={styles.cardImage} />
-            <View style={styles.cardTextBox}>
-              <Text style={styles.cardTitle}>{cat.name}</Text>
-              <Text style={styles.cardDesc}>{cat.description}</Text>
-            </View>
-            <FontAwesome5 name="chevron-right" size={18} color="#4A90E2" />
-          </TouchableOpacity>
-        ))}
-
-        {/* Continue Watching */}
-        {/* <Text style={styles.sectionTitle}>Continue Watching</Text>
-        <View style={styles.continueGrid}>
-          {continueWatching.map((item, idx) => (
-            <TouchableOpacity key={idx} style={styles.continueCard}>
-              <Image source={{uri: item.image}} style={styles.continueImage} />
-              <View style={styles.progressBarWrapper}>
-                <View
-                  style={[styles.progressBar, {width: `${item.progress}%`}]}
-                />
-              </View>
-              <View style={styles.continueTextBox}>
-                <Text style={styles.continueTitle} numberOfLines={1}>
-                  {item.title}
-                </Text>
-                <Text style={styles.continueSubtitle}>
-                  {item.channel || item.episode} • {item.type}
-                </Text>
+        <View style={styles.categoriesContainer}>
+          {categories.map(cat => (
+            <TouchableOpacity
+              key={cat.id}
+              style={styles.card}
+              activeOpacity={0.8}
+              onPress={cat.onPress}>
+              <Image source={cat.image} style={styles.cardImage} />
+              <View style={styles.cardTextBox}>
+                <Text style={styles.cardTitle}>{cat.title}</Text>
+                <Text style={styles.cardDesc}>{cat.description}</Text>
               </View>
             </TouchableOpacity>
           ))}
-        </View> */}
+        </View>
+
+
+        {/* Recent Watches */}
+        <Text style={styles.sectionTitle}>Recent Watches</Text>
+        <View style={styles.continueGrid}>
+          {recentWatches.map((item, idx) => {
+            console.log('item ===>', item);
+            const progress =
+              item.progress && item.totalDuration
+                ? (item.progress / item.totalDuration) * 100
+                : 0;
+            const placeholderImage =
+              item.type === 'series'
+                ? seriesImage
+                : item.type === 'movie'
+                ? moviesImage
+                : liveTvImage;
+            return (
+              <TouchableOpacity
+                key={idx}
+                style={styles.continueCard}
+                onPress={() => {
+                  if (item.type === 'series') {
+                    navigation.navigate('SeriesDetail', {
+                      seriesId: item.seriesId || '',
+                      seriesName: item.name,
+                    });
+                  } else if (item.type === 'movie') {
+                    const url = `http://${serverDomain}:${serverPort}/movie/${username}/${password}/${item.id}.mp4`;
+                    navigation.navigate('VideoPlayer', {
+                      streamUrl: url,
+                      isLive: false,
+                      title: item.name,
+                      movieId: item.id,
+                      thumbnail: item.thumbnail,
+                      continueTime: {progress: item.progress},
+                    });
+                  } else if (item.type === 'live') {
+                    const url = `http://${serverDomain}:${serverPort}/live/${username}/${password}/${item.id}.ts`;
+                    navigation.navigate('VideoPlayer', {
+                      streamUrl: url,
+                      isLive: true,
+                      title: item.channelName || item.name,
+                    });
+                  }
+                }}>
+                <Image
+                  source={
+                    item.thumbnail ? { uri: item.thumbnail } : placeholderImage
+                  }
+                  style={styles.continueImage}
+                />
+                {(item.type === 'movie' || item.type === 'series') && (
+                  <View style={styles.progressBarWrapper}>
+                    <View
+                      style={[styles.progressBar, { width: `${progress}%` }]}
+                    />
+                  </View>
+                )}
+                <View style={styles.continueTextBox}>
+                  <Text style={styles.continueTitle} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.continueSubtitle}>
+                    {item.type === 'series' && item.episodeNumber
+                      ? `S${item.seasonNumber}E${item.episodeNumber}`
+                      : item.type === 'live'
+                      ? item.channelName
+                      : item.type}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
         {/* ------------ NEW: Account Information block ------------- */}
         {loadingAccount ? (
-          <ActivityIndicator style={{marginTop: 16}} size="large" />
+          <ActivityIndicator style={{ marginTop: 16 }} size="large" />
         ) : (
           accountInfo && (
             <View style={styles.accountBox}>
@@ -256,7 +317,7 @@ export default function HomeScreenBrand({navigation}) {
 const styles = StyleSheet.create({
   /* layout */
   // container: {flex: 1, backgroundColor: '#2D3B55'},
-  container: {flex: 1, backgroundColor: '#F3F4F6'},
+  container: { flex: 1, backgroundColor: '#F3F4F6' },
   scrollContent: {
     padding: 16,
     paddingBottom: 20, // enough space above tab bar
@@ -273,8 +334,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingTop: 32,
   },
-  headerTitle: {color: '#fff', fontSize: 20, fontWeight: '700'},
-  headerIcons: {flexDirection: 'row'},
+  headerTitle: { color: '#fff', fontSize: 20, fontWeight: '700' },
+  headerIcons: { flexDirection: 'row' },
   iconButton: {
     width: 32,
     height: 32,
@@ -286,9 +347,9 @@ const styles = StyleSheet.create({
   },
 
   /* welcome */
-  welcomeBox: {marginBottom: 16},
-  welcomeTitle: {fontSize: 24, fontWeight: '600', color: '#2D3B55'},
-  welcomeSubtitle: {fontSize: 16, color: '#555', marginTop: 4},
+  welcomeBox: { marginBottom: 16 },
+  welcomeTitle: { fontSize: 24, fontWeight: '600', color: '#2D3B55' },
+  welcomeSubtitle: { fontSize: 16, color: '#555', marginTop: 4 },
 
   /* category cards */
   card: {
@@ -300,10 +361,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     padding: 10,
   },
-  cardImage: {width: 80, height: 80, borderRadius: 40, marginRight: 12},
-  cardTextBox: {flex: 1},
-  cardTitle: {fontSize: 18, fontWeight: '600', color: '#2D3B55'},
-  cardDesc: {fontSize: 14, color: '#555', marginTop: 4},
+  cardImage: { width: 80, height: 80, borderRadius: 40, marginRight: 12 },
+  cardTextBox: { flex: 1 },
+  cardTitle: { fontSize: 18, fontWeight: '600', color: '#2D3B55' },
+  cardDesc: { fontSize: 14, color: '#555', marginTop: 4 },
 
   /* section title */
   sectionTitle: {
@@ -325,6 +386,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     elevation: 2,
     marginBottom: 12,
+    overflow: 'hidden',
   },
   continueImage: {
     width: '100%',
@@ -340,10 +402,10 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: '#e0e0e0',
   },
-  progressBar: {height: '100%', backgroundColor: '#4A90E2'},
-  continueTextBox: {padding: 8},
-  continueTitle: {fontSize: 14, fontWeight: '500', color: '#2D3B55'},
-  continueSubtitle: {fontSize: 12, color: '#888', marginTop: 2},
+  progressBar: { height: '100%', backgroundColor: '#E53935' },
+  continueTextBox: { padding: 8 },
+  continueTitle: { fontSize: 14, fontWeight: '500', color: '#2D3B55' },
+  continueSubtitle: { fontSize: 12, color: '#888', marginTop: 2 },
 
   /* ------------ Account Information ------------ */
   accountBox: {
@@ -365,9 +427,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  accountLabel: {color: '#666', fontSize: 14},
-  accountValue: {fontSize: 14, fontWeight: '600', color: '#2D3B55'},
-  expireWrapper: {flexDirection: 'row', alignItems: 'center'},
+  accountLabel: { color: '#666', fontSize: 14 },
+  accountValue: { fontSize: 14, fontWeight: '600', color: '#2D3B55' },
+  expireWrapper: { flexDirection: 'row', alignItems: 'center' },
 
   extendBtn: {
     marginTop: 20,
@@ -376,5 +438,5 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
-  extendBtnText: {color: '#fff', fontSize: 15, fontWeight: '600'},
+  extendBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

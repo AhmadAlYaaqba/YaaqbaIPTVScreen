@@ -43,6 +43,7 @@ export type RootStackParamList = {
     currentEpisodeIndex?: number;
     movieId?: string;
     continueTime?: string | number;
+    thumbnail?: string;
   };
   MovieList: {categoryId: string; categoryName: string};
   MovieDetail: {movie: any};

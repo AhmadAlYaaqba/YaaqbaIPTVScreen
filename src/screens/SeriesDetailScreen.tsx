@@ -138,7 +138,8 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
       episodeId: ep.id,
       episodeList: currentEpisodes,
       currentEpisodeIndex: index,
-      continueTime: watchProgress[ep.id] || 0
+      continueTime: watchProgress[ep.id] || 0,
+      thumbnail: info.backdrop_path?.[0] || info.cover,
     });
   };
 

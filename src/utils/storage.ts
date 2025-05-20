@@ -7,15 +7,39 @@ interface WatchProgress {
   totalDuration: number;
   title: string;
   thumbnail?: string;
-  seriesId?: string; // For episodes
-  episodeId?: string; // For episodes
+  seriesId?: string;
+  episodeId?: string;
+  episodeNumber?: string;
+  seasonNumber?: string;
 }
 
-interface RecentlyWatched {
+export interface RecentlyWatched {
   id: string;
-  type: 'movie' | 'series';
   name: string;
+  type: 'movie' | 'series' | 'live';
   thumbnail?: string;
+  progress?: number;
+  totalDuration?: number;
+  seriesId?: string;
+  episodeId?: string;
+  episodeNumber?: number;
+  seasonNumber?: number;
+  channelName?: string;
+  timestamp: number;
+}
+
+export interface LatestWatched {
+  id: string;
+  name: string;
+  type: 'movie' | 'series' | 'live';
+  thumbnail?: string;
+  progress?: number;
+  totalDuration?: number;
+  seriesId?: string;
+  episodeId?: string;
+  episodeNumber?: number;
+  seasonNumber?: number;
+  channelName?: string;
   timestamp: number;
 }
 
@@ -23,6 +47,7 @@ const STORAGE_KEYS = {
   MOVIE_PROGRESS: '@movie_progress',
   SERIES_PROGRESS: '@series_progress',
   RECENTLY_WATCHED: '@recently_watched',
+  LATEST_WATCHED: '@latest_watched',
 };
 
 export const storage = {
@@ -73,7 +98,7 @@ export const storage = {
       filtered.unshift(item);
       
       // Keep only last 20 items
-      const trimmed = filtered.slice(0, 20);
+      const trimmed = filtered.slice(0, 30);
       
       await AsyncStorage.setItem(STORAGE_KEYS.RECENTLY_WATCHED, JSON.stringify(trimmed));
     } catch (error) {
@@ -120,5 +145,76 @@ export const storage = {
       console.error('Error getting all progress:', error);
       return {};
     }
-  }
+  },
+
+  // Save to latest watched (only keeps latest episode per series)
+  saveLatestWatched: async (item: LatestWatched) => {
+    try {
+      const existing = await AsyncStorage.getItem(STORAGE_KEYS.LATEST_WATCHED);
+      const latest = existing ? JSON.parse(existing) : [];
+      
+      // Remove if already exists (to avoid duplicates)
+      const filtered = latest.filter((i: LatestWatched) => {
+        if (i.type === 'series' && item.type === 'series') {
+          // For series, only keep the latest episode
+          return i.seriesId !== item.seriesId;
+        }
+        return i.id !== item.id;
+      });
+      
+      // Add to beginning
+      filtered.unshift(item);
+      
+      // Keep only last 10 items
+      const trimmed = filtered.slice(0, 10);
+      
+      await AsyncStorage.setItem(STORAGE_KEYS.LATEST_WATCHED, JSON.stringify(trimmed));
+    } catch (error) {
+      console.error('Error saving latest watched:', error);
+    }
+  },
+
+  // Get latest watched items
+  getLatestWatched: async (): Promise<LatestWatched[]> => {
+    try {
+      const existing = await AsyncStorage.getItem(STORAGE_KEYS.LATEST_WATCHED);
+      const mappedItems = existing ? JSON.parse(existing) : [];
+      
+      // Fetch progress for each item
+      const itemsWithProgress = await Promise.all(
+        mappedItems.map(async (item: LatestWatched) => {
+          if (item.type === 'series' && item.seriesId && item.episodeId) {
+            const progress = await storage.getWatchProgress(
+              item.seriesId,
+              false,
+              item.seriesId,
+              item.episodeId
+            );
+            if (progress) {
+              return {
+                ...item,
+                progress: progress.progress,
+                totalDuration: progress.totalDuration,
+              };
+            }
+          } else if (item.type === 'movie') {
+            const progress = await storage.getWatchProgress(item.id, true);
+            if (progress) {
+              return {
+                ...item,
+                progress: progress.progress,
+                totalDuration: progress.totalDuration,
+              };
+            }
+          }
+          return item;
+        })
+      );
+      
+      return itemsWithProgress;
+    } catch (error) {
+      console.error('Error getting latest watched:', error);
+      return [];
+    }
+  },
 }; 

@@ -355,6 +355,8 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
                           isLive: false,
                           title: selectedMovie.name || 'Unknown Movie',
                           movieId: selectedMovie.stream_id.toString(),
+                          continueTime: watchProgress[selectedMovie.stream_id],
+                          thumbnail: selectedMovie.stream_icon,
                         });
                       } catch (error) {
                         console.error('Error playing movie:', error);
