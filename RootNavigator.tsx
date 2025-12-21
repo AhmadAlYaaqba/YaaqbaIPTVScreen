@@ -26,6 +26,7 @@ import {setUserCredentials} from './src/store/slices/userSlice';
 
 export type RootStackParamList = {
   Login: undefined;
+  Main: undefined;
   Home: undefined;
   Live: undefined;
   Movies: undefined;
@@ -42,14 +43,14 @@ export type RootStackParamList = {
     episodeList?: any[];
     currentEpisodeIndex?: number;
     movieId?: string;
-    continueTime?: string | number;
+    continueTime?: {progress: number; totalDuration?: number} | null;
     thumbnail?: string;
   };
   MovieList: {categoryId: string; categoryName: string};
   MovieDetail: {movie: any};
   SeriesCategories: undefined;
   SeriesList: {categoryId: string; categoryName: string};
-  SeriesDetail: {seriesId: string; seriesName: string};
+  SeriesDetail: {seriesId: string; seriesName: string; baseInfo?: any};
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -77,17 +78,15 @@ const RootNavigator = () => {
           );
         } else {
           // No credentials found
-          console.log('No saved credentials in Keychain');
+          if (__DEV__) console.log('No saved credentials in Keychain');
         }
       } catch (error) {
-        console.log('Keychain error: ', error);
-      } finally {
-        // setCheckingKeychain(false);
+        if (__DEV__) console.log('Keychain error: ', error);
       }
     };
 
     restoreCredentials();
-  });
+  }, [dispatch]);
 
   return (
     <Stack.Navigator

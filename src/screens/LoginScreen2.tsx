@@ -115,7 +115,7 @@ const LoginScreen: React.FC<Props> = ({navigation}) => {
 
       try {
         const response = await axios.post(
-          'http://calcioa.vip/iptv/V7.php/',
+          'https://v0-next-js-proxy-api.vercel.app/api/proxy?url=http://calcioa.vip/iptv/V7.php/',
           formBody.toString(),
           {
             headers: {

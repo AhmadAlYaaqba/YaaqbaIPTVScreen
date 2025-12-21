@@ -23,7 +23,7 @@ import {
 const {width} = Dimensions.get('window');
 const CARD_SIZE = (width - 56) / 3; // 3‑column grid with 16px gutter
 
-const LiveTVScreen = ({navigation}) => {
+const LiveTVScreen: React.FC<any> = ({navigation}) => {
   const dispatch = useDispatch<AppDispatch>();
 
   // credentials
@@ -35,7 +35,7 @@ const LiveTVScreen = ({navigation}) => {
   const {liveCategories, liveChannels, loadingCategories, loading, error} =
     useSelector((state: RootState) => state.iptv);
 
-  const [activeCategory, setActiveCategory] = useState(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   // initial fetch categories
@@ -70,7 +70,7 @@ const LiveTVScreen = ({navigation}) => {
   }, [activeCategory, liveCategories, dispatch]);
 
   // ---------- render helpers ---------- //
-  const renderCategoryPill = ({item}) => {
+  const renderCategoryPill = ({item}: {item: any}) => {
     const isActive = item.category_id === activeCategory;
     return (
       <TouchableOpacity
@@ -85,9 +85,10 @@ const LiveTVScreen = ({navigation}) => {
   };
 
   const renderChannelCard = useCallback(
-    ({item}) => {
+    ({item}: {item: any}) => {
       const icon = item.stream_icon || item.icon || null;
-      const streamUrl = `http://${serverDomain}:${serverPort}/live/${username}/${password}/${item.stream_id}.m3u8`;
+      const originalStreamUrl = `http://${serverDomain}:${serverPort}/live/${username}/${password}/${item.stream_id}.m3u8`;
+      const streamUrl = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalStreamUrl)}`;
 
       return (
         <TouchableOpacity
@@ -97,6 +98,7 @@ const LiveTVScreen = ({navigation}) => {
               streamUrl,
               channelName: item.name,
               isLive: true,
+              thumbnail: icon,
             })
           }>
           {icon ? (

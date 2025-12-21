@@ -8,3 +8,8 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+-keep class com.google.android.exoplayer2.** { *; }
+-keep class com.google.android.exoplayer2.source.** { *; }
+-keep class com.google.android.exoplayer2.upstream.** { *; }
+-keep class com.google.android.exoplayer2.extractor.** { *; }
+-dontwarn com.google.android.exoplayer2.**

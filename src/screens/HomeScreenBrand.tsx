@@ -62,7 +62,8 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
   useEffect(() => {
     const fetchAccountInfo = async () => {
       try {
-        const url = `http://${serverDomain}:${serverPort}/player_api.php?username=${username}&password=${password}&action=get_account_info`;
+        const originalUrl = `http://${serverDomain}:${serverPort}/player_api.php?username=${username}&password=${password}&action=get_account_info`;
+        const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
 
         const res = await axios.get(url);
         setAccountInfo({
@@ -83,7 +84,7 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
         dispatch(clearUserCredentials());
         navigation.navigate('Login');
 
-        console.warn('Account info fetch failed', e);
+        if (__DEV__) console.warn('Account info fetch failed', e);
       } finally {
         setLoadingAccount(false);
       }
@@ -184,7 +185,7 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
         <Text style={styles.sectionTitle}>Recent Watches</Text>
         <View style={styles.continueGrid}>
           {recentWatches.map((item, idx) => {
-            console.log('item ===>', item);
+            if (__DEV__) console.log('item ===>', item);
             const progress =
               item.progress && item.totalDuration
                 ? (item.progress / item.totalDuration) * 100
@@ -206,7 +207,8 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
                       seriesName: item.name,
                     });
                   } else if (item.type === 'movie') {
-                    const url = `http://${serverDomain}:${serverPort}/movie/${username}/${password}/${item.id}.mp4`;
+                    const originalUrl = `http://${serverDomain}:${serverPort}/movie/${username}/${password}/${item.id}.mp4`;
+                    const url = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalUrl)}`;
                     navigation.navigate('VideoPlayer', {
                       streamUrl: url,
                       isLive: false,
@@ -216,7 +218,8 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
                       continueTime: {progress: item.progress},
                     });
                   } else if (item.type === 'live') {
-                    const url = `http://${serverDomain}:${serverPort}/live/${username}/${password}/${item.id}.ts`;
+                    const originalUrl = `http://${serverDomain}:${serverPort}/live/${username}/${password}/${item.id}.ts`;
+                    const url = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalUrl)}`;
                     navigation.navigate('VideoPlayer', {
                       streamUrl: url,
                       isLive: true,

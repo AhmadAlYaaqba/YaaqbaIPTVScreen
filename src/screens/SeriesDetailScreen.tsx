@@ -83,7 +83,7 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
 
   /* Local state */
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
-  console.log('selectedSeriesInfo ==>', selectedSeriesInfo);
+  if (__DEV__) console.log('selectedSeriesInfo ==>', selectedSeriesInfo);
   const info = baseInfo ?? selectedSeriesInfo?.info ?? ({} as any);
   const episodes =
     selectedSeriesInfo?.episodes ?? ({} as Record<string, any[]>);
@@ -126,9 +126,10 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
   /* Play episode */
   const playEpisode = (ep: any, index: number) => {
     if (!ep) return;
-    const url = `http://${serverDomain}:${serverPort}/series/${username}/${password}/${
+    const originalUrl = `http://${serverDomain}:${serverPort}/series/${username}/${password}/${
       ep.id
     }.${ep.container_extension || 'mp4'}`;
+    const url = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalUrl)}`;
     
     navigation.navigate('VideoPlayer', {
       streamUrl: url,

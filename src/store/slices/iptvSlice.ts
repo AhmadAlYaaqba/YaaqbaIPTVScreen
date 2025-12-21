@@ -71,6 +71,8 @@ interface IPTVState {
   seriesList: SeriesItem[];
   selectedSeriesInfo: SeriesInfo | null; // data from get_series_info
   loading: boolean;
+  loadingCategories: boolean;
+  loadingMovies: boolean;
   error: string | null;
 }
 
@@ -83,6 +85,8 @@ const initialState: IPTVState = {
   seriesList: [],
   selectedSeriesInfo: null,
   loading: false,
+  loadingCategories: false,
+  loadingMovies: false,
   error: null,
 };
 
@@ -101,7 +105,8 @@ export const fetchLiveChannels = createAsyncThunk(
     port: string;
   }) => {
     // For Xtream: get_live_categories or get_live_streams
-    const url = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_live_categories`;
+    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_live_categories`;
+    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
     const response = await axios.get(url);
     return response.data;
   },
@@ -121,7 +126,8 @@ export const fetchSeries = createAsyncThunk(
     domain: string;
     port: string;
   }) => {
-    const url = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_series_categories`;
+    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_series_categories`;
+    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
     const response = await axios.get(url);
     return response.data;
   },
@@ -141,7 +147,8 @@ export const fetchMovieCategories = createAsyncThunk(
     domain: string;
     port: string;
   }) => {
-    const url = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_vod_categories`;
+    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_vod_categories`;
+    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
     const response = await axios.get(url);
     return response.data as MovieCategory[];
   },
@@ -164,7 +171,8 @@ export const fetchMoviesInCategory = createAsyncThunk(
     categoryId: string;
   }) => {
     // e.g. http://domain:port/player_api.php?username=USER&password=PASS&action=get_vod_streams&category_id=XX
-    const url = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_vod_streams&category_id=${categoryId}`;
+    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_vod_streams&category_id=${categoryId}`;
+    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
     const response = await axios.get(url);
     return response.data as MovieStream[];
   },
@@ -187,7 +195,8 @@ export const fetchLiveStreamsByCategory = createAsyncThunk(
   }) => {
     // e.g.:
     //  http://DOMAIN:PORT/player_api.php?username=USER&password=PASS&action=get_live_streams&category_id=XX
-    const url = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_live_streams&category_id=${categoryId}`;
+    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_live_streams&category_id=${categoryId}`;
+    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
     const response = await axios.get(url);
 
     // The response is typically an array of channels. Might need transformation:
@@ -213,7 +222,8 @@ export const fetchSeriesCategories = createAsyncThunk(
     domain: string;
     port: string;
   }) => {
-    const url = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_series_categories`;
+    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_series_categories`;
+    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
     const response = await axios.get(url);
     return response.data as SeriesCategory[];
   },
@@ -235,7 +245,8 @@ export const fetchSeriesByCategory = createAsyncThunk(
     port: string;
     categoryId: string;
   }) => {
-    const url = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_series&category_id=${categoryId}`;
+    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_series&category_id=${categoryId}`;
+    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
     const response = await axios.get(url);
     return response.data as SeriesItem[];
   },
@@ -257,7 +268,8 @@ export const fetchSeriesInfo = createAsyncThunk(
     port: string;
     seriesId: string;
   }) => {
-    const url = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_series_info&series_id=${seriesId}`;
+    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_series_info&series_id=${seriesId}`;
+    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
     const response = await axios.get(url);
     return response.data as SeriesInfo;
   },
@@ -271,19 +283,19 @@ const iptvSlice = createSlice({
     // ============== FETCH LIVE CATEGORIES ==============
     builder
       .addCase(fetchLiveChannels.pending, state => {
-        state.loading = true;
+        state.loadingCategories = true;
         state.error = null;
       })
       .addCase(
         fetchLiveChannels.fulfilled,
         (state, action: PayloadAction<Category[]>) => {
-          state.loading = false;
+          state.loadingCategories = false;
           state.liveCategories = action.payload; // parse as needed
         },
       )
       .addCase(fetchLiveChannels.rejected, (state, action) => {
-        console.log('error =>', action.error.message);
-        state.loading = false;
+        if (__DEV__) console.log('error =>', action.error.message);
+        state.loadingCategories = false;
         state.error = action.error.message || 'Failed to fetch live categories';
       });
 
@@ -308,18 +320,18 @@ const iptvSlice = createSlice({
     // ============== FETCH MOVIE CATEGORIES ==============
     builder
       .addCase(fetchMovieCategories.pending, state => {
-        state.loading = true;
+        state.loadingCategories = true;
         state.error = null;
       })
       .addCase(
         fetchMovieCategories.fulfilled,
         (state, action: PayloadAction<MovieCategory[]>) => {
-          state.loading = false;
+          state.loadingCategories = false;
           state.movieCategories = action.payload;
         },
       )
       .addCase(fetchMovieCategories.rejected, (state, action) => {
-        state.loading = false;
+        state.loadingCategories = false;
         state.error =
           action.error.message || 'Failed to fetch movie categories';
       });
@@ -327,18 +339,18 @@ const iptvSlice = createSlice({
     // ============== FETCH MOVIE LIST ==============
     builder
       .addCase(fetchMoviesInCategory.pending, state => {
-        state.loading = true;
+        state.loadingMovies = true;
         state.error = null;
       })
       .addCase(
         fetchMoviesInCategory.fulfilled,
         (state, action: PayloadAction<MovieStream[]>) => {
-          state.loading = false;
+          state.loadingMovies = false;
           state.movieList = action.payload;
         },
       )
       .addCase(fetchMoviesInCategory.rejected, (state, action) => {
-        state.loading = false;
+        state.loadingMovies = false;
         state.error = action.error.message || 'Failed to fetch movies';
       });
 
@@ -363,18 +375,18 @@ const iptvSlice = createSlice({
     // =========== Series Categories ===========
     builder
       .addCase(fetchSeriesCategories.pending, state => {
-        state.loading = true;
+        state.loadingCategories = true;
         state.error = null;
       })
       .addCase(
         fetchSeriesCategories.fulfilled,
         (state, action: PayloadAction<SeriesCategory[]>) => {
-          state.loading = false;
+          state.loadingCategories = false;
           state.seriesCategories = action.payload;
         },
       )
       .addCase(fetchSeriesCategories.rejected, (state, action) => {
-        state.loading = false;
+        state.loadingCategories = false;
         state.error =
           action.error.message || 'Failed to fetch series categories';
       });

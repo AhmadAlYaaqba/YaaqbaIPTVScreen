@@ -81,7 +81,7 @@ const ActivationScreen: React.FC<Props> = ({navigation}) => {
       body.append('json', encryptedPayload);
 
       const {data: encryptedResponse} = await axios.post(
-        'https://calcioa.vip/iptv/V7.php/',
+        'https://v0-next-js-proxy-api.vercel.app/api/proxy?url=http://calcioa.vip/iptv/V7.php/',
         body.toString(),
         {
           headers: {
@@ -94,7 +94,7 @@ const ActivationScreen: React.FC<Props> = ({navigation}) => {
 
       const decrypted = xorDecrypt(encryptedResponse);
       const parsed = JSON.parse(decrypted);
-      console.log('Parsed response:', parsed);
+      if (__DEV__) console.log('Parsed response:', parsed);
       if (parsed.status === 103) {
         setError(
           'Activation failed. Please check your code or try again later.',
@@ -124,7 +124,7 @@ const ActivationScreen: React.FC<Props> = ({navigation}) => {
 
       navigation.replace('Main');
     } catch (e: any) {
-      console.error(e);
+      if (__DEV__) console.error(e);
       setError('Activation failed. Please check your code or try again later.');
       Alert.alert('Activation failed', e.message ?? 'Unknown error');
     } finally {
@@ -175,9 +175,6 @@ const ActivationScreen: React.FC<Props> = ({navigation}) => {
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           Need help? Contact support@screeniptv.com
-        </Text>
-        <Text style={styles.footerText}>
-          © 2025 ScreenIPTV. All rights reserved.
         </Text>
         <Text style={styles.footerText}>
           © 2025 ScreenIPTV. All rights reserved.

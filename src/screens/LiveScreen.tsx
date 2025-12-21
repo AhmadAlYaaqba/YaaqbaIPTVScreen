@@ -28,7 +28,7 @@ const LiveScreen: React.FC<Props> = ({navigation}) => {
   const {username, password, serverDomain, serverPort} = useSelector(
     (state: RootState) => state.user,
   );
-  console.log({username, password, serverDomain, serverPort});
+  if (__DEV__) console.log({username, password, serverDomain, serverPort});
   const {liveCategories, loading, error} = useSelector(
     (state: RootState) => state.iptv,
   );

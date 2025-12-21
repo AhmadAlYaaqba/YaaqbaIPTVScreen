@@ -79,7 +79,7 @@ const SeriesHomeScreen: React.FC<any> = ({navigation}) => {
       ),
     [seriesList, search],
   );
-  console.log('filtered ===>', filtered)
+  if (__DEV__) console.log('filtered ===>', filtered)
   const trending = filtered.filter(item => item.backdrop_path?.[0]).slice(0, 5);
   const recentlyAdded = [...filtered].sort(
     (a, b) => Number(b.added) - Number(a.added),

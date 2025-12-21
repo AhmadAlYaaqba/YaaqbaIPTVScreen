@@ -160,13 +160,13 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
         onPress={() => {
           try {
             if (!item.stream_id) {
-              console.warn('Movie stream_id is missing');
+              if (__DEV__) console.warn('Movie stream_id is missing');
               Alert.alert('Movie stream_id is missing');
               return;
             }
             setSelectedMovie(item);
           } catch (error) {
-            console.error('Error selecting movie:', error);
+            if (__DEV__) console.error('Error selecting movie:', error);
             Alert.alert('Error selecting movie:' + error);
           }
         }}>
@@ -342,13 +342,14 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
                     onPress={() => {
                       try {
                         if (!selectedMovie.stream_id) {
-                          console.warn('Movie stream_id is missing');
+                          if (__DEV__) console.warn('Movie stream_id is missing');
                           return;
                         }
                         const ext =
                           selectedMovie.container_extension?.replace('.', '') ||
                           'mp4';
-                        const url = `http://${serverDomain}:${serverPort}/movie/${username}/${password}/${selectedMovie.stream_id}.${ext}`;
+                        const originalUrl = `http://${serverDomain}:${serverPort}/movie/${username}/${password}/${selectedMovie.stream_id}.${ext}`;
+                        const url = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalUrl)}`;
                         setSelectedMovie(null);
                         navigation.navigate('VideoPlayer', {
                           streamUrl: url,
@@ -359,7 +360,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
                           thumbnail: selectedMovie.stream_icon,
                         });
                       } catch (error) {
-                        console.error('Error playing movie:', error);
+                        if (__DEV__) console.error('Error playing movie:', error);
                         setSelectedMovie(null);
                       }
                     }}>

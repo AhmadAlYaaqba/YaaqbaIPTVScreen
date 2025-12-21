@@ -36,7 +36,8 @@ const LoginScreen: React.FC<Props> = ({navigation}) => {
 
     try {
       // Construct the Xtream Codes login URL.
-      const xtreamUrl = `http://${serverDomain}:${serverPort}/player_api.php?username=${username}&password=${password}`;
+      const originalUrl = `http://${serverDomain}:${serverPort}/player_api.php?username=${username}&password=${password}`;
+      const xtreamUrl = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
       console.log('xtreamUrl', xtreamUrl);
 
       const response = await axios.get(xtreamUrl);

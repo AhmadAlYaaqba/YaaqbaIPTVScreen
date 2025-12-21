@@ -11,6 +11,18 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { storage } from '../utils/storage';
 
+const inferVideoType = (url: string): string | undefined => {
+  const lower = (url || '').toLowerCase();
+
+  // Important: our proxy URLs look like `/api/stream?url=http.../file.m3u8`
+  // so ExoPlayer can't infer HLS from the path. We force the type here.
+  if (lower.includes('.m3u8')) return 'm3u8';
+  if (lower.includes('.mpd')) return 'mpd'; // DASH (if you ever proxy it)
+  if (lower.includes('.mp4')) return 'mp4';
+
+  return undefined;
+};
+
 type VideoPlayerScreenRouteProp = RouteProp<RootStackParamList, 'VideoPlayer'>;
 
 // Update the RootStackParamList type in your RootNavigator.tsx to include these params
@@ -58,13 +70,15 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const [duration, setDuration] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
+  const currentProgressRef = useRef(0);
+  const progressSaveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Save progress periodically
+  // Save progress to storage
   const saveProgress = async (currentProgress: number) => {
     if (isLive) return;
 
     const contentId = episodeId || movieId;
-    if (!contentId) return;
+    if (!contentId || currentProgress <= 0) return;
 
     await storage.saveWatchProgress(
       {
@@ -80,16 +94,33 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     );
   };
 
+  // Setup interval-based progress saving (every 30 seconds)
+  useEffect(() => {
+    if (isLive) return;
+
+    progressSaveIntervalRef.current = setInterval(() => {
+      if (currentProgressRef.current > 0 && duration > 0) {
+        saveProgress(currentProgressRef.current);
+      }
+    }, 30000); // Save every 30 seconds
+
+    return () => {
+      // Save progress on unmount
+      if (currentProgressRef.current > 0) {
+        saveProgress(currentProgressRef.current);
+      }
+      if (progressSaveIntervalRef.current) {
+        clearInterval(progressSaveIntervalRef.current);
+      }
+    };
+  }, [isLive, duration, episodeId, movieId, seriesId, title]);
+
   // Handle video progress
   const onProgress = (data: any) => {
     if (isLive) return;
 
     const currentProgress = data.currentTime;
-
-    // Save progress every 30 seconds
-    if (currentProgress % 30 < 1) {
-      saveProgress(currentProgress);
-    }
+    currentProgressRef.current = currentProgress;
 
     // Check if video is completed (within last 5 seconds)
     if (duration > 0 && currentProgress >= duration - 5) {
@@ -108,7 +139,8 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
           const nextEpisode = episodeList[nextEpisodeIndex];
           const ext =
             nextEpisode.container_extension?.replace('.', '') || 'mp4';
-          const nextUrl = `http://${serverDomain}:${serverPort}/series/${username}/${password}/${nextEpisode.id}.${ext}`;
+          const originalNextUrl = `http://${serverDomain}:${serverPort}/series/${username}/${password}/${nextEpisode.id}.${ext}`;
+          const nextUrl = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalNextUrl)}`;
 
           navigation.replace('VideoPlayer', {
             streamUrl: nextUrl,
@@ -174,13 +206,13 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   }, []);
 
   const onLoad = (data: OnLoadData) => {
-    console.log('Video loaded', data, continueTime);
+    if (__DEV__) console.log('Video loaded', data, continueTime);
     setDuration(data.duration);
     if (continueTime?.progress) videoRef.current.seek(continueTime.progress);
   };
 
   const onError = (error: OnVideoErrorData) => {
-    console.log('Video error', error);
+    if (__DEV__) console.log('Video error', error);
     Alert.alert(`Video Error ${JSON.stringify(error.error)}`);
   };
 
@@ -196,9 +228,11 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     };
   }, [navigation]);
 
-  console.log('rerendering ???');
-  // Conditionally render based on platform and playerStatus
-  if (Platform.OS !== 'android' && playerStatus) {
+  if (__DEV__) console.log('VideoPlayer render, useVLC:', playerStatus);
+  
+  // Conditionally render based on playerStatus (user preference for VLC)
+  // Note: VLC may have issues on some Android devices - users can toggle in Settings
+  if (playerStatus) {
     return (
       <View style={styles.container}>
         <VlCPlayerView
@@ -233,7 +267,18 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         ref={videoRef}
         source={{
           uri: streamUrl,
-          bufferConfig: { live: { targetOffsetMs: 500 } },
+          type: inferVideoType(streamUrl),
+        }}
+        bufferConfig={{
+          minBufferMs: 15000,
+          maxBufferMs: 50000,
+          bufferForPlaybackMs: 2500,
+          bufferForPlaybackAfterRebufferMs: 5000,
+          ...(isLive && {
+            live: {
+              targetOffsetMs: 3000,
+            },
+          }),
         }}
         style={styles.video}
         fullscreenAutorotate={true}
@@ -244,7 +289,6 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         onLoad={onLoad}
         onError={onError}
         onProgress={onProgress}
-        currentPlaybackTime={180}
       />
     </View>
   );
