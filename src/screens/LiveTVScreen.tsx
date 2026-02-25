@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useCallback} from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,32 +11,79 @@ import {
   Dimensions,
   SafeAreaView,
 } from 'react-native';
-import {useSelector, useDispatch} from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  Layout,
+} from 'react-native-reanimated';
 
-import {RootState, AppDispatch} from '../store';
+import { RootState, AppDispatch } from '../store';
 import {
-  fetchLiveChannels, // gets categories
-  fetchLiveStreamsByCategory, // gets channels within a category
+  fetchLiveChannels,
+  fetchLiveStreamsByCategory,
 } from '../store/slices/iptvSlice';
+import CategoryPickerModal from '../components/CategoryPickerModal';
 
-const {width} = Dimensions.get('window');
-const CARD_SIZE = (width - 56) / 3; // 3‑column grid with 16px gutter
+const { width } = Dimensions.get('window');
+const CARD_SIZE = (width - 56) / 3; // 3-column grid with 16px gutter
 
-const LiveTVScreen: React.FC<any> = ({navigation}) => {
+// Memoized channel card for performance
+const ChannelCard = React.memo(
+  ({
+    item,
+    onPress,
+    cardSize,
+  }: {
+    item: any;
+    onPress: () => void;
+    cardSize: number;
+  }) => {
+    const icon = item.stream_icon || item.icon || null;
+    return (
+      <TouchableOpacity
+        style={[styles.channelCard, { width: cardSize }]}
+        onPress={onPress}
+        activeOpacity={0.7}>
+        {icon ? (
+          <Image
+            source={{ uri: icon }}
+            style={[styles.cardImage, { width: cardSize, height: cardSize }]}
+          />
+        ) : (
+          <View
+            style={[
+              styles.cardPlaceholder,
+              { width: cardSize, height: cardSize },
+            ]}>
+            <FontAwesome5 name="tv" size={28} color="#bbb" />
+          </View>
+        )}
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {item.name}
+        </Text>
+      </TouchableOpacity>
+    );
+  },
+);
+
+const LiveTVScreen: React.FC<any> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
 
   // credentials
-  const {username, password, serverDomain, serverPort} = useSelector(
+  const { username, password, serverDomain, serverPort } = useSelector(
     (state: RootState) => state.user,
   );
 
   // IPTV slice state
-  const {liveCategories, liveChannels, loadingCategories, loading, error} =
+  const { liveCategories, liveChannels, loadingCategories, loading, error } =
     useSelector((state: RootState) => state.iptv);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeCategoryName, setActiveCategoryName] = useState<string>('');
   const [search, setSearch] = useState('');
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   // initial fetch categories
   useEffect(() => {
@@ -52,11 +99,31 @@ const LiveTVScreen: React.FC<any> = ({navigation}) => {
     }
   }, [dispatch, username, password, serverDomain, serverPort]);
 
-  // once categories arrive or activeCategory changes, fetch streams
+  // once categories arrive, default to first category
   useEffect(() => {
-    if (liveCategories.length && (activeCategory ?? true)) {
-      const categoryId = activeCategory || liveCategories[0]?.category_id;
+    if (liveCategories.length && !activeCategory) {
+      const first = liveCategories[0];
+      setActiveCategory(first.category_id);
+      setActiveCategoryName(first.category_name);
+      dispatch(
+        fetchLiveStreamsByCategory({
+          username,
+          password,
+          domain: serverDomain,
+          port: serverPort,
+          categoryId: first.category_id,
+        }),
+      );
+    }
+  }, [liveCategories]);
+
+  // fetch streams when category changes (after initial)
+  const handleCategorySelect = useCallback(
+    (categoryId: string, categoryName: string) => {
       setActiveCategory(categoryId);
+      setActiveCategoryName(categoryName);
+      setShowCategoryModal(false);
+      setSearch('');
       dispatch(
         fetchLiveStreamsByCategory({
           username,
@@ -66,33 +133,20 @@ const LiveTVScreen: React.FC<any> = ({navigation}) => {
           categoryId,
         }),
       );
-    }
-  }, [activeCategory, liveCategories, dispatch]);
-
-  // ---------- render helpers ---------- //
-  const renderCategoryPill = ({item}: {item: any}) => {
-    const isActive = item.category_id === activeCategory;
-    return (
-      <TouchableOpacity
-        style={[styles.categoryPill, isActive && styles.categoryPillActive]}
-        onPress={() => setActiveCategory(item.category_id)}>
-        <Text
-          style={[styles.categoryText, isActive && styles.categoryTextActive]}>
-          {item.category_name}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+    },
+    [dispatch, username, password, serverDomain, serverPort],
+  );
 
   const renderChannelCard = useCallback(
-    ({item}: {item: any}) => {
+    ({ item }: { item: any }) => {
       const icon = item.stream_icon || item.icon || null;
       const originalStreamUrl = `http://${serverDomain}:${serverPort}/live/${username}/${password}/${item.stream_id}.m3u8`;
       const streamUrl = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalStreamUrl)}`;
 
       return (
-        <TouchableOpacity
-          style={styles.channelCard}
+        <ChannelCard
+          item={item}
+          cardSize={CARD_SIZE}
           onPress={() =>
             navigation.navigate('VideoPlayer', {
               streamUrl,
@@ -100,18 +154,8 @@ const LiveTVScreen: React.FC<any> = ({navigation}) => {
               isLive: true,
               thumbnail: icon,
             })
-          }>
-          {icon ? (
-            <Image source={{uri: icon}} style={styles.cardImage} />
-          ) : (
-            <View style={styles.cardPlaceholder}>
-              <FontAwesome5 name="tv" size={28} color="#bbb" />
-            </View>
-          )}
-          <Text style={styles.cardTitle} numberOfLines={1}>
-            {item.name}
-          </Text>
-        </TouchableOpacity>
+          }
+        />
       );
     },
     [navigation, serverDomain, serverPort, username, password],
@@ -122,11 +166,22 @@ const LiveTVScreen: React.FC<any> = ({navigation}) => {
     c.name.toLowerCase().includes(search.toLowerCase()),
   );
 
+  // FlatList layout optimization for fixed-size cards
+  const getItemLayout = useCallback(
+    (_: any, index: number) => ({
+      length: CARD_SIZE + 16 + 18, // card height + margin + text
+      offset: (CARD_SIZE + 16 + 18) * Math.floor(index / 3),
+      index,
+    }),
+    [],
+  );
+
   // ---------- render ---------- //
   if (loadingCategories) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#4A90E2" />
+        <Text style={styles.loadingText}>Loading categories...</Text>
       </View>
     );
   }
@@ -134,7 +189,22 @@ const LiveTVScreen: React.FC<any> = ({navigation}) => {
   if (error) {
     return (
       <View style={styles.center}>
-        <Text style={styles.error}>Error: {error}</Text>
+        <FontAwesome5 name="exclamation-circle" size={40} color="#E53935" />
+        <Text style={styles.error}>{error}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() =>
+            dispatch(
+              fetchLiveChannels({
+                username,
+                password,
+                domain: serverDomain,
+                port: serverPort,
+              }),
+            )
+          }>
+          <Text style={styles.retryText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -151,21 +221,38 @@ const LiveTVScreen: React.FC<any> = ({navigation}) => {
         </TouchableOpacity>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.headerIconButton}>
-            <FontAwesome5 name="search" size={14} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
             <FontAwesome5 name="user" size={16} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Search */}
-      <View style={styles.searchContainer}>
+      {/* Category selector chip + search */}
+      <Animated.View
+        entering={FadeInDown.duration(300)}
+        style={styles.toolbarContainer}>
+        {/* Active category chip */}
+        <TouchableOpacity
+          style={styles.categoryChip}
+          onPress={() => setShowCategoryModal(true)}
+          activeOpacity={0.75}>
+          <FontAwesome5
+            name="layer-group"
+            size={14}
+            color="#4A90E2"
+            style={styles.chipIcon}
+          />
+          <Text style={styles.chipText} numberOfLines={1}>
+            {activeCategoryName || 'Select Category'}
+          </Text>
+          <FontAwesome5 name="chevron-down" size={12} color="#666" />
+        </TouchableOpacity>
+
+        {/* Search bar */}
         <View style={styles.searchWrapper}>
           <FontAwesome5
             name="search"
-            size={14}
-            color="#777"
+            size={13}
+            color="#999"
             style={styles.searchIcon}
           />
           <TextInput
@@ -174,24 +261,21 @@ const LiveTVScreen: React.FC<any> = ({navigation}) => {
             value={search}
             onChangeText={setSearch}
             placeholderTextColor="#999"
+            clearButtonMode="while-editing"
           />
         </View>
-      </View>
-      <View style={styles.contentContainer}>
-        {/* Category pills */}
-        <FlatList
-          data={liveCategories}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={item => item.category_id.toString()}
-          renderItem={renderCategoryPill}
-          contentContainerStyle={styles.categoryList}
-        />
+      </Animated.View>
 
-        {/* Channels */}
+      <View style={styles.contentContainer}>
+        {/* Channels grid */}
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" />
+            <ActivityIndicator size="large" color="#4A90E2" />
+          </View>
+        ) : filteredChannels.length === 0 ? (
+          <View style={styles.center}>
+            <FontAwesome5 name="satellite-dish" size={40} color="#ccc" />
+            <Text style={styles.emptyText}>No channels found</Text>
           </View>
         ) : (
           <FlatList
@@ -199,11 +283,25 @@ const LiveTVScreen: React.FC<any> = ({navigation}) => {
             keyExtractor={item => item.stream_id.toString()}
             renderItem={renderChannelCard}
             numColumns={3}
-            columnWrapperStyle={{justifyContent: 'space-between'}}
+            columnWrapperStyle={{ justifyContent: 'space-between' }}
             contentContainerStyle={styles.grid}
+            showsVerticalScrollIndicator={false}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={12}
+            windowSize={5}
+            initialNumToRender={12}
           />
         )}
       </View>
+
+      {/* Category picker modal */}
+      <CategoryPickerModal
+        visible={showCategoryModal}
+        categories={liveCategories}
+        activeCategory={activeCategory}
+        onSelect={handleCategorySelect}
+        onClose={() => setShowCategoryModal(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -218,7 +316,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 0,
     backgroundColor: '#2D3B55',
-    paddingTop: HEADER_HEIGHT + 8, // leave space for custom header
+    paddingTop: HEADER_HEIGHT + 8,
   },
   contentContainer: {
     backgroundColor: '#F3F4F6',
@@ -228,13 +326,37 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  loadingText: {
+    color: '#999',
+    fontSize: 14,
+    marginTop: 12,
   },
   error: {
-    color: 'red',
+    color: '#E53935',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 12,
   },
-  // custom header
+  retryButton: {
+    marginTop: 16,
+    backgroundColor: '#4A90E2',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  emptyText: {
+    color: '#999',
+    fontSize: 14,
+    marginTop: 12,
+  },
+  // header
   header: {
-    // position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
@@ -244,7 +366,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    // elevation: 4,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -269,30 +390,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 8,
   },
-  avatarWrapper: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#4A90E2',
-    overflow: 'hidden',
+  // toolbar (category chip + search)
+  toolbarContainer: {
+    backgroundColor: '#2D3B55',
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
-  avatarImg: {
-    width: '100%',
-    height: '100%',
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
-  searchContainer: {
-    paddingHorizontal: 8,
+  chipIcon: {
+    marginRight: 8,
+  },
+  chipText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2D3B55',
+    marginRight: 8,
   },
   // search bar
   searchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 12,
-    marginTop: 12,
-    marginBottom: 8,
+    height: 38,
     elevation: 1,
   },
   searchIcon: {
@@ -300,32 +435,9 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    height: 40,
     fontSize: 14,
-  },
-  // category pills
-  categoryList: {
-    height: 40,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  categoryPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    backgroundColor: '#eee',
-    borderRadius: 20,
-    marginRight: 8,
-  },
-  categoryPillActive: {
-    backgroundColor: '#4A90E2',
-  },
-  categoryText: {
-    fontSize: 12,
-    color: '#555',
-  },
-  categoryTextActive: {
-    color: '#fff',
-    fontWeight: '600',
+    color: '#333',
+    padding: 0,
   },
   // grid
   grid: {
@@ -358,14 +470,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#2D3B55',
     textAlign: 'center',
-  },
-  iconButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#4A90E2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
   },
 });

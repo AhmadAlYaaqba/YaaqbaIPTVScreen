@@ -59,7 +59,7 @@ interface Props {
 const LoginScreen: React.FC<Props> = ({navigation}) => {
   const dispatch = useDispatch<AppDispatch>();
 
-  const [activationCode, setActivationCode] = useState('34189365155');
+  const [activationCode, setActivationCode] = useState('');
   const {username, password, serverDomain, serverPort} = useSelector(
     (state: RootState) => state.user,
   );
