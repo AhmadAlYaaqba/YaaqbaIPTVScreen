@@ -149,7 +149,7 @@ const CategoryPickerModal: React.FC<CategoryPickerModalProps> = ({
     if (!visible) return null;
 
     return (
-        <View style={StyleSheet.absoluteFill}>
+        <View style={[StyleSheet.absoluteFill, { zIndex: 100, elevation: 100 }]} pointerEvents="box-none">
             {/* Backdrop */}
             <AnimatedPressable
                 style={[styles.backdrop, animatedBackdropStyle]}

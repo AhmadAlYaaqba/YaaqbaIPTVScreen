@@ -1347,7 +1347,7 @@ PODS:
     - ReactCommon/turbomodule/core
   - react-native-orientation-locker (1.7.0):
     - React-Core
-  - react-native-safe-area-context (5.3.0):
+  - react-native-safe-area-context (5.7.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1362,8 +1362,8 @@ PODS:
     - React-hermes
     - React-ImageManager
     - React-jsi
-    - react-native-safe-area-context/common (= 5.3.0)
-    - react-native-safe-area-context/fabric (= 5.3.0)
+    - react-native-safe-area-context/common (= 5.7.0)
+    - react-native-safe-area-context/fabric (= 5.7.0)
     - React-NativeModulesApple
     - React-RCTFabric
     - React-renderercss
@@ -1373,7 +1373,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - react-native-safe-area-context/common (5.3.0):
+  - react-native-safe-area-context/common (5.7.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1397,7 +1397,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - react-native-safe-area-context/fabric (5.3.0):
+  - react-native-safe-area-context/fabric (5.7.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1422,7 +1422,9 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - react-native-video (6.12.0):
+  - react-native-screen-brightness (2.0.0-alpha):
+    - React
+  - react-native-video (6.19.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1437,7 +1439,7 @@ PODS:
     - React-hermes
     - React-ImageManager
     - React-jsi
-    - react-native-video/Video (= 6.12.0)
+    - react-native-video/Video (= 6.19.0)
     - React-NativeModulesApple
     - React-RCTFabric
     - React-renderercss
@@ -1447,7 +1449,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - react-native-video/Fabric (6.12.0):
+  - react-native-video/Fabric (6.19.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1471,7 +1473,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - react-native-video/Video (6.12.0):
+  - react-native-video/Video (6.19.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1822,7 +1824,7 @@ PODS:
     - React-logger (= 0.79.0)
     - React-perflogger (= 0.79.0)
     - React-utils (= 0.79.0)
-  - RNCAsyncStorage (2.1.2):
+  - RNCAsyncStorage (2.2.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1846,13 +1848,13 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNDeviceInfo (14.0.4):
+  - RNDeviceInfo (14.1.1):
     - React-Core
   - RNFastImage (8.6.3):
     - React-Core
     - SDWebImage (~> 5.11.1)
     - SDWebImageWebPCoder (~> 0.8.4)
-  - RNGestureHandler (2.25.0):
+  - RNGestureHandler (2.30.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1900,7 +1902,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNReanimated (3.17.3):
+  - RNReanimated (3.19.5):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1923,10 +1925,10 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated (= 3.17.3)
-    - RNReanimated/worklets (= 3.17.3)
+    - RNReanimated/reanimated (= 3.19.5)
+    - RNReanimated/worklets (= 3.19.5)
     - Yoga
-  - RNReanimated/reanimated (3.17.3):
+  - RNReanimated/reanimated (3.19.5):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1949,9 +1951,9 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated/apple (= 3.17.3)
+    - RNReanimated/reanimated/apple (= 3.19.5)
     - Yoga
-  - RNReanimated/reanimated/apple (3.17.3):
+  - RNReanimated/reanimated/apple (3.19.5):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1975,7 +1977,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNReanimated/worklets (3.17.3):
+  - RNReanimated/worklets (3.19.5):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1998,9 +2000,9 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/worklets/apple (= 3.17.3)
+    - RNReanimated/worklets/apple (= 3.19.5)
     - Yoga
-  - RNReanimated/worklets/apple (3.17.3):
+  - RNReanimated/worklets/apple (3.19.5):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2075,7 +2077,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNVectorIcons (10.2.0):
+  - RNVectorIcons (10.3.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2151,6 +2153,7 @@ DEPENDENCIES:
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-orientation-locker (from `../node_modules/react-native-orientation-locker`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
+  - react-native-screen-brightness (from `../node_modules/react-native-screen-brightness`)
   - react-native-video (from `../node_modules/react-native-video`)
   - react-native-vlc-media-player (from `../node_modules/react-native-vlc-media-player`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
@@ -2284,6 +2287,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-orientation-locker"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
+  react-native-screen-brightness:
+    :path: "../node_modules/react-native-screen-brightness"
   react-native-video:
     :path: "../node_modules/react-native-video"
   react-native-vlc-media-player:
@@ -2411,8 +2416,9 @@ SPEC CHECKSUMS:
   React-Mapbuffer: 2ef4d104cd7426fdbe4dbb283fcab8235ea92cc8
   React-microtasksnativemodule: a2d19a42269e02a7a86ab1c51fa3a4fa63be00ba
   react-native-orientation-locker: cc6f357b289a2e0dd2210fea0c52cb8e0727fdaa
-  react-native-safe-area-context: 2827adb0d1250242917057a8ae0b3bfb5670d9e4
-  react-native-video: 75309708e5e46a796f5ad2f26f7278c210c9fc86
+  react-native-safe-area-context: 26634d9b636a98ceee20cb6fa5dc946922f1e90f
+  react-native-screen-brightness: 16a7b26d12d89654fc6a2e9ff1e55c1a4a10afcb
+  react-native-video: e462d6a29232133bb87f3ec6495880f6ef41bc0f
   react-native-vlc-media-player: da3308dda896d4ff7abfacadb8f981752bf9b425
   React-NativeModulesApple: f8c91c74d5d223944c7b7fdeb0695d8ee73f899c
   React-oscompat: faff1df234d57a7368b56e9642222dde9eb9f422
@@ -2445,14 +2451,14 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 7f5052913dd72a0e84ca95973f9f8bc97f2c5b95
   ReactCodegen: 16700ce5938fd79c1ff4c5b5735f10830f2e6bd3
   ReactCommon: 1257efa9d0b07517d8b79bb4055eaefac1204807
-  RNCAsyncStorage: 39c42c1e478e1f5166d1db52b5055e090e85ad66
-  RNDeviceInfo: d863506092aef7e7af3a1c350c913d867d795047
+  RNCAsyncStorage: a1c8cc8a99c32de1244a9cf707bf9d83d0de0f71
+  RNDeviceInfo: bcce8752b5043a623fe3c26789679b473f705d3c
   RNFastImage: 462a183c4b0b6b26fdfd639e1ed6ba37536c3b87
-  RNGestureHandler: ebef699ea17e7c0006c1074e1e423ead60ce0121
+  RNGestureHandler: 4d34255948b634d4f3827cc534a1a3d05e50095b
   RNKeychain: 943b4dbceef4b3a310c9122c99d1e5b0bd66b9f3
-  RNReanimated: ac44f3a700ade6834099ff7aa8615644622c4761
+  RNReanimated: aeca78e794b87ec881a55fde810a4b23825feb2e
   RNScreens: 5621e3ad5a329fbd16de683344ac5af4192b40d3
-  RNVectorIcons: 941a39b5d3b9d8cf8ac2e2fc09b07bfafbcf9796
+  RNVectorIcons: 1fe59cfa2d3ac94ceb9d373a59c54609471b8d56
   SDWebImage: a7f831e1a65eb5e285e3fb046a23fcfbf08e696d
   SDWebImageWebPCoder: 908b83b6adda48effe7667cd2b7f78c897e5111d
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
