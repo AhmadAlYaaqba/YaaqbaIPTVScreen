@@ -1,10 +1,10 @@
 // App.tsx
-import React, {useEffect} from 'react';
-import {createStackNavigator} from '@react-navigation/stack';
+import React, { useEffect } from 'react';
+import { createStackNavigator } from '@react-navigation/stack';
 import * as Keychain from 'react-native-keychain';
 
-import {useDispatch} from 'react-redux';
-import {AppDispatch} from './src/store';
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from './src/store';
 
 import LoginScreen from './src/screens/LoginScreen3';
 import HomeScreen from './src/screens/HomeScreen';
@@ -22,7 +22,7 @@ import SeriesDetailScreen from './src/screens/SeriesDetailScreen';
 import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
 import TabNavigator from "./src/screens/TabNavigator";
 
-import {setUserCredentials} from './src/store/slices/userSlice';
+import { setUserCredentials } from './src/store/slices/userSlice';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -32,7 +32,7 @@ export type RootStackParamList = {
   Movies: undefined;
   Series: undefined;
   Settings: undefined;
-  LiveChannels: {categoryId: string; categoryName: string};
+  LiveChannels: { categoryId: string; categoryName: string };
   VideoPlayer: {
     streamUrl: string;
     channelName?: string;
@@ -43,14 +43,15 @@ export type RootStackParamList = {
     episodeList?: any[];
     currentEpisodeIndex?: number;
     movieId?: string;
-    continueTime?: {progress: number; totalDuration?: number} | null;
+    continueTime?: { progress: number; totalDuration?: number } | null;
     thumbnail?: string;
+    categoryId?: string;
   };
-  MovieList: {categoryId: string; categoryName: string};
-  MovieDetail: {movie: any};
+  MovieList: { categoryId: string; categoryName: string };
+  MovieDetail: { movie: any };
   SeriesCategories: undefined;
-  SeriesList: {categoryId: string; categoryName: string};
-  SeriesDetail: {seriesId: string; seriesName: string; baseInfo?: any};
+  SeriesList: { categoryId: string; categoryName: string };
+  SeriesDetail: { seriesId: string; seriesName: string; baseInfo?: any };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -91,7 +92,7 @@ const RootNavigator = () => {
   return (
     <Stack.Navigator
       initialRouteName="Login"
-      screenOptions={{headerShown: false}}>
+      screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Main" component={TabNavigator} />
       <Stack.Screen name="Home" component={HomeScreen} />

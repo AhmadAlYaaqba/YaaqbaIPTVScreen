@@ -121,7 +121,24 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     const videoRef = useRef<any>(null);
     const currentProgressRef = useRef(0);
     const appStateRef = useRef<AppStateStatus>('active');
-    console.log("sources ===>", sources)
+    const prevStreamUrlRef = useRef(originalStreamUrl);
+
+    // Reset state when stream URL changes (channel switch)
+    if (originalStreamUrl !== prevStreamUrlRef.current) {
+        prevStreamUrlRef.current = originalStreamUrl;
+        // These will be applied on next render cycle
+        setCurrentSourceIndex(0);
+        setReconnectAttempt(0);
+        setIsReconnecting(false);
+        setError(null);
+        setIsBuffering(false);
+        setIsPaused(false);
+        setDuration(0);
+        setCurrentTime(0);
+        setIsCompleted(false);
+        setPlayerKey(k => k + 1);
+    }
+
     const currentSource = sources[currentSourceIndex] || sources[0];
 
     // Clear reconnect timer

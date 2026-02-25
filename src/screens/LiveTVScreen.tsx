@@ -153,6 +153,7 @@ const LiveTVScreen: React.FC<any> = ({ navigation }) => {
               channelName: item.name,
               isLive: true,
               thumbnail: icon,
+              categoryId: activeCategory || undefined,
             })
           }
         />

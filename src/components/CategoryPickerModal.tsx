@@ -7,8 +7,8 @@ import {
     TextInput,
     FlatList,
     TouchableOpacity,
+    TouchableWithoutFeedback,
     Dimensions,
-    Pressable,
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
@@ -17,10 +17,7 @@ import Animated, {
     useAnimatedStyle,
     withTiming,
     withSpring,
-    runOnJS,
     Easing,
-    FadeIn,
-    FadeOut,
 } from 'react-native-reanimated';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
@@ -40,7 +37,8 @@ interface CategoryPickerModalProps {
     onClose: () => void;
 }
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+// TouchableWithoutFeedback is used for backdrop instead of AnimatedPressable
+// to avoid gesture competition with list items on Android
 
 const CategoryItem = React.memo(
     ({
@@ -150,18 +148,18 @@ const CategoryPickerModal: React.FC<CategoryPickerModalProps> = ({
 
     return (
         <View style={[StyleSheet.absoluteFill, { zIndex: 100, elevation: 100 }]} pointerEvents="box-none">
-            {/* Backdrop */}
-            <AnimatedPressable
-                style={[styles.backdrop, animatedBackdropStyle]}
-                onPress={onClose}
-            />
+            {/* Backdrop — TouchableWithoutFeedback avoids gesture competition with list items on Android */}
+            <TouchableWithoutFeedback onPress={onClose}>
+                <Animated.View style={[styles.backdrop, animatedBackdropStyle]} />
+            </TouchableWithoutFeedback>
 
-            {/* Modal content */}
+            {/* Modal content — onStartShouldSetResponder prevents touches from propagating to backdrop */}
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.modalContainer}
                 pointerEvents="box-none">
-                <Animated.View style={[styles.modalContent, animatedModalStyle]}>
+                <Animated.View
+                    style={[styles.modalContent, animatedModalStyle]}>
                     {/* Header */}
                     <View style={styles.header}>
                         <View style={styles.dragHandle} />

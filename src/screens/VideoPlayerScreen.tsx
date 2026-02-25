@@ -1,4 +1,3 @@
-// src/screens/VideoPlayerScreen.tsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
@@ -19,6 +18,8 @@ import { storage } from '../utils/storage';
 import NativeVideoPlayer, { NativeVideoPlayerRef } from '../components/NativeVideoPlayer';
 import VLCVideoPlayer, { VLCVideoPlayerRef } from '../components/VLCVideoPlayer';
 import PlayerControls from '../components/PlayerControls';
+import ChannelSwitcher from '../components/ChannelSwitcher';
+
 
 // Hooks
 import { useVideoPlayer } from '../hooks/useVideoPlayer';
@@ -36,8 +37,8 @@ const CONTROLS_TIMEOUT = 5000; // Auto-hide controls after 5 seconds
 
 const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   const {
-    streamUrl,
-    channelName,
+    streamUrl: initialStreamUrl,
+    channelName: initialChannelName,
     isLive = false,
     title,
     seriesId,
@@ -47,29 +48,39 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     movieId,
     continueTime,
     thumbnail = '',
+    categoryId,
   } = route.params;
 
   const useVLC = useSelector((state: RootState) => state.user.useVLC);
   const { username, password, serverDomain, serverPort } = useSelector(
     (state: RootState) => state.user,
   );
+  // Get channels for current category from Redux
+  const liveChannels = useSelector((state: RootState) => state.iptv.liveChannels);
+
+  // Current stream (can change when switching channels)
+  const [currentStreamUrl, setCurrentStreamUrl] = useState(initialStreamUrl);
+  const [currentChannelName, setCurrentChannelName] = useState(initialChannelName || title || '');
+  const [currentStreamId, setCurrentStreamId] = useState(() => {
+    const match = initialStreamUrl.match(/\/(\d+)\.m3u8/);
+    return match?.[1] || '';
+  });
 
   // Controls visibility
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Extract stream_id from URL for multi-source fallback
-  const streamIdMatch = streamUrl.match(/\/(\d+)\.m3u8/);
-  const streamId = streamIdMatch?.[1] || '';
+  // Channel switcher
+  const [channelSwitcherVisible, setChannelSwitcherVisible] = useState(false);
 
   // Video player hook (native player logic)
   const player = useVideoPlayer({
-    originalStreamUrl: streamUrl,
+    originalStreamUrl: currentStreamUrl,
     serverDomain,
     serverPort,
     username,
     password,
-    streamId,
+    streamId: currentStreamId,
     isLive,
     autoReconnect: true,
     maxRetries: 10,
@@ -245,16 +256,32 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         episodeId,
         thumbnail,
       });
-    } else if (isLive && channelName) {
+    } else if (isLive && currentChannelName) {
       storage.saveLatestWatched({
-        id: streamUrl,
+        id: currentStreamUrl,
         type: 'live',
-        name: channelName,
+        name: currentChannelName,
         timestamp: Date.now(),
-        channelName,
+        channelName: currentChannelName,
         thumbnail,
       });
     }
+  }, []);
+
+  // --- Channel switch ---
+  const handleChannelSwitch = useCallback(
+    (newStreamUrl: string, newChannelName: string, newStreamId: string) => {
+      setCurrentStreamUrl(newStreamUrl);
+      setCurrentChannelName(newChannelName);
+      setCurrentStreamId(newStreamId);
+      setChannelSwitcherVisible(false);
+      // The player hook will re-run with new URL since state changed
+    },
+    [],
+  );
+
+  const toggleChannelSwitcher = useCallback(() => {
+    setChannelSwitcherVisible(v => !v);
   }, []);
 
   // --- Seek ---
@@ -283,7 +310,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
       {useVLC ? (
         <VLCVideoPlayer
           ref={vlcPlayerRef}
-          uri={streamUrl}
+          uri={currentStreamUrl}
           isLive={isLive}
           title={title}
           onGoBack={handleGoBack}
@@ -292,7 +319,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
       ) : (
         player.currentSource && (
           <NativeVideoPlayer
-            key={`native-${player.playerKey}`}
+            key={`native-${player.playerKey}-${currentStreamId}`}
             ref={nativePlayerRef}
             uri={player.currentSource.uri}
             type={player.currentSource.type}
@@ -312,7 +339,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
       {!useVLC && (
         <PlayerControls
           visible={controlsVisible}
-          channelName={channelName || title}
+          channelName={currentChannelName}
           isLive={isLive}
           isPaused={player.isPaused}
           isBuffering={player.isBuffering}
@@ -330,9 +357,25 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
           onSeek={handleSeek}
           onRetry={player.retry}
           onToggleVisibility={toggleControls}
+          onToggleChannelSwitcher={isLive ? toggleChannelSwitcher : undefined}
           onVerticalPanStart={gestures.onVerticalPanStart}
           onVerticalPanMove={gestures.onVerticalPanMove}
           onVerticalPanEnd={gestures.onVerticalPanEnd}
+        />
+      )}
+
+      {/* Channel switcher panel (live only) */}
+      {isLive && (
+        <ChannelSwitcher
+          visible={channelSwitcherVisible}
+          channels={liveChannels}
+          activeStreamUrl={currentStreamUrl}
+          serverDomain={serverDomain}
+          serverPort={serverPort}
+          username={username}
+          password={password}
+          onSelectChannel={handleChannelSwitch}
+          onClose={() => setChannelSwitcherVisible(false)}
         />
       )}
     </View>
