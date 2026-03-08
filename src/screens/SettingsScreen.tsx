@@ -10,19 +10,19 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native';
-import {useSelector, useDispatch} from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import * as Keychain from 'react-native-keychain';
-import {RootState, AppDispatch} from '../store';
-import {setUseVlcPlayer, clearUserCredentials} from '../store/slices/userSlice';
+import { RootState, AppDispatch } from '../store';
+import { setUseVlcPlayer, clearUserCredentials } from '../store/slices/userSlice';
 
-const SettingsScreen: React.FC<any> = ({navigation}) => {
+const SettingsScreen: React.FC<any> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const {useVLC, username} = useSelector((state: RootState) => state.user);
+  const { useVLC, useNewVLC, vlcUseProxy, username } = useSelector((state: RootState) => state.user);
 
   const handleTogglePlayer = async (value: boolean) => {
-    dispatch(setUseVlcPlayer({useVLC: value}));
-    
+    dispatch(setUseVlcPlayer({ useVLC: value }));
+
     // Persist to Keychain
     try {
       const creds = await Keychain.getGenericPassword({
@@ -32,12 +32,52 @@ const SettingsScreen: React.FC<any> = ({navigation}) => {
         const parsed = JSON.parse(creds.password);
         await Keychain.setGenericPassword(
           'xtream-creds',
-          JSON.stringify({...parsed, useVLC: value}),
-          {service: 'my-iptv-credentials'},
+          JSON.stringify({ ...parsed, useVLC: value }),
+          { service: 'my-iptv-credentials' },
         );
       }
     } catch (error) {
       if (__DEV__) console.error('Error saving player preference:', error);
+    }
+  };
+
+  const handleToggleNewVLC = async (value: boolean) => {
+    dispatch(setUseVlcPlayer({ useNewVLC: value }));
+
+    try {
+      const creds = await Keychain.getGenericPassword({
+        service: 'my-iptv-credentials',
+      });
+      if (creds) {
+        const parsed = JSON.parse(creds.password);
+        await Keychain.setGenericPassword(
+          'xtream-creds',
+          JSON.stringify({ ...parsed, useNewVLC: value }),
+          { service: 'my-iptv-credentials' },
+        );
+      }
+    } catch (error) {
+      if (__DEV__) console.error('Error saving new VLC preference:', error);
+    }
+  };
+
+  const handleToggleProxy = async (value: boolean) => {
+    dispatch(setUseVlcPlayer({ vlcUseProxy: value }));
+
+    try {
+      const creds = await Keychain.getGenericPassword({
+        service: 'my-iptv-credentials',
+      });
+      if (creds) {
+        const parsed = JSON.parse(creds.password);
+        await Keychain.setGenericPassword(
+          'xtream-creds',
+          JSON.stringify({ ...parsed, vlcUseProxy: value }),
+          { service: 'my-iptv-credentials' },
+        );
+      }
+    } catch (error) {
+      if (__DEV__) console.error('Error saving proxy preference:', error);
     }
   };
 
@@ -46,17 +86,17 @@ const SettingsScreen: React.FC<any> = ({navigation}) => {
       'Logout',
       'Are you sure you want to logout?',
       [
-        {text: 'Cancel', style: 'cancel'},
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Logout',
           style: 'destructive',
           onPress: async () => {
             try {
-              await Keychain.resetGenericPassword({service: 'my-iptv-credentials'});
+              await Keychain.resetGenericPassword({ service: 'my-iptv-credentials' });
               dispatch(clearUserCredentials());
               navigation.reset({
                 index: 0,
-                routes: [{name: 'Login'}],
+                routes: [{ name: 'Login' }],
               });
             } catch (error) {
               if (__DEV__) console.error('Error during logout:', error);
@@ -74,7 +114,7 @@ const SettingsScreen: React.FC<any> = ({navigation}) => {
           <FontAwesome5 name="arrow-left" size={18} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
-        <View style={{width: 18}} />
+        <View style={{ width: 18 }} />
       </View>
 
       <ScrollView style={styles.content}>
@@ -105,7 +145,7 @@ const SettingsScreen: React.FC<any> = ({navigation}) => {
               <Switch
                 value={useVLC}
                 onValueChange={handleTogglePlayer}
-                trackColor={{false: '#ddd', true: '#4A90E2'}}
+                trackColor={{ false: '#ddd', true: '#4A90E2' }}
                 thumbColor={useVLC ? '#fff' : '#f4f3f4'}
               />
             </View>
@@ -113,6 +153,44 @@ const SettingsScreen: React.FC<any> = ({navigation}) => {
           <Text style={styles.disclaimer}>
             Note: If you experience playback issues, try switching players.
           </Text>
+          {useVLC && (
+            <View style={[styles.card, { marginTop: 12 }]}>
+              <View style={styles.row}>
+                <FontAwesome5 name="flask" size={16} color="#FF9800" />
+                <View style={styles.rowContent}>
+                  <Text style={styles.rowLabel}>Use New VLC Engine</Text>
+                  <Text style={styles.rowHint}>
+                    Experimental: rn-vlc-plyr with custom controls
+                  </Text>
+                </View>
+                <Switch
+                  value={useNewVLC}
+                  onValueChange={handleToggleNewVLC}
+                  trackColor={{ false: '#ddd', true: '#FF9800' }}
+                  thumbColor={useNewVLC ? '#fff' : '#f4f3f4'}
+                />
+              </View>
+            </View>
+          )}
+          {useVLC && useNewVLC && (
+            <View style={[styles.card, { marginTop: 12 }]}>
+              <View style={styles.row}>
+                <FontAwesome5 name="shield-alt" size={16} color="#4CAF50" />
+                <View style={styles.rowContent}>
+                  <Text style={styles.rowLabel}>Use HTTPS Proxy</Text>
+                  <Text style={styles.rowHint}>
+                    Routes streams through HTTPS proxy. Disable if live streams don't play.
+                  </Text>
+                </View>
+                <Switch
+                  value={vlcUseProxy}
+                  onValueChange={handleToggleProxy}
+                  trackColor={{ false: '#ddd', true: '#4CAF50' }}
+                  thumbColor={vlcUseProxy ? '#fff' : '#f4f3f4'}
+                />
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Actions Section */}
@@ -174,7 +252,7 @@ const styles = StyleSheet.create({
     padding: 16,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },

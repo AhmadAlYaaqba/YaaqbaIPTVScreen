@@ -11,7 +11,8 @@
     "build:android-apk": "cd android && ./gradlew assembleDebug && cd ..",
     "build:android-apk-release": "cd android && ./gradlew assembleRelease",
     "build:android-aab": "cd android && ./gradlew bundleDebug && cd ..",
-    "build:android-aab-release": "cd android && ./gradlew bundleRelease"
+    "build:android-aab-release": "cd android && ./gradlew bundleRelease",
+    "postinstall": "npx patch-package"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.1.2",
@@ -38,7 +39,8 @@
     "react-native-vector-icons": "^10.2.0",
     "react-native-video": "^6.19.0",
     "react-native-vlc-media-player": "^1.0.98",
-    "react-redux": "^9.2.0"
+    "react-redux": "^9.2.0",
+    "rn-vlc-plyr": "^0.2.9-beta.3"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

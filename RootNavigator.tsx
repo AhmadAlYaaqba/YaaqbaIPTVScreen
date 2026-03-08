@@ -29,6 +29,7 @@ export type RootStackParamList = {
   Main: undefined;
   Home: undefined;
   Live: undefined;
+  LiveTV: undefined;
   Movies: undefined;
   Series: undefined;
   Settings: undefined;

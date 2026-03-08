@@ -20,7 +20,7 @@ PODS:
   - libwebp/sharpyuv (1.3.2)
   - libwebp/webp (1.3.2):
     - libwebp/sharpyuv
-  - MobileVLCKit (3.5.1)
+  - MobileVLCKit (3.7.2)
   - RCT-Folly (2024.11.18.00):
     - boost
     - DoubleConversion
@@ -1499,7 +1499,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - Yoga
   - react-native-vlc-media-player (1.0.38):
-    - MobileVLCKit (= 3.5.1)
+    - MobileVLCKit (~> 3.7.0)
     - React
     - TVVLCKit (= 3.5.1)
   - React-NativeModulesApple (0.79.0):
@@ -2101,6 +2101,31 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - RnVlcPlyr (0.2.9-beta.3):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - MobileVLCKit (~> 3.7.0)
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - SDWebImage (5.11.1):
     - SDWebImage/Core (= 5.11.1)
   - SDWebImage/Core (5.11.1)
@@ -2195,6 +2220,7 @@ DEPENDENCIES:
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
+  - RnVlcPlyr (from `../node_modules/rn-vlc-plyr`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -2371,6 +2397,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-screens"
   RNVectorIcons:
     :path: "../node_modules/react-native-vector-icons"
+  RnVlcPlyr:
+    :path: "../node_modules/rn-vlc-plyr"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
@@ -2383,7 +2411,7 @@ SPEC CHECKSUMS:
   glog: 5683914934d5b6e4240e497e0f4a3b42d1854183
   hermes-engine: cd4bd90f051e3658c83cc00e87c603dfe1b75947
   libwebp: 1786c9f4ff8a279e4dac1e8f385004d5fc253009
-  MobileVLCKit: 144d5f565512d1147d63b0fa1379231b3fd66535
+  MobileVLCKit: 216c67d556bed3c366ccbca21388304f25a37196
   RCT-Folly: e78785aa9ba2ed998ea4151e314036f6c49e6d82
   RCTDeprecation: c147f8912f768e5eedbc5f115b2b223d007d9fe3
   RCTRequired: a71a7e9efd6546704d5abc683e0b68fcaa759861
@@ -2419,7 +2447,7 @@ SPEC CHECKSUMS:
   react-native-safe-area-context: 26634d9b636a98ceee20cb6fa5dc946922f1e90f
   react-native-screen-brightness: 16a7b26d12d89654fc6a2e9ff1e55c1a4a10afcb
   react-native-video: e462d6a29232133bb87f3ec6495880f6ef41bc0f
-  react-native-vlc-media-player: da3308dda896d4ff7abfacadb8f981752bf9b425
+  react-native-vlc-media-player: 17e95c3556464d86ad61d04b9b302dd16ab18e9d
   React-NativeModulesApple: f8c91c74d5d223944c7b7fdeb0695d8ee73f899c
   React-oscompat: faff1df234d57a7368b56e9642222dde9eb9f422
   React-perflogger: 59c434b6ab0741baa4cdc589ba4278889e3fae18
@@ -2459,6 +2487,7 @@ SPEC CHECKSUMS:
   RNReanimated: aeca78e794b87ec881a55fde810a4b23825feb2e
   RNScreens: 5621e3ad5a329fbd16de683344ac5af4192b40d3
   RNVectorIcons: 1fe59cfa2d3ac94ceb9d373a59c54609471b8d56
+  RnVlcPlyr: cdd56d64624102a23b734275121c79157afb96a1
   SDWebImage: a7f831e1a65eb5e285e3fb046a23fcfbf08e696d
   SDWebImageWebPCoder: 908b83b6adda48effe7667cd2b7f78c897e5111d
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748

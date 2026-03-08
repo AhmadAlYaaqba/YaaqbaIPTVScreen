@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,15 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
+  ImageBackground,
 } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import axios from 'axios';
 import * as Keychain from 'react-native-keychain';
 import DeviceInfo from 'react-native-device-info';
-import {useDispatch, useSelector} from 'react-redux';
-import {AppDispatch, RootState} from '../store';
-import {setUserCredentials} from '../store/slices/userSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '../store';
+import { setUserCredentials } from '../store/slices/userSlice';
 import NetworkLogger from 'react-native-network-logger';
 
 const SECRET_KEY = '5w.=:uehB3#jwUJ';
@@ -36,13 +37,13 @@ interface Props {
   navigation: any;
 }
 
-const ActivationScreen: React.FC<Props> = ({navigation}) => {
+const ActivationScreen: React.FC<Props> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const {username, password, serverDomain, serverPort} = useSelector(
+  const { username, password, serverDomain, serverPort } = useSelector(
     (state: RootState) => state.user,
   );
 
-  const [activationCode, setActivationCode] = useState('');
+  const [activationCode, setActivationCode] = useState('66858020362');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,7 +81,7 @@ const ActivationScreen: React.FC<Props> = ({navigation}) => {
       const body = new URLSearchParams();
       body.append('json', encryptedPayload);
 
-      const {data: encryptedResponse} = await axios.post(
+      const { data: encryptedResponse } = await axios.post(
         'https://v0-next-js-proxy-api.vercel.app/api/proxy?url=http://calcioa.vip/iptv/V7.php/',
         body.toString(),
         {
@@ -110,7 +111,7 @@ const ActivationScreen: React.FC<Props> = ({navigation}) => {
           serverDomain: parsed.server_info.url,
           serverPort: parsed.server_info.port.replace(':', ''),
         }),
-        {service: 'my-iptv-credentials'},
+        { service: 'my-iptv-credentials' },
       );
 
       dispatch(
@@ -133,97 +134,112 @@ const ActivationScreen: React.FC<Props> = ({navigation}) => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>ScreenIPTV</Text>
-      <View style={styles.underline} />
-      <Text style={styles.subtitle}>Enter Your Activation Code</Text>
+    <ImageBackground
+      source={require('../assets/background-image-mobile.png')}
+      style={styles.backgroundImage}
+      resizeMode="cover"
+    >
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.logoContainer}>
+          <FontAwesome5 name="tv" color="#4A90E2" size={42} />
+          <Text style={styles.title}>ScreenIPTV</Text>
+        </View>
 
-      <TextInput
-        style={styles.input}
-        value={activationCode}
-        onChangeText={handleChange}
-        placeholder="XXXX‑XXXX‑XXXX"
-        maxLength={14}
-        autoCapitalize="none"
-        inputMode="numeric"
-      />
+        <View style={styles.inputContainer}>
+          <Text style={styles.subtitle}>Enter Your Activation Code</Text>
+          <TextInput
+            style={styles.input}
+            value={activationCode}
+            onChangeText={handleChange}
+            placeholder="XXXX-XXXX-XXXX"
+            placeholderTextColor="rgba(255, 255, 255, 0.5)"
+            maxLength={14}
+            autoCapitalize="none"
+            inputMode="numeric"
+          />
+        </View>
 
-      <TouchableOpacity
-        style={[styles.button, isLoading && styles.buttonDisabled]}
-        onPress={handleActivation}
-        disabled={isLoading}>
-        {isLoading ? (
-          <>
-            <ActivityIndicator color="#fff" />
-            <Text style={styles.buttonText}> Activating…</Text>
-          </>
-        ) : (
-          <Text style={styles.buttonText}>Activate</Text>
-        )}
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, isLoading && styles.buttonDisabled]}
+          onPress={handleActivation}
+          disabled={isLoading}>
+          {isLoading ? (
+            <>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.buttonText}> Activating…</Text>
+            </>
+          ) : (
+            <Text style={styles.buttonText}>Activate</Text>
+          )}
+        </TouchableOpacity>
 
-      {error && (
-        <>
+        {error && (
           <View style={styles.errorBox}>
-            <FontAwesome5 name="exclamation-circle" color="#D8000C" size={14} />
+            <FontAwesome5 name="exclamation-circle" color="#ff4d4f" size={14} />
             <Text style={styles.errorText}> {error}</Text>
           </View>
-          {/* <NetworkLogger /> */}
-        </>
-      )}
+        )}
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Need help? Contact support@screeniptv.com
-        </Text>
-        <Text style={styles.footerText}>
-          © 2025 ScreenIPTV. All rights reserved.
-        </Text>
-      </View>
-    </ScrollView>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Need help? Contact support@screeniptv.com
+          </Text>
+          <Text style={styles.footerText}>
+            ©2025 ScreenIPTV. All rights reserved.
+          </Text>
+        </View>
+      </ScrollView>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
   container: {
     flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#F9F9F9',
+    backgroundColor: 'transparent',
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 60,
   },
   title: {
-    fontSize: 26,
+    fontSize: 32,
     fontWeight: 'bold',
-    color: '#2D3B55',
-    textAlign: 'center',
+    color: '#FFFFFF',
+    marginLeft: 12,
   },
-  underline: {
-    width: 90,
-    height: 3,
-    backgroundColor: '#4A90E2',
-    alignSelf: 'center',
-    marginVertical: 8,
+  inputContainer: {
+    marginBottom: 24,
   },
   subtitle: {
-    fontSize: 18,
-    textAlign: 'center',
-    color: '#555',
-    marginBottom: 24,
+    fontSize: 16,
+    color: '#A0ABC0',
+    marginBottom: 8,
+    marginLeft: 4,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    height: 52,
-    fontSize: 18,
-    textAlign: 'center',
-    marginBottom: 20,
-    backgroundColor: '#fff',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 12,
+    height: 56,
+    fontSize: 20,
+    color: '#FFFFFF',
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   button: {
-    backgroundColor: '#4A90E2',
-    paddingVertical: 14,
-    borderRadius: 10,
+    backgroundColor: '#3A7BD5',
+    paddingVertical: 16,
+    borderRadius: 25,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -234,29 +250,30 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FDECEC',
-    borderColor: '#F5C6CB',
+    backgroundColor: 'rgba(255, 77, 79, 0.1)',
+    borderColor: 'rgba(255, 77, 79, 0.4)',
     borderWidth: 1,
     borderRadius: 8,
     padding: 10,
     marginTop: 16,
   },
   errorText: {
-    color: '#D8000C',
+    color: '#ff4d4f',
   },
   footer: {
-    marginTop: 32,
+    marginTop: 60,
     alignItems: 'center',
   },
   footerText: {
-    color: '#888',
-    fontSize: 12,
+    color: '#E2E8F0',
+    fontSize: 14,
     textAlign: 'center',
+    lineHeight: 22,
   },
 });
 

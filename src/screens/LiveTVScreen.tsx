@@ -40,7 +40,12 @@ const ChannelCard = React.memo(
     onPress: () => void;
     cardSize: number;
   }) => {
-    const icon = item.stream_icon || item.icon || null;
+    const rawIcon = item.stream_icon || item.icon || null;
+    const icon = rawIcon
+      ? `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(
+        rawIcon,
+      )}`
+      : null;
     return (
       <TouchableOpacity
         style={[styles.channelCard, { width: cardSize }]}
@@ -139,7 +144,12 @@ const LiveTVScreen: React.FC<any> = ({ navigation }) => {
 
   const renderChannelCard = useCallback(
     ({ item }: { item: any }) => {
-      const icon = item.stream_icon || item.icon || null;
+      const rawIcon = item.stream_icon || item.icon || null;
+      const icon = rawIcon
+        ? `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(
+          rawIcon,
+        )}`
+        : null;
       const originalStreamUrl = `http://${serverDomain}:${serverPort}/live/${username}/${password}/${item.stream_id}.m3u8`;
       const streamUrl = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalStreamUrl)}`;
 
@@ -166,6 +176,8 @@ const LiveTVScreen: React.FC<any> = ({ navigation }) => {
   const filteredChannels = liveChannels.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()),
   );
+
+  console.log("filteredChannels ===>", filteredChannels)
 
   // FlatList layout optimization for fixed-size cards
   const getItemLayout = useCallback(

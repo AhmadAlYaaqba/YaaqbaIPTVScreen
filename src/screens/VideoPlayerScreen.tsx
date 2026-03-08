@@ -17,6 +17,7 @@ import { storage } from '../utils/storage';
 // Components
 import NativeVideoPlayer, { NativeVideoPlayerRef } from '../components/NativeVideoPlayer';
 import VLCVideoPlayer, { VLCVideoPlayerRef } from '../components/VLCVideoPlayer';
+import VLCPlyrPlayer, { VLCPlyrPlayerRef } from '../components/VLCPlyrPlayer';
 import PlayerControls from '../components/PlayerControls';
 import ChannelSwitcher from '../components/ChannelSwitcher';
 
@@ -28,10 +29,23 @@ import { usePlayerGestures } from '../hooks/usePlayerGestures';
 type VideoPlayerScreenRouteProp = RouteProp<RootStackParamList, 'VideoPlayer'>;
 type VideoPlayerScreenNavProp = StackNavigationProp<RootStackParamList, 'VideoPlayer'>;
 
-interface Props {
+type Props = {
   route: VideoPlayerScreenRouteProp;
   navigation: VideoPlayerScreenNavProp;
-}
+};
+
+// Extract original URL from proxy URL for VLC (VLC handles IPTV streams natively)
+const getDirectStreamUrl = (url: string): string => {
+  try {
+    const proxyPrefix = 'https://v0-next-js-proxy-api.vercel.app/api/stream?url=';
+    if (url.startsWith(proxyPrefix)) {
+      return decodeURIComponent(url.substring(proxyPrefix.length));
+    }
+  } catch (e) {
+    // fallback to original
+  }
+  return url;
+};
 
 const CONTROLS_TIMEOUT = 5000; // Auto-hide controls after 5 seconds
 
@@ -52,6 +66,8 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   } = route.params;
 
   const useVLC = useSelector((state: RootState) => state.user.useVLC);
+  const useNewVLC = useSelector((state: RootState) => state.user.useNewVLC);
+  const vlcUseProxy = useSelector((state: RootState) => state.user.vlcUseProxy);
   const { username, password, serverDomain, serverPort } = useSelector(
     (state: RootState) => state.user,
   );
@@ -93,9 +109,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     onSeek: player.seek,
   });
 
-  // Refs for player components
-  const nativePlayerRef = useRef<NativeVideoPlayerRef>(null);
-  const vlcPlayerRef = useRef<VLCVideoPlayerRef>(null);
+
 
   // --- Controls auto-hide logic ---
   const resetControlsTimeout = useCallback(() => {
@@ -284,17 +298,28 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     setChannelSwitcherVisible(v => !v);
   }, []);
 
+  // Determine which player to use
+  const useOldVLC = useVLC && !useNewVLC;
+  const useNewVLCPlayer = useVLC && useNewVLC;
+
+  // Player refs
+  const nativePlayerRef = useRef<NativeVideoPlayerRef>(null);
+  const vlcPlayerRef = useRef<VLCVideoPlayerRef>(null);
+  const vlcPlyrRef = useRef<VLCPlyrPlayerRef>(null);
+
   // --- Seek ---
   const handleSeek = useCallback(
     (time: number) => {
-      if (useVLC) {
+      if (useOldVLC) {
         vlcPlayerRef.current?.seek(time);
+      } else if (useNewVLCPlayer) {
+        vlcPlyrRef.current?.seek(time);
       } else {
         nativePlayerRef.current?.seek(time);
       }
       resetControlsTimeout();
     },
-    [useVLC, resetControlsTimeout],
+    [useOldVLC, useNewVLCPlayer, resetControlsTimeout],
   );
 
   const handleGoBack = useCallback(() => {
@@ -302,12 +327,13 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   }, [navigation]);
 
   // --- Render ---
-  if (__DEV__) console.log('[VideoPlayerScreen] render, useVLC:', useVLC);
+  if (__DEV__) console.log('[VideoPlayerScreen] render, useVLC:', useVLC, 'useNewVLC:', useNewVLC);
 
   return (
     <View style={styles.container}>
       {/* Video player */}
-      {useVLC ? (
+      {useOldVLC ? (
+        // Old VLC player — has its own built-in controls
         <VLCVideoPlayer
           ref={vlcPlayerRef}
           uri={currentStreamUrl}
@@ -316,7 +342,22 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
           onGoBack={handleGoBack}
           onProgress={player.onProgress}
         />
+      ) : useNewVLCPlayer ? (
+        // New VLC player — raw surface, uses shared PlayerControls
+        <VLCPlyrPlayer
+          key={`vlcplyr-${player.playerKey}-${currentStreamId}`}
+          ref={vlcPlyrRef}
+          uri={vlcUseProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl)}
+          isLive={isLive}
+          isPaused={player.isPaused}
+          onLoad={player.onLoad}
+          onError={player.onError}
+          onProgress={player.onProgress}
+          onBuffer={player.onBuffer}
+          continueTime={continueTime?.progress}
+        />
       ) : (
+        // ExoPlayer (native)
         player.currentSource && (
           <NativeVideoPlayer
             key={`native-${player.playerKey}-${currentStreamId}`}
@@ -335,8 +376,8 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         )
       )}
 
-      {/* Custom controls overlay (native player only — VLC has its own) */}
-      {!useVLC && (
+      {/* Custom controls overlay — shown for ExoPlayer and new VLC (old VLC has its own) */}
+      {!useOldVLC && (
         <PlayerControls
           visible={controlsVisible}
           channelName={currentChannelName}

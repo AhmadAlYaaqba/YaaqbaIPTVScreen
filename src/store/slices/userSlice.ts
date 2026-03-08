@@ -1,5 +1,5 @@
 // src/store/slices/userSlice.ts
-import {createSlice, PayloadAction} from '@reduxjs/toolkit';
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface UserState {
   username: string;
@@ -7,6 +7,8 @@ interface UserState {
   serverDomain: string;
   serverPort: string;
   useVLC: boolean;
+  useNewVLC: boolean;
+  vlcUseProxy: boolean;
   // Potentially more fields:
   // token?: string;
   // isLoggedIn?: boolean;
@@ -18,6 +20,8 @@ const initialState: UserState = {
   serverDomain: '',
   serverPort: '',
   useVLC: true,
+  useNewVLC: false,
+  vlcUseProxy: true,
 };
 
 export const userSlice = createSlice({
@@ -43,6 +47,6 @@ export const userSlice = createSlice({
   },
 });
 
-export const {setUserCredentials, clearUserCredentials, setUseVlcPlayer} = userSlice.actions;
+export const { setUserCredentials, clearUserCredentials, setUseVlcPlayer } = userSlice.actions;
 
 export default userSlice.reducer;
