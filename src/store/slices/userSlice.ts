@@ -9,6 +9,8 @@ interface UserState {
   useVLC: boolean;
   useNewVLC: boolean;
   vlcUseProxy: boolean;
+  showMoviesSlider: boolean;
+  showSeriesSlider: boolean;
   // Potentially more fields:
   // token?: string;
   // isLoggedIn?: boolean;
@@ -22,6 +24,8 @@ const initialState: UserState = {
   useVLC: true,
   useNewVLC: false,
   vlcUseProxy: true,
+  showMoviesSlider: true,
+  showSeriesSlider: true,
 };
 
 export const userSlice = createSlice({

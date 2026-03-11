@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useRef, useMemo} from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,26 +9,32 @@ import {
   Dimensions,
   ActivityIndicator,
   ScrollView,
+  SafeAreaView,
+  ImageBackground,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
 import Swiper from 'react-native-swiper';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import {useSelector, useDispatch} from 'react-redux';
-import {RootState, AppDispatch} from '../store';
-import {fetchSeries, fetchSeriesByCategory} from '../store/slices/iptvSlice';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState, AppDispatch } from '../store';
+import { fetchSeries, fetchSeriesByCategory } from '../store/slices/iptvSlice';
+import CategoryPickerModal from '../components/CategoryPickerModal';
 
-const {width} = Dimensions.get('window');
-const GAP = 12;
-const CARD_W = (width - GAP * 4) / 3; // 3‑column grid
+const backgroundImage = require('../assets/background-image-mobile.png');
 
-const SeriesHomeScreen: React.FC<any> = ({navigation}) => {
+const { width } = Dimensions.get('window');
+const CARD_SIZE = (width - 56) / 3;
+const CARD_HEIGHT = CARD_SIZE * 1.5; // 2:3 aspect ratio
+
+const SeriesHomeScreen: React.FC<any> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
   const searchRef = useRef<TextInput>(null);
 
   /* Redux state ---------------------------------------------------- */
-  const {username, password, serverDomain, serverPort} = useSelector(
+  const { username, password, serverDomain, serverPort, showSeriesSlider } = useSelector(
     (s: RootState) => s.user,
   );
   const {
@@ -42,34 +48,40 @@ const SeriesHomeScreen: React.FC<any> = ({navigation}) => {
   /* Local state ---------------------------------------------------- */
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeCategoryName, setActiveCategoryName] = useState<string>('');
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   /* Fetch categories on mount -------------------------------------- */
   useEffect(() => {
     dispatch(
-      fetchSeries({username, password, domain: serverDomain, port: serverPort}),
+      fetchSeries({ username, password, domain: serverDomain, port: serverPort }),
     );
   }, [dispatch, username, password, serverDomain, serverPort]);
 
   /* When categories arrive fetch first cat ------------------------- */
   useEffect(() => {
     if (!loadingCategories && seriesCategories.length && !activeCategory) {
-      const first = seriesCategories[0].category_id;
-      changeCategory(first);
+      const first = seriesCategories[0];
+      changeCategory(first.category_id, first.category_name);
     }
   }, [loadingCategories, seriesCategories]);
 
-  const changeCategory = (catId: string) => {
-    setActiveCategory(catId);
+  const changeCategory = useCallback((categoryId: string, categoryName: string) => {
+    if (categoryId === activeCategory) return;
+    setActiveCategory(categoryId);
+    setActiveCategoryName(categoryName);
+    setShowCategoryModal(false);
+    setSearch('');
     dispatch(
       fetchSeriesByCategory({
         username,
         password,
         domain: serverDomain,
         port: serverPort,
-        categoryId: catId,
+        categoryId,
       }),
     );
-  };
+  }, [dispatch, username, password, serverDomain, serverPort, activeCategory]);
 
   /* Derived lists -------------------------------------------------- */
   const filtered = useMemo(
@@ -79,7 +91,9 @@ const SeriesHomeScreen: React.FC<any> = ({navigation}) => {
       ),
     [seriesList, search],
   );
+
   if (__DEV__) console.log('filtered ===>', filtered)
+
   const trending = filtered.filter(item => item.backdrop_path?.[0]).slice(0, 5);
   const recentlyAdded = [...filtered].sort(
     (a, b) => Number(b.added) - Number(a.added),
@@ -89,263 +103,487 @@ const SeriesHomeScreen: React.FC<any> = ({navigation}) => {
   );
 
   /* Card component ------------------------------------------------- */
-  const PosterCard = ({item}: {item: any}) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() =>
-        navigation.navigate('SeriesDetail', {
-          seriesId: item.series_id,
-          seriesName: item.name,
-          baseInfo: item, // << pass whole object
-        })
-      }>
-      <FastImage
-        style={styles.cardImage}
-        source={{uri: item.cover, priority: FastImage.priority.normal}}
-        resizeMode={FastImage.resizeMode.cover}
-      />
-      <View style={styles.ratingBadge}>
-        <FontAwesome5 name="star" size={10} color="#FFD700" />
-        <Text style={styles.ratingText}>
-          {item.rating_5based || item.rating}
+  const PosterCard = ({ item }: { item: any }) => {
+    const icon = item.cover
+      ? `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(item.cover)}`
+      : null;
+
+    return (
+      <TouchableOpacity
+        style={styles.channelCard}
+        onPress={() =>
+          navigation.navigate('SeriesDetail', {
+            seriesId: item.series_id,
+            seriesName: item.name,
+            baseInfo: item, // pass whole object
+          })
+        }
+        activeOpacity={0.7}>
+        <View style={icon ? styles.cardGlowingBorder : styles.cardGlowingBorderPlaceholder}>
+          <View style={styles.cardImageContainer}>
+            {icon ? (
+              <FastImage
+                style={styles.cardImage}
+                source={{ uri: icon, priority: FastImage.priority.normal }}
+                resizeMode={FastImage.resizeMode.cover}
+              />
+            ) : (
+              <FontAwesome5 name="film" size={28} color="#A0ABC0" />
+            )}
+            <View style={styles.ratingBadge}>
+              <FontAwesome5 name="star" size={10} color="#FFD700" />
+              <Text style={styles.ratingText}>
+                {item.rating_5based || item.rating || "0.0"}
+              </Text>
+            </View>
+          </View>
+        </View>
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {item.name}
         </Text>
-      </View>
-      <Text style={styles.cardTitle} numberOfLines={1}>
-        {item.name}
-      </Text>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   /* UI ------------------------------------------------------------- */
-  if (loadingCategories || loadingSeries)
+  if (loadingCategories || !activeCategory) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#4A90E2" />
+        <Text style={styles.loadingText}>Loading categories...</Text>
       </View>
     );
+  }
 
-  if (error)
+  if (error) {
     return (
       <View style={styles.center}>
-        <Text style={{color: 'red'}}>{error}</Text>
+        <FontAwesome5 name="exclamation-circle" size={40} color="#E53935" />
+        <Text style={styles.error}>{error}</Text>
       </View>
     );
+  }
 
   return (
-    <View style={styles.container}>
-      {/* ───── Header ───── */}
-      <View style={[styles.header, {paddingTop: insets.top + 4}]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <FontAwesome5 name="arrow-left" size={16} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Series</Text>
-        <View style={{width: 16}} />
-      </View>
-
-      {/* ───── Search ───── */}
-      <View style={styles.searchWrap}>
-        <FontAwesome5
-          name="search"
-          size={14}
-          color="#777"
-          style={{marginRight: 8}}
-        />
-        <TextInput
-          ref={searchRef}
-          placeholder="Search series..."
-          placeholderTextColor="#999"
-          style={styles.searchInput}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search ? (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <FontAwesome5 name="times-circle" size={16} color="#777" />
+    <ImageBackground
+      source={backgroundImage}
+      style={styles.backgroundImage}
+      resizeMode="cover"
+    >
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.headerLeft} onPress={() => navigation.goBack()}>
+            <FontAwesome5 name="arrow-left" size={18} color="#fff" />
+            <Text style={styles.headerTitle}> Series</Text>
           </TouchableOpacity>
-        ) : null}
-      </View>
+        </View>
 
-      {/* ───── Categories ───── */}
-      <View>
-        <FlatList
-          data={seriesCategories}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={c => c.category_id.toString()}
-          renderItem={({item}) => {
-            const active = item.category_id === activeCategory;
-            return (
-              <TouchableOpacity
-                style={[styles.genrePill, active && styles.genrePillActive]}
-                onPress={() => changeCategory(item.category_id)}>
-                <Text
-                  style={[styles.genreText, active && styles.genreTextActive]}
-                  numberOfLines={1}>
-                  {item.category_name}
-                </Text>
-              </TouchableOpacity>
-            );
-          }}
-          contentContainerStyle={{paddingHorizontal: 8, paddingVertical: 8}}
-        />
-      </View>
-      <ScrollView contentContainerStyle={{paddingBottom: 5}}>
-        {/* ───── Trending slider ───── */}
-        {trending.length > 0 && (
-          <View style={styles.sliderWrapper}>
-            <Swiper
-              autoplay
-              showsPagination
-              dotColor="#fff"
-              activeDotColor="#4A90E2">
-              {trending.map(s => (
-                <TouchableOpacity
-                  key={s.series_id.toString()}
-                  style={{flex: 1}}
-                  onPress={() =>
-                    navigation.navigate('SeriesDetail', {
-                      seriesId: s.series_id,
-                      seriesName: s.name,
-                      baseInfo: s,
-                    })
-                  }>
-                  <FastImage
-                    style={{width: '100%', height: '100%'}}
-                    source={{uri: s.backdrop_path[0]}}
-                    resizeMode={FastImage.resizeMode.cover}
-                  />
-                  <View style={styles.trendOverlay} />
-                  <View style={styles.trendMeta}>
-                    <Text style={styles.trendTitle}>{s.name}</Text>
-                    <View style={styles.trendRow}>
-                      <FontAwesome5 name="star" size={12} color="#FFD700" />
-                      <Text style={styles.trendRating}>
-                        {s.rating_5based || s.rating}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </Swiper>
-          </View>
-        )}
-
-        {/* ───── Recently Added grid ───── */}
-        {recentlyAdded.length > 0 && (
-          <FlatList
-            data={recentlyAdded}
-            keyExtractor={i => i.series_id.toString()}
-            renderItem={({item}) => <PosterCard item={item} />}
-            numColumns={3}
-            columnWrapperStyle={{
-              justifyContent: 'space-between',
-              marginBottom: GAP,
-            }}
-            contentContainerStyle={{paddingHorizontal: GAP, marginTop: 24}}
-          />
-        )}
-
-        {/* ───── Most Watched grid ───── */}
-        {mostWatched.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Most Watched</Text>
-            <FlatList
-              data={mostWatched}
-              keyExtractor={i => i.series_id.toString()}
-              renderItem={({item}) => <PosterCard item={item} />}
-              numColumns={3}
-              columnWrapperStyle={{
-                justifyContent: 'space-between',
-                marginBottom: GAP,
-              }}
-              contentContainerStyle={{paddingHorizontal: GAP}}
+        {/* Toolbar (Category + Search) */}
+        <Animated.View
+          entering={FadeInDown.duration(300)}
+          style={styles.toolbarContainer}>
+          {/* Active category chip */}
+          <TouchableOpacity
+            style={styles.categoryChip}
+            onPress={() => setShowCategoryModal(true)}
+            activeOpacity={0.75}>
+            <FontAwesome5
+              name="tv"
+              size={14}
+              color="#A0ABC0"
+              style={styles.chipIcon}
             />
-          </>
-        )}
-      </ScrollView>
-    </View>
+            <Text style={styles.chipText} numberOfLines={1}>
+              {activeCategoryName || 'Select Category'}
+            </Text>
+            <FontAwesome5 name="chevron-down" size={12} color="#A0ABC0" />
+          </TouchableOpacity>
+
+          {/* Search bar */}
+          <View style={styles.searchWrapper}>
+            <FontAwesome5
+              name="search"
+              size={14}
+              color="#A0ABC0"
+              style={styles.searchIcon}
+            />
+            <TextInput
+              ref={searchRef}
+              style={styles.searchInput}
+              placeholder="Search series..."
+              placeholderTextColor="#A0ABC0"
+              value={search}
+              onChangeText={setSearch}
+              clearButtonMode="while-editing"
+            />
+          </View>
+        </Animated.View>
+
+        <View style={styles.contentContainer}>
+          <ScrollView contentContainerStyle={{ paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
+            {loadingSeries ? (
+              <View style={[styles.center, { marginTop: 40 }]}>
+                <ActivityIndicator size="large" color="#4A90E2" />
+              </View>
+            ) : filtered.length === 0 ? (
+              <View style={[styles.center, { marginTop: 80 }]}>
+                <FontAwesome5 name="tv" size={40} color="#A0ABC0" />
+                <Text style={styles.emptyText}>No series found</Text>
+              </View>
+            ) : (
+              <>
+                {/* ───── Trending slider ───── */}
+                {showSeriesSlider && trending.length > 0 && (
+                  <View style={styles.sliderWrapper}>
+                    <Swiper
+                      autoplay
+                      showsPagination
+                      dotColor="rgba(255,255,255,0.4)"
+                      activeDotColor="#4A90E2">
+                      {trending.map(s => {
+                        const bgUri = s.backdrop_path?.[0]
+                          ? `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(s.backdrop_path[0])}`
+                          : null;
+                        return (
+                          <TouchableOpacity
+                            key={s.series_id.toString()}
+                            style={styles.sliderSlide}
+                            onPress={() =>
+                              navigation.navigate('SeriesDetail', {
+                                seriesId: s.series_id,
+                                seriesName: s.name,
+                                baseInfo: s,
+                              })
+                            }>
+                            {bgUri && (
+                              <FastImage
+                                style={styles.sliderImage}
+                                source={{ uri: bgUri }}
+                                resizeMode={FastImage.resizeMode.cover}
+                              />
+                            )}
+                            <View style={styles.trendOverlay} />
+                            <View style={styles.trendMeta}>
+                              <Text style={styles.trendTitle}>{s.name}</Text>
+                              <View style={styles.trendRow}>
+                                <FontAwesome5 name="star" size={12} color="#FFD700" />
+                                <Text style={styles.trendRating}>
+                                  {s.rating_5based || s.rating}
+                                </Text>
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </Swiper>
+                  </View>
+                )}
+
+                {/* ───── Recently Added grid ───── */}
+                {recentlyAdded.length > 0 && (
+                  <FlatList
+                    scrollEnabled={false}
+                    data={recentlyAdded}
+                    keyExtractor={i => i.series_id.toString()}
+                    renderItem={({ item }) => <PosterCard item={item} />}
+                    numColumns={3}
+                    columnWrapperStyle={{
+                      justifyContent: 'space-between',
+                    }}
+                    contentContainerStyle={styles.grid}
+                    initialNumToRender={12}
+                    maxToRenderPerBatch={12}
+                  />
+                )}
+
+                {/* ───── Most Watched grid ───── */}
+                {mostWatched.length > 0 && (
+                  <>
+                    <Text style={styles.sectionTitle}>Most Watched</Text>
+                    <FlatList
+                      scrollEnabled={false}
+                      data={mostWatched}
+                      keyExtractor={i => i.series_id.toString()}
+                      renderItem={({ item }) => <PosterCard item={item} />}
+                      numColumns={3}
+                      columnWrapperStyle={{
+                        justifyContent: 'space-between',
+                      }}
+                      contentContainerStyle={styles.grid}
+                      initialNumToRender={6}
+                      maxToRenderPerBatch={6}
+                    />
+                  </>
+                )}
+              </>
+            )}
+          </ScrollView>
+        </View>
+
+        {/* Category Modal */}
+        <CategoryPickerModal
+          visible={showCategoryModal}
+          categories={seriesCategories as any}
+          activeCategory={activeCategory}
+          onSelect={changeCategory}
+          onClose={() => setShowCategoryModal(false)}
+        />
+      </SafeAreaView>
+    </ImageBackground>
   );
 };
 
 export default SeriesHomeScreen;
 
 /* ───────────────────────────── Styles */
+const HEADER_HEIGHT = 32;
+
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#F3F4F6'},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center'},
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 0,
+    backgroundColor: 'transparent',
+    paddingTop: HEADER_HEIGHT + 8,
+  },
+  contentContainer: {
+    backgroundColor: 'transparent',
+    flex: 1,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  loadingText: {
+    color: '#E2E8F0',
+    fontSize: 14,
+    marginTop: 12,
+  },
+  error: {
+    color: '#ff4d4f',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  emptyText: {
+    color: '#A0ABC0',
+    fontSize: 14,
+    marginTop: 12,
+  },
 
   /* Header */
   header: {
+    top: 0,
+    left: 0,
+    right: 0,
+    height: HEADER_HEIGHT,
+    backgroundColor: 'transparent',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#2D3B55',
     paddingHorizontal: 16,
-    paddingBottom: 12,
   },
-  headerTitle: {color: '#fff', fontSize: 18, fontWeight: 'bold'},
-
-  /* Search */
-  searchWrap: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingHorizontal: 12,
   },
-  searchInput: {flex: 1, height: 40, fontSize: 14},
+  headerTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
 
-  /* Category pills */
-  genrePill: {
-    minWidth: 72,
+  /* Toolbar (category chip + search) */
+  toolbarContainer: {
+    backgroundColor: 'transparent',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#eee',
+    paddingBottom: 16,
+    paddingTop: 8,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  chipIcon: {
     marginRight: 8,
   },
-  genrePillActive: {backgroundColor: '#4A90E2'},
-  genreText: {fontSize: 13, color: '#555'},
-  genreTextActive: {color: '#fff', fontWeight: '600'},
+  chipText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+    marginRight: 8,
+  },
+  searchWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 48,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#fff',
+    padding: 0,
+  },
 
   /* Slider */
-  sliderWrapper: {height: 180, marginTop: 12},
+  sliderWrapper: {
+    height: 200,
+    marginBottom: 20,
+    marginHorizontal: 12,
+    marginTop: 4,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  sliderSlide: {
+    flex: 1,
+  },
+  sliderImage: {
+    width: '100%',
+    height: '100%',
+  },
   trendOverlay: {
     position: 'absolute',
     inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  trendMeta: {position: 'absolute', bottom: 12, left: 12, right: 12},
-  trendTitle: {color: '#fff', fontSize: 18, fontWeight: '700'},
-  trendRow: {flexDirection: 'row', alignItems: 'center', marginTop: 4},
-  trendRating: {color: '#fff', marginLeft: 4},
+  trendMeta: {
+    position: 'absolute',
+    bottom: 24,
+    left: 16,
+    right: 16
+  },
+  trendTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '700'
+  },
+  trendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4
+  },
+  trendRating: {
+    color: '#fff',
+    marginLeft: 4,
+    fontSize: 14,
+    fontWeight: '500'
+  },
 
   /* Section title */
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2D3B55',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
     marginLeft: 16,
-    marginTop: 24,
-    marginBottom: 8,
+    marginTop: 16,
+    marginBottom: 12,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
 
-  /* Cards */
-  card: {width: CARD_W, marginBottom: GAP},
-  cardImage: {width: '100%', height: CARD_W * 1.5, borderRadius: 8},
+  /* Cards Grid */
+  grid: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  channelCard: {
+    width: CARD_SIZE,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  cardGlowingBorder: {
+    width: CARD_SIZE,
+    height: CARD_HEIGHT,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#4A90E2',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    shadowColor: '#4A90E2',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  cardGlowingBorderPlaceholder: {
+    width: CARD_SIZE,
+    height: CARD_HEIGHT,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(249, 115, 22, 0.3)',
+    backgroundColor: 'rgba(249, 115, 22, 0.05)',
+    shadowColor: '#F97316',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    elevation: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  cardImageContainer: {
+    width: CARD_SIZE - 6,
+    height: CARD_HEIGHT - 6,
+    backgroundColor: '#111',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
   ratingBadge: {
     position: 'absolute',
     top: 6,
     right: 6,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     borderRadius: 10,
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 3,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  ratingText: {color: '#fff', fontSize: 10, marginLeft: 2},
-  cardTitle: {marginTop: 4, fontSize: 12, color: '#2D3B55'},
+  ratingText: {
+    color: '#fff',
+    fontSize: 10,
+    marginLeft: 4,
+    fontWeight: 'bold'
+  },
+  cardTitle: {
+    fontSize: 13,
+    color: '#fff',
+    textAlign: 'center',
+    fontWeight: '500',
+    marginTop: 4,
+  },
 });

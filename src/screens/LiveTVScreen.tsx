@@ -10,7 +10,10 @@ import {
   TextInput,
   Dimensions,
   SafeAreaView,
+  ImageBackground,
 } from 'react-native';
+
+const backgroundImage = require('../assets/background-image-mobile.png');
 import { useSelector, useDispatch } from 'react-redux';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Animated, {
@@ -51,20 +54,15 @@ const ChannelCard = React.memo(
         style={[styles.channelCard, { width: cardSize }]}
         onPress={onPress}
         activeOpacity={0.7}>
-        {icon ? (
-          <Image
-            source={{ uri: icon }}
-            style={[styles.cardImage, { width: cardSize, height: cardSize }]}
-          />
-        ) : (
-          <View
-            style={[
-              styles.cardPlaceholder,
-              { width: cardSize, height: cardSize },
-            ]}>
-            <FontAwesome5 name="tv" size={28} color="#bbb" />
-          </View>
-        )}
+        <View style={icon ? styles.cardGlowingBorder : styles.cardGlowingBorderPlaceholder}>
+          {icon ? (
+            <View style={styles.cardImageContainer}>
+              <Image source={{ uri: icon }} style={styles.cardImage} />
+            </View>
+          ) : (
+            <FontAwesome5 name="tv" size={32} color="#F97316" />
+          )}
+        </View>
         <Text style={styles.cardTitle} numberOfLines={1}>
           {item.name}
         </Text>
@@ -182,8 +180,8 @@ const LiveTVScreen: React.FC<any> = ({ navigation }) => {
   // FlatList layout optimization for fixed-size cards
   const getItemLayout = useCallback(
     (_: any, index: number) => ({
-      length: CARD_SIZE + 16 + 18, // card height + margin + text
-      offset: (CARD_SIZE + 16 + 18) * Math.floor(index / 3),
+      length: CARD_SIZE + 20 + 20, // card height + margin + text
+      offset: (CARD_SIZE + 20 + 20) * Math.floor(index / 3),
       index,
     }),
     [],
@@ -223,99 +221,104 @@ const LiveTVScreen: React.FC<any> = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerLeft}
-          onPress={() => navigation.goBack()}>
-          <FontAwesome5 name="arrow-left" size={18} color="#fff" />
-          <Text style={styles.headerTitle}> Live TV</Text>
-        </TouchableOpacity>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <FontAwesome5 name="user" size={16} color="#fff" />
+    <ImageBackground
+      source={backgroundImage}
+      style={styles.backgroundImage}
+      resizeMode="cover"
+    >
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.headerLeft}
+            onPress={() => navigation.goBack()}>
+            <FontAwesome5 name="arrow-left" size={18} color="#fff" />
+            <Text style={styles.headerTitle}> Live TV</Text>
           </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Category selector chip + search */}
-      <Animated.View
-        entering={FadeInDown.duration(300)}
-        style={styles.toolbarContainer}>
-        {/* Active category chip */}
-        <TouchableOpacity
-          style={styles.categoryChip}
-          onPress={() => setShowCategoryModal(true)}
-          activeOpacity={0.75}>
-          <FontAwesome5
-            name="layer-group"
-            size={14}
-            color="#4A90E2"
-            style={styles.chipIcon}
-          />
-          <Text style={styles.chipText} numberOfLines={1}>
-            {activeCategoryName || 'Select Category'}
-          </Text>
-          <FontAwesome5 name="chevron-down" size={12} color="#666" />
-        </TouchableOpacity>
-
-        {/* Search bar */}
-        <View style={styles.searchWrapper}>
-          <FontAwesome5
-            name="search"
-            size={13}
-            color="#999"
-            style={styles.searchIcon}
-          />
-          <TextInput
-            placeholder="Search channels"
-            style={styles.searchInput}
-            value={search}
-            onChangeText={setSearch}
-            placeholderTextColor="#999"
-            clearButtonMode="while-editing"
-          />
-        </View>
-      </Animated.View>
-
-      <View style={styles.contentContainer}>
-        {/* Channels grid */}
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#4A90E2" />
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.headerIconButton}>
+              <FontAwesome5 name="user" size={16} color="#4A90E2" />
+            </TouchableOpacity>
           </View>
-        ) : filteredChannels.length === 0 ? (
-          <View style={styles.center}>
-            <FontAwesome5 name="satellite-dish" size={40} color="#ccc" />
-            <Text style={styles.emptyText}>No channels found</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={filteredChannels}
-            keyExtractor={item => item.stream_id.toString()}
-            renderItem={renderChannelCard}
-            numColumns={3}
-            columnWrapperStyle={{ justifyContent: 'space-between' }}
-            contentContainerStyle={styles.grid}
-            showsVerticalScrollIndicator={false}
-            removeClippedSubviews={true}
-            maxToRenderPerBatch={12}
-            windowSize={5}
-            initialNumToRender={12}
-          />
-        )}
-      </View>
+        </View>
 
-      {/* Category picker modal */}
-      <CategoryPickerModal
-        visible={showCategoryModal}
-        categories={liveCategories}
-        activeCategory={activeCategory}
-        onSelect={handleCategorySelect}
-        onClose={() => setShowCategoryModal(false)}
-      />
-    </SafeAreaView>
+        {/* Category selector chip + search */}
+        <Animated.View
+          entering={FadeInDown.duration(300)}
+          style={styles.toolbarContainer}>
+          {/* Active category chip */}
+          <TouchableOpacity
+            style={styles.categoryChip}
+            onPress={() => setShowCategoryModal(true)}
+            activeOpacity={0.75}>
+            <FontAwesome5
+              name="layer-group"
+              size={14}
+              color="#A0ABC0"
+              style={styles.chipIcon}
+            />
+            <Text style={styles.chipText} numberOfLines={1}>
+              {activeCategoryName || 'Select Category'}
+            </Text>
+            <FontAwesome5 name="chevron-down" size={12} color="#A0ABC0" />
+          </TouchableOpacity>
+
+          {/* Search bar */}
+          <View style={styles.searchWrapper}>
+            <FontAwesome5
+              name="search"
+              size={14}
+              color="#A0ABC0"
+              style={styles.searchIcon}
+            />
+            <TextInput
+              placeholder="Search channels"
+              style={styles.searchInput}
+              value={search}
+              onChangeText={setSearch}
+              placeholderTextColor="#A0ABC0"
+              clearButtonMode="while-editing"
+            />
+          </View>
+        </Animated.View>
+
+        <View style={styles.contentContainer}>
+          {/* Channels grid */}
+          {loading ? (
+            <View style={styles.center}>
+              <ActivityIndicator size="large" color="#4A90E2" />
+            </View>
+          ) : filteredChannels.length === 0 ? (
+            <View style={styles.center}>
+              <FontAwesome5 name="satellite-dish" size={40} color="#A0ABC0" />
+              <Text style={styles.emptyText}>No channels found</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={filteredChannels}
+              keyExtractor={item => item.stream_id.toString()}
+              renderItem={renderChannelCard}
+              numColumns={3}
+              columnWrapperStyle={{ justifyContent: 'space-between' }}
+              contentContainerStyle={styles.grid}
+              showsVerticalScrollIndicator={false}
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={12}
+              windowSize={5}
+              initialNumToRender={12}
+            />
+          )}
+        </View>
+
+        <CategoryPickerModal
+          visible={showCategoryModal}
+          categories={liveCategories}
+          activeCategory={activeCategory}
+          onSelect={handleCategorySelect}
+          onClose={() => setShowCategoryModal(false)}
+        />
+      </SafeAreaView>
+    </ImageBackground>
   );
 };
 
@@ -325,14 +328,19 @@ export default LiveTVScreen;
 const HEADER_HEIGHT = 32;
 
 const styles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
   container: {
     flex: 1,
     paddingHorizontal: 0,
-    backgroundColor: '#2D3B55',
+    backgroundColor: 'transparent',
     paddingTop: HEADER_HEIGHT + 8,
   },
   contentContainer: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'transparent',
     flex: 1,
   },
   center: {
@@ -342,19 +350,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   loadingText: {
-    color: '#999',
+    color: '#E2E8F0',
     fontSize: 14,
     marginTop: 12,
   },
   error: {
-    color: '#E53935',
+    color: '#ff4d4f',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 12,
   },
   retryButton: {
     marginTop: 16,
-    backgroundColor: '#4A90E2',
+    backgroundColor: '#3A7BD5',
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 8,
@@ -364,7 +372,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   emptyText: {
-    color: '#999',
+    color: '#A0ABC0',
     fontSize: 14,
     marginTop: 12,
   },
@@ -374,7 +382,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: HEADER_HEIGHT,
-    backgroundColor: '#2D3B55',
+    backgroundColor: 'transparent',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -398,30 +406,30 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#4A90E2',
+    backgroundColor: 'rgba(74, 144, 226, 0.2)',
+    borderWidth: 1,
+    borderColor: '#4A90E2',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
   },
   // toolbar (category chip + search)
   toolbarContainer: {
-    backgroundColor: '#2D3B55',
-    paddingHorizontal: 12,
-    paddingBottom: 12,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: 8,
   },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 20,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    marginBottom: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   chipIcon: {
     marginRight: 8,
@@ -430,58 +438,91 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: '#2D3B55',
+    color: '#fff',
     marginRight: 8,
   },
   // search bar
   searchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 38,
-    elevation: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 48,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
-    color: '#333',
+    fontSize: 16,
+    color: '#fff',
     padding: 0,
   },
   // grid
   grid: {
     paddingTop: 12,
     paddingBottom: 24,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
   },
   channelCard: {
     width: CARD_SIZE,
-    marginBottom: 16,
+    marginBottom: 20,
     alignItems: 'center',
   },
-  cardImage: {
+  cardGlowingBorder: {
     width: CARD_SIZE,
     height: CARD_SIZE,
-    borderRadius: 10,
-    resizeMode: 'cover',
-    marginBottom: 6,
-  },
-  cardPlaceholder: {
-    width: CARD_SIZE,
-    height: CARD_SIZE,
-    borderRadius: 10,
-    backgroundColor: '#E0E0E0',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#4A90E2',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    shadowColor: '#4A90E2',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  cardImageContainer: {
+    width: CARD_SIZE - 20,
+    height: CARD_SIZE - 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  cardGlowingBorderPlaceholder: {
+    width: CARD_SIZE,
+    height: CARD_SIZE,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(249, 115, 22, 0.3)',
+    backgroundColor: 'rgba(249, 115, 22, 0.05)',
+    shadowColor: '#F97316',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    elevation: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   cardTitle: {
-    fontSize: 12,
-    color: '#2D3B55',
+    fontSize: 13,
+    color: '#fff',
     textAlign: 'center',
+    fontWeight: '500',
+    marginTop: 4,
   },
 });

@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useMemo} from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,18 +7,21 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
-  SafeAreaView
+  SafeAreaView,
+  ImageBackground,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
-import { useSafeAreaInsets} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import {useDispatch, useSelector} from 'react-redux';
-import {RouteProp} from '@react-navigation/native';
-import {StackNavigationProp} from '@react-navigation/stack';
-import {RootStackParamList} from '../../RootNavigator';
-import {RootState, AppDispatch} from '../store';
-import {fetchSeriesInfo} from '../store/slices/iptvSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { RouteProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../../RootNavigator';
+import { RootState, AppDispatch } from '../store';
+import { fetchSeriesInfo } from '../store/slices/iptvSlice';
 import { storage } from '../utils/storage';
+
+const backgroundImage = require('../assets/background-image-mobile.png');
 
 /* ───────────────────────────── Types */
 export type SeriesDetailRouteProp = RouteProp<
@@ -47,21 +50,21 @@ interface Props {
 }
 
 /* ───────────────────────────── Layout */
-const {width} = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const THUMB_W = 120;
 const THUMB_H = 80;
 const GAP = 14;
 
 /* ───────────────────────────── Component */
-const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
-  const {seriesId, seriesName, baseInfo} = route.params; // baseInfo comes from Home
+const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
+  const { seriesId, seriesName, baseInfo } = route.params; // baseInfo comes from Home
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
 
-  const {username, password, serverDomain, serverPort} = useSelector(
+  const { username, password, serverDomain, serverPort } = useSelector(
     (s: RootState) => s.user,
   );
-  const {selectedSeriesInfo, loading, error} = useSelector(
+  const { selectedSeriesInfo, loading, error } = useSelector(
     (s: RootState) => s.iptv,
   );
 
@@ -69,7 +72,7 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
 
   /* Fetch full details */
   useEffect(() => {
-    navigation.setOptions({title: seriesName});
+    navigation.setOptions({ title: seriesName });
     dispatch(
       fetchSeriesInfo({
         username,
@@ -83,7 +86,7 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
 
   /* Local state */
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
-  if (__DEV__) console.log('selectedSeriesInfo ==>', selectedSeriesInfo);
+
   const info = baseInfo ?? selectedSeriesInfo?.info ?? ({} as any);
   const episodes =
     selectedSeriesInfo?.episodes ?? ({} as Record<string, any[]>);
@@ -103,7 +106,7 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
     const loadProgress = async () => {
       if (seriesId && selectedSeason && episodes[selectedSeason]) {
         const progressMap: Record<string, WatchProgress> = {};
-        
+
         // Load progress for each episode in the current season
         for (const episode of episodes[selectedSeason]) {
           const progress = await storage.getWatchProgress(
@@ -116,7 +119,7 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
             progressMap[episode.id] = progress;
           }
         }
-        
+
         setWatchProgress(progressMap);
       }
     };
@@ -126,11 +129,10 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
   /* Play episode */
   const playEpisode = (ep: any, index: number) => {
     if (!ep) return;
-    const originalUrl = `http://${serverDomain}:${serverPort}/series/${username}/${password}/${
-      ep.id
-    }.${ep.container_extension || 'mp4'}`;
+    const originalUrl = `http://${serverDomain}:${serverPort}/series/${username}/${password}/${ep.id
+      }.${ep.container_extension || 'mp4'}`;
     const url = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalUrl)}`;
-    
+
     navigation.navigate('VideoPlayer', {
       streamUrl: url,
       isLive: false,
@@ -144,10 +146,21 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
     });
   };
 
-  // Render episode with continue watching indicator
+  /* Data helpers */
+  const heroImg = info.backdrop_path?.[0] || info.cover;
+  const rating = info.rating_5based || info.rating;
+  const year = info.releaseDate?.substring(0, 4) || '';
+  const castArr = info.cast
+    ? info.cast.split(',').map((n: string) => n.trim())
+    : [];
+
+  // Render episode with continue watching indicator and fallback image support
   const renderEpisode = (ep: any, index: number) => {
     const episodeProgress = watchProgress[ep.id];
     const progress = episodeProgress ? (episodeProgress.progress / episodeProgress.totalDuration) * 100 : 0;
+    const epImageProxy = (ep.info?.movie_image || heroImg)
+      ? `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(ep.info?.movie_image || heroImg)}`
+      : null;
 
     return (
       <TouchableOpacity
@@ -155,13 +168,13 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
         style={styles.epCard}
         onPress={() => playEpisode(ep, index)}>
         <View style={styles.thumbWrapper}>
-          {ep.info.movie_image ? (
+          {epImageProxy ? (
             <FastImage
-              source={{uri: ep.info.movie_image}}
+              source={{ uri: epImageProxy }}
               style={styles.thumbImg}
             />
           ) : (
-            <View style={[styles.thumbImg, {backgroundColor: '#ccc'}]} />
+            <View style={[styles.thumbImg, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
           )}
           <View style={styles.thumbOverlay}>
             <FontAwesome5 name="play" size={14} color="#fff" />
@@ -183,149 +196,147 @@ const SeriesDetailScreen: React.FC<Props> = ({route, navigation}) => {
   if (loading)
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#4A90E2" />
       </View>
     );
   if (error)
     return (
       <View style={styles.center}>
-        <Text style={{color: 'red'}}>{error}</Text>
+        <Text style={{ color: '#E53935' }}>{error}</Text>
       </View>
     );
 
-  /* Data helpers */
-  const heroImg = info.backdrop_path?.[0] || info.cover;
-  const rating = info.rating_5based || info.rating;
-  const year = info.releaseDate?.substring(0, 4) || '';
-  const castArr = info.cast
-    ? info.cast.split(',').map((n: string) => n.trim())
-    : [];
-
   /* ───────────────────────────── UI */
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView contentContainerStyle={{paddingBottom: 80}}>
-        {/* ───── Hero banner ───── */}
-        <View style={[styles.heroWrapper]}>
-          {heroImg ? (
-            <FastImage
-              source={{uri: heroImg}}
-              style={styles.heroImg}
-              resizeMode={FastImage.resizeMode.cover}
-            />
-          ) : (
-            <View style={[styles.heroImg, {backgroundColor: '#888'}]} />
-          )}
-          <View style={styles.heroOverlay} />
+    <ImageBackground
+      source={backgroundImage}
+      style={styles.backgroundImage}
+      resizeMode="cover"
+    >
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
+          {/* ───── Hero banner ───── */}
+          <View style={[styles.heroWrapper]}>
+            {heroImg ? (
+              <FastImage
+                source={{ uri: `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(heroImg)}` }}
+                style={styles.heroImg}
+                resizeMode={FastImage.resizeMode.cover}
+              />
+            ) : (
+              <View style={[styles.heroImg, { backgroundColor: 'rgba(255,255,255,0.05)' }]} />
+            )}
+            <View style={styles.heroOverlay} />
 
-          {/* Back button (safe‑area) */}
-          <TouchableOpacity
-            style={[styles.backBtn, {top: insets.top + 8}]}
-            onPress={() => navigation.goBack()}>
-            <FontAwesome5 name="arrow-left" size={16} color="#fff" />
-          </TouchableOpacity>
+            {/* Back button (safe‑area) */}
+            <TouchableOpacity
+              style={[styles.backBtn, { top: insets.top + 8 }]}
+              onPress={() => navigation.goBack()}>
+              <FontAwesome5 name="arrow-left" size={16} color="#fff" />
+            </TouchableOpacity>
 
-          {/* Title over banner */}
-          <View style={styles.nameWrapper}>
-            <Text style={styles.seriesName} numberOfLines={1}>
-              {info.name || seriesName}
-            </Text>
-          </View>
-
-          {/* Meta + play */}
-          <View style={styles.heroMeta}>
-            <View style={styles.badgeRow}>
-              {rating ? (
-                <View style={styles.badge}>
-                  <FontAwesome5 name="star" size={10} color="#FFD700" />
-                  <Text style={styles.badgeText}>{rating}</Text>
-                </View>
-              ) : null}
-              {year ? (
-                <View style={styles.badgeOutline}>
-                  <Text style={styles.badgeText}>{year}</Text>
-                </View>
-              ) : null}
-              {info.genre ? (
-                <View style={styles.badgeOutline}>
-                  <Text style={styles.badgeText}>{info.genre}</Text>
-                </View>
-              ) : null}
+            {/* Title over banner */}
+            <View style={styles.nameWrapper}>
+              <Text style={styles.seriesName} numberOfLines={1}>
+                {info.name || seriesName}
+              </Text>
             </View>
 
-            <View style={styles.playRow}>
-              <TouchableOpacity
-                style={[styles.playBtn, {flex: 1}]}
-                onPress={() => playEpisode(currentEpisodes[0], 0)}>
-                <FontAwesome5 name="play" size={14} color="#fff" />
-                <Text style={styles.playText}>Play</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.playBtn,
-                  {width: 48, backgroundColor: 'rgba(255,255,255,0.2)'},
-                ]}>
-                <FontAwesome5 name="plus" size={14} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+            {/* Meta + play */}
+            <View style={styles.heroMeta}>
+              <View style={styles.badgeRow}>
+                {rating ? (
+                  <View style={styles.badge}>
+                    <FontAwesome5 name="star" size={10} color="#FFD700" />
+                    <Text style={styles.badgeText}>{rating}</Text>
+                  </View>
+                ) : null}
+                {year ? (
+                  <View style={styles.badgeOutline}>
+                    <Text style={styles.badgeText}>{year}</Text>
+                  </View>
+                ) : null}
+                {info.genre ? (
+                  <View style={styles.badgeOutline}>
+                    <Text style={styles.badgeText}>{info.genre}</Text>
+                  </View>
+                ) : null}
+              </View>
 
-        {/* ───── Plot / description ───── */}
-        {info.plot ? (
-          <View style={styles.plotBox}>
-            <Text style={styles.plotHeader}>Story</Text>
-            <Text style={styles.plotText}>{info.plot}</Text>
-          </View>
-        ) : null}
-
-        {/* ───── Cast chips (names only) ───── */}
-        {castArr.length ? (
-          <View style={styles.plotBox}>
-            <Text style={styles.plotHeader}>Casts</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingVertical: 6,
-              }}>
-              {castArr.map((name, idx) => (
-                <View key={idx} style={styles.castChip}>
-                  <Text style={styles.castText}>{name}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        ) : null}
-
-        {/* ───── Season selector ───── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{paddingHorizontal: 16, paddingVertical: 12}}>
-          {seasons.map(num => {
-            const active = num === selectedSeason;
-            return (
-              <TouchableOpacity
-                key={num}
-                style={[styles.seasonPill, active && styles.seasonPillActive]}
-                onPress={() => setSelectedSeason(num)}>
-                <Text
+              <View style={styles.playRow}>
+                <TouchableOpacity
+                  style={[styles.playBtn, { flex: 1 }]}
+                  onPress={() => playEpisode(currentEpisodes[0], 0)}>
+                  <FontAwesome5 name="play" size={14} color="#fff" />
+                  <Text style={styles.playText}>Play</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={[
-                    styles.seasonText,
-                    active && styles.seasonTextActive,
-                  ]}>{`Season ${num}`}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+                    styles.playBtn,
+                    { width: 48, backgroundColor: 'rgba(255,255,255,0.2)' },
+                  ]}>
+                  <FontAwesome5 name="plus" size={14} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
 
-        {/* ───── Episodes grid ───── */}
-        <View style={styles.episodeGrid}>
-          {currentEpisodes.map((ep, index) => renderEpisode(ep, index))}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          {/* ───── Plot / description ───── */}
+          {info.plot ? (
+            <View style={styles.plotBox}>
+              <Text style={styles.plotHeader}>Story</Text>
+              <Text style={styles.plotText}>{info.plot}</Text>
+            </View>
+          ) : null}
+
+          {/* ───── Cast chips (names only) ───── */}
+          {castArr.length ? (
+            <View style={styles.plotBox}>
+              <Text style={styles.plotHeader}>Casts</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingVertical: 6,
+                }}>
+                {castArr.map((name, idx) => (
+                  <View key={idx} style={styles.castChip}>
+                    <Text style={styles.castText}>{name}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {/* ───── Season selector ───── */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+            {seasons.map(num => {
+              const active = num === selectedSeason;
+              return (
+                <TouchableOpacity
+                  key={num}
+                  style={[styles.seasonPill, active && styles.seasonPillActive]}
+                  onPress={() => setSelectedSeason(num)}>
+                  <Text
+                    style={[
+                      styles.seasonText,
+                      active && styles.seasonTextActive,
+                    ]}>{`Season ${num}`}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {/* ───── Episodes grid ───── */}
+          <View style={styles.episodeGrid}>
+            {currentEpisodes.map((ep, index) => renderEpisode(ep, index))}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 };
 
@@ -333,16 +344,24 @@ export default SeriesDetailScreen;
 
 /* ───────────────────────────── Styles */
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#F3F4F6'},
-  center: {flex: 1, alignItems: 'center', justifyContent: 'center'},
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: 'transparent'
+  },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   /* Hero */
-  heroWrapper: {width: '100%', height: 260},
-  heroImg: {width: '100%', height: '100%'},
+  heroWrapper: { width: '100%', height: 260 },
+  heroImg: { width: '100%', height: '100%' },
   heroOverlay: {
     position: 'absolute',
     inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.6)', // slightly darker than plain overlay to help text
   },
   backBtn: {
     position: 'absolute',
@@ -350,81 +369,101 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(255,255,255,0.1)', // glassmorphic circle
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  nameWrapper: {position: 'absolute', top: 60, right: 16},
-  seriesName: {color: '#fff', fontSize: 22, fontWeight: '700'},
+  nameWrapper: { position: 'absolute', top: 60, right: 16 },
+  seriesName: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 10,
+  },
 
-  heroMeta: {position: 'absolute', bottom: 12, left: 16, right: 16},
-  badgeRow: {flexDirection: 'row', marginBottom: 8},
+  heroMeta: { position: 'absolute', bottom: 12, left: 16, right: 16 },
+  badgeRow: { flexDirection: 'row', marginBottom: 8 },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E53935',
+    backgroundColor: '#4A90E2',
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 2,
     marginRight: 6,
   },
   badgeOutline: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 2,
     marginRight: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
-  badgeText: {color: '#fff', fontSize: 10, marginLeft: 2},
-  playRow: {flexDirection: 'row'},
+  badgeText: { color: '#fff', fontSize: 10, marginLeft: 2, fontWeight: '500' },
+  playRow: { flexDirection: 'row' },
   playBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E53935',
+    backgroundColor: '#4A90E2', // matching blue theme
     borderRadius: 8,
     paddingVertical: 10,
     marginRight: 8,
   },
-  playText: {color: '#fff', fontSize: 14, marginLeft: 6, fontWeight: '600'},
+  playText: { color: '#fff', fontSize: 14, marginLeft: 6, fontWeight: 'bold' },
 
   /* Plot */
   plotBox: {
-    backgroundColor: '#fff',
-    margin: 16,
-    borderRadius: 8,
-    padding: 12,
-    elevation: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   plotHeader: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#2D3B55',
-    marginBottom: 4,
+    fontWeight: 'bold',
+    color: '#A0ABC0',
+    marginBottom: 8,
   },
-  plotText: {color: '#444', fontSize: 13, lineHeight: 18},
+  plotText: { color: '#E2E8F0', fontSize: 13, lineHeight: 18 },
 
   /* Cast chips */
   castChip: {
-    backgroundColor: '#eee',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  castText: {fontSize: 12, color: '#333'},
+  castText: { fontSize: 12, color: '#E2E8F0', fontWeight: '500' },
 
   /* Season pills */
   seasonPill: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#eee',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 20,
     marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  seasonPillActive: {backgroundColor: '#4A90E2'},
-  seasonText: {fontSize: 13, color: '#555'},
-  seasonTextActive: {color: '#fff', fontWeight: '600'},
+  seasonPillActive: {
+    backgroundColor: '#4A90E2',
+    borderColor: '#4A90E2',
+  },
+  seasonText: { fontSize: 13, color: '#A0ABC0', fontWeight: '500' },
+  seasonTextActive: { color: '#fff', fontWeight: 'bold' },
 
   /* Episodes grid */
   episodeGrid: {
@@ -432,24 +471,33 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
+    marginTop: 8,
   },
-  epCard: {width: (width - GAP * 4) / 3, marginBottom: GAP},
+  epCard: { width: (width - GAP * 4) / 3, marginBottom: GAP },
   thumbWrapper: {
     width: THUMB_W,
     height: THUMB_H,
-    borderRadius: 6,
+    borderRadius: 8,
     overflow: 'hidden',
     alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 144, 226, 0.5)',
   },
-  thumbImg: {width: '100%', height: '100%'},
+  thumbImg: { width: '100%', height: '100%' },
   thumbOverlay: {
     position: 'absolute',
     inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  epTitle: {marginTop: 4, fontSize: 12, color: '#2D3B55', textAlign: 'center'},
+  epTitle: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#E2E8F0',
+    textAlign: 'center',
+    fontWeight: '500'
+  },
   progressBar: {
     position: 'absolute',
     bottom: 0,
@@ -460,6 +508,6 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#E53935',
+    backgroundColor: '#4A90E2',
   },
 });

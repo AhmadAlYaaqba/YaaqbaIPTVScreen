@@ -11,6 +11,9 @@ importers:
       '@react-native-async-storage/async-storage':
         specifier: ^2.1.2
         version: 2.2.0(react-native@0.79.0(@babel/core@7.29.0)(@react-native-community/cli@18.0.0(typescript@5.0.4))(@types/react@19.2.14)(react@19.0.0))
+      '@react-native-community/blur':
+        specifier: ^4.4.1
+        version: 4.4.1(react-native@0.79.0(@babel/core@7.29.0)(@react-native-community/cli@18.0.0(typescript@5.0.4))(@types/react@19.2.14)(react@19.0.0))(react@19.0.0)
       '@react-navigation/bottom-tabs':
         specifier: ^7.3.10
         version: 7.14.0(@react-navigation/native@7.1.28(react-native@0.79.0(@babel/core@7.29.0)(@react-native-community/cli@18.0.0(typescript@5.0.4))(@types/react@19.2.14)(react@19.0.0))(react@19.0.0))(react-native-safe-area-context@5.7.0(react-native@0.79.0(@babel/core@7.29.0)(@react-native-community/cli@18.0.0(typescript@5.0.4))(@types/react@19.2.14)(react@19.0.0))(react@19.0.0))(react-native-screens@4.10.0(react-native@0.79.0(@babel/core@7.29.0)(@react-native-community/cli@18.0.0(typescript@5.0.4))(@types/react@19.2.14)(react@19.0.0))(react@19.0.0))(react-native@0.79.0(@babel/core@7.29.0)(@react-native-community/cli@18.0.0(typescript@5.0.4))(@types/react@19.2.14)(react@19.0.0))(react@19.0.0)
@@ -976,6 +979,12 @@ packages:
     resolution: {integrity: sha512-gvRvjR5JAaUZF8tv2Kcq/Gbt3JHwbKFYfmb445rhOj6NUMx3qPLixmDx5pZAyb9at1bYvJ4/eTUipU5aki45xw==}
     peerDependencies:
       react-native: ^0.0.0-0 || >=0.65 <1.0
+
+  '@react-native-community/blur@4.4.1':
+    resolution: {integrity: sha512-XBSsRiYxE/MOEln2ayunShfJtWztHwUxLFcSL20o+HNNRnuUDv+GXkF6FmM2zE8ZUfrnhQ/zeTqvnuDPGw6O8A==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
 
   '@react-native-community/cli-clean@18.0.0':
     resolution: {integrity: sha512-+k64EnJaMI5U8iNDF9AftHBJW+pO/isAhncEXuKRc6IjRtIh6yoaUIIf5+C98fgjfux7CNRZAMQIkPbZodv2Gw==}
@@ -5033,6 +5042,11 @@ snapshots:
   '@react-native-async-storage/async-storage@2.2.0(react-native@0.79.0(@babel/core@7.29.0)(@react-native-community/cli@18.0.0(typescript@5.0.4))(@types/react@19.2.14)(react@19.0.0))':
     dependencies:
       merge-options: 3.0.4
+      react-native: 0.79.0(@babel/core@7.29.0)(@react-native-community/cli@18.0.0(typescript@5.0.4))(@types/react@19.2.14)(react@19.0.0)
+
+  '@react-native-community/blur@4.4.1(react-native@0.79.0(@babel/core@7.29.0)(@react-native-community/cli@18.0.0(typescript@5.0.4))(@types/react@19.2.14)(react@19.0.0))(react@19.0.0)':
+    dependencies:
+      react: 19.0.0
       react-native: 0.79.0(@babel/core@7.29.0)(@react-native-community/cli@18.0.0(typescript@5.0.4))(@types/react@19.2.14)(react@19.0.0)
 
   '@react-native-community/cli-clean@18.0.0':
