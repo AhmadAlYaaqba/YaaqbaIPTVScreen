@@ -19,6 +19,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../RootNavigator';
 import { RootState } from '../store';
 import { useIsFocused } from '@react-navigation/native';
+import { proxyStreamUrl } from '../utils/proxy';
+import { buildLiveStreamUrl, buildMovieStreamUrl } from '../utils/xtream';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -39,7 +41,7 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
   const dispatch = useDispatch();
   const isFocused = useIsFocused();
 
-  const { username, password, serverDomain, serverPort } = useSelector(
+  const { username, password, serverDomain, serverPort, useProxy } = useSelector(
     (s: RootState) => s.user,
   );
 
@@ -160,8 +162,14 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
                         seriesName: item.name,
                       });
                     } else if (item.type === 'movie') {
-                      const originalUrl = `http://${serverDomain}:${serverPort}/movie/${username}/${password}/${item.id}.mp4`;
-                      const url = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalUrl)}`;
+                      const originalUrl = buildMovieStreamUrl({
+                        domain: serverDomain,
+                        port: serverPort,
+                        username,
+                        password,
+                        streamId: item.id,
+                      });
+                      const url = proxyStreamUrl(originalUrl, useProxy);
                       navigation.navigate('VideoPlayer', {
                         streamUrl: url,
                         isLive: false,
@@ -171,8 +179,15 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
                         continueTime: { progress: item.progress },
                       });
                     } else if (item.type === 'live') {
-                      const originalUrl = `http://${serverDomain}:${serverPort}/live/${username}/${password}/${item.id}.ts`;
-                      const url = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalUrl)}`;
+                      const originalUrl = buildLiveStreamUrl({
+                        domain: serverDomain,
+                        port: serverPort,
+                        username,
+                        password,
+                        streamId: item.id,
+                        extension: 'ts',
+                      });
+                      const url = proxyStreamUrl(originalUrl, useProxy);
                       navigation.navigate('VideoPlayer', {
                         streamUrl: url,
                         isLive: true,
@@ -344,4 +359,3 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 2,
   },
 });
-

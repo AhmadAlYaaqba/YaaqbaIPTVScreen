@@ -6,6 +6,8 @@ import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList} from '../../RootNavigator';
 import {useSelector} from 'react-redux';
 import {RootState} from '../store';
+import {proxyStreamUrl} from '../utils/proxy';
+import {buildMovieStreamUrl} from '../utils/xtream';
 
 type MovieDetailRouteProp = RouteProp<RootStackParamList, 'MovieDetail'>;
 type MovieDetailNavProp = StackNavigationProp<
@@ -24,7 +26,7 @@ const MovieDetailScreen: React.FC<Props> = ({route, navigation}) => {
   const {stream_id, name, stream_icon, container_extension} = movie;
   if (__DEV__) console.log('movie ==>', movie);
 
-  const {username, password, serverDomain, serverPort} = useSelector(
+  const {username, password, serverDomain, serverPort, useProxy} = useSelector(
     (state: RootState) => state.user,
   );
 
@@ -35,8 +37,15 @@ const MovieDetailScreen: React.FC<Props> = ({route, navigation}) => {
 
   // For the sake of example:
   const handlePlay = () => {
-    const originalStreamUrl = `http://${serverDomain}:${serverPort}/movie/${username}/${password}/${stream_id}.${container_extension}`;
-    const streamUrl = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalStreamUrl)}`;
+    const originalStreamUrl = buildMovieStreamUrl({
+      domain: serverDomain,
+      port: serverPort,
+      username,
+      password,
+      streamId: stream_id,
+      extension: container_extension,
+    });
+    const streamUrl = proxyStreamUrl(originalStreamUrl, useProxy);
     if (__DEV__) console.log('streamUrl ===>', streamUrl);
     navigation.navigate('VideoPlayer', {
       streamUrl,

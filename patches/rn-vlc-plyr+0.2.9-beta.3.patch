@@ -48,6 +48,56 @@ diff --git a/node_modules/rn-vlc-plyr/android/build/.transforms/1fb0a54c1c15919e
 new file mode 100644
 index 0000000..33f0211
 Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/.transforms/1fb0a54c1c15919ea33a894d22efdf4e/transformed/classes/classes_dex/classes.dex differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/.transforms/c5f4640f8451893b69e65826962f2a1a/results.bin b/node_modules/rn-vlc-plyr/android/build/.transforms/c5f4640f8451893b69e65826962f2a1a/results.bin
+new file mode 100644
+index 0000000..0d259dd
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/.transforms/c5f4640f8451893b69e65826962f2a1a/results.bin
+@@ -0,0 +1 @@
++o/classes
+diff --git a/node_modules/rn-vlc-plyr/android/build/.transforms/c5f4640f8451893b69e65826962f2a1a/transformed/classes/classes_dex/classes.dex b/node_modules/rn-vlc-plyr/android/build/.transforms/c5f4640f8451893b69e65826962f2a1a/transformed/classes/classes_dex/classes.dex
+new file mode 100644
+index 0000000..afefa00
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/.transforms/c5f4640f8451893b69e65826962f2a1a/transformed/classes/classes_dex/classes.dex differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/results.bin b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/results.bin
+new file mode 100644
+index 0000000..e1640c9
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/results.bin
+@@ -0,0 +1 @@
++o/bundleLibRuntimeToDirRelease
+diff --git a/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerDelegate.dex b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerDelegate.dex
+new file mode 100644
+index 0000000..f1d32d2
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerDelegate.dex differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerInterface.dex b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerInterface.dex
+new file mode 100644
+index 0000000..66df992
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerInterface.dex differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/BuildConfig.dex b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/BuildConfig.dex
+new file mode 100644
+index 0000000..64183ff
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/BuildConfig.dex differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/RnVlcPlyrView.dex b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/RnVlcPlyrView.dex
+new file mode 100644
+index 0000000..548dd6a
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/RnVlcPlyrView.dex differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/RnVlcPlyrViewManager$Companion.dex b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/RnVlcPlyrViewManager$Companion.dex
+new file mode 100644
+index 0000000..725d991
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/RnVlcPlyrViewManager$Companion.dex differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/RnVlcPlyrViewManager.dex b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/RnVlcPlyrViewManager.dex
+new file mode 100644
+index 0000000..ec226b6
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/RnVlcPlyrViewManager.dex differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/RnVlcPlyrViewPackage.dex b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/RnVlcPlyrViewPackage.dex
+new file mode 100644
+index 0000000..1c7d543
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/bundleLibRuntimeToDirRelease_dex/com/rnvlcplyr/RnVlcPlyrViewPackage.dex differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/desugar_graph.bin b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/desugar_graph.bin
+new file mode 100644
+index 0000000..601f245
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/.transforms/f480837a56ba076572b9be4c4309826f/transformed/bundleLibRuntimeToDirRelease/desugar_graph.bin differ
 diff --git a/node_modules/rn-vlc-plyr/android/build/generated/source/buildConfig/debug/com/rnvlcplyr/BuildConfig.java b/node_modules/rn-vlc-plyr/android/build/generated/source/buildConfig/debug/com/rnvlcplyr/BuildConfig.java
 new file mode 100644
 index 0000000..c134eab
@@ -63,6 +113,22 @@ index 0000000..c134eab
 +  public static final boolean DEBUG = Boolean.parseBoolean("true");
 +  public static final String LIBRARY_PACKAGE_NAME = "com.rnvlcplyr";
 +  public static final String BUILD_TYPE = "debug";
++}
+diff --git a/node_modules/rn-vlc-plyr/android/build/generated/source/buildConfig/release/com/rnvlcplyr/BuildConfig.java b/node_modules/rn-vlc-plyr/android/build/generated/source/buildConfig/release/com/rnvlcplyr/BuildConfig.java
+new file mode 100644
+index 0000000..d7b3055
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/generated/source/buildConfig/release/com/rnvlcplyr/BuildConfig.java
+@@ -0,0 +1,10 @@
++/**
++ * Automatically generated file. DO NOT MODIFY
++ */
++package com.rnvlcplyr;
++
++public final class BuildConfig {
++  public static final boolean DEBUG = false;
++  public static final String LIBRARY_PACKAGE_NAME = "com.rnvlcplyr";
++  public static final String BUILD_TYPE = "release";
 +}
 diff --git a/node_modules/rn-vlc-plyr/android/build/generated/source/codegen/java/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerDelegate.java b/node_modules/rn-vlc-plyr/android/build/generated/source/codegen/java/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerDelegate.java
 new file mode 100644
@@ -736,11 +802,62 @@ index 0000000..6ad168d
 +  "elementType": "File"
 +}
 \ No newline at end of file
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/AndroidManifest.xml b/node_modules/rn-vlc-plyr/android/build/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/AndroidManifest.xml
+new file mode 100644
+index 0000000..98a4dba
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/AndroidManifest.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.rnvlcplyr" >
++
++    <uses-sdk android:minSdkVersion="26" />
++
++</manifest>
+\ No newline at end of file
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/output-metadata.json b/node_modules/rn-vlc-plyr/android/build/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/output-metadata.json
+new file mode 100644
+index 0000000..3cd6fef
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/aapt_friendly_merged_manifests/release/processReleaseManifest/aapt/output-metadata.json
+@@ -0,0 +1,18 @@
++{
++  "version": 3,
++  "artifactType": {
++    "type": "AAPT_FRIENDLY_MERGED_MANIFESTS",
++    "kind": "Directory"
++  },
++  "applicationId": "com.rnvlcplyr",
++  "variantName": "release",
++  "elements": [
++    {
++      "type": "SINGLE",
++      "filters": [],
++      "attributes": [],
++      "outputFile": "AndroidManifest.xml"
++    }
++  ],
++  "elementType": "File"
++}
+\ No newline at end of file
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties b/node_modules/rn-vlc-plyr/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties
 new file mode 100644
 index 0000000..1211b1e
 --- /dev/null
 +++ b/node_modules/rn-vlc-plyr/android/build/intermediates/aar_metadata/debug/writeDebugAarMetadata/aar-metadata.properties
+@@ -0,0 +1,6 @@
++aarFormatVersion=1.0
++aarMetadataVersion=1.0
++minCompileSdk=1
++minCompileSdkExtension=0
++minAndroidGradlePluginVersion=1.0.0
++coreLibraryDesugaringEnabled=false
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/aar_metadata/release/writeReleaseAarMetadata/aar-metadata.properties b/node_modules/rn-vlc-plyr/android/build/intermediates/aar_metadata/release/writeReleaseAarMetadata/aar-metadata.properties
+new file mode 100644
+index 0000000..1211b1e
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/aar_metadata/release/writeReleaseAarMetadata/aar-metadata.properties
 @@ -0,0 +1,6 @@
 +aarFormatVersion=1.0
 +aarMetadataVersion=1.0
@@ -756,15 +873,34 @@ index 0000000..9e26dfe
 @@ -0,0 +1 @@
 +{}
 \ No newline at end of file
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/annotation_processor_list/release/javaPreCompileRelease/annotationProcessors.json b/node_modules/rn-vlc-plyr/android/build/intermediates/annotation_processor_list/release/javaPreCompileRelease/annotationProcessors.json
+new file mode 100644
+index 0000000..9e26dfe
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/annotation_processor_list/release/javaPreCompileRelease/annotationProcessors.json
+@@ -0,0 +1 @@
++{}
+\ No newline at end of file
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar b/node_modules/rn-vlc-plyr/android/build/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar
 new file mode 100644
 index 0000000..5f513c7
 Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/compile_library_classes_jar/release/bundleLibCompileToJarRelease/classes.jar b/node_modules/rn-vlc-plyr/android/build/intermediates/compile_library_classes_jar/release/bundleLibCompileToJarRelease/classes.jar
+new file mode 100644
+index 0000000..85e28b2
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/compile_library_classes_jar/release/bundleLibCompileToJarRelease/classes.jar differ
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar b/node_modules/rn-vlc-plyr/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar
 new file mode 100644
 index 0000000..0e33a20
 Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/compile_r_class_jar/release/generateReleaseRFile/R.jar b/node_modules/rn-vlc-plyr/android/build/intermediates/compile_r_class_jar/release/generateReleaseRFile/R.jar
+new file mode 100644
+index 0000000..0e33a20
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/compile_r_class_jar/release/generateReleaseRFile/R.jar differ
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/compile_symbol_list/debug/generateDebugRFile/R.txt b/node_modules/rn-vlc-plyr/android/build/intermediates/compile_symbol_list/debug/generateDebugRFile/R.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/compile_symbol_list/release/generateReleaseRFile/R.txt b/node_modules/rn-vlc-plyr/android/build/intermediates/compile_symbol_list/release/generateReleaseRFile/R.txt
 new file mode 100644
 index 0000000..e69de29
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties b/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
@@ -801,6 +937,24 @@ index 0000000..c3b4968
 +<?xml version="1.0" encoding="utf-8"?>
 +<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/shaders"/></dataSet><dataSet config="debug" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/debug/shaders"/></dataSet></merger>
 \ No newline at end of file
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/mergeReleaseJniLibFolders/merger.xml b/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/mergeReleaseJniLibFolders/merger.xml
+new file mode 100644
+index 0000000..6e9bbe3
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/mergeReleaseJniLibFolders/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/jniLibs"/></dataSet><dataSet config="release" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/release/jniLibs"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/mergeReleaseShaders/merger.xml b/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/mergeReleaseShaders/merger.xml
+new file mode 100644
+index 0000000..1743506
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/mergeReleaseShaders/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/shaders"/></dataSet><dataSet config="release" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/release/shaders"/></dataSet></merger>
+\ No newline at end of file
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/packageDebugAssets/merger.xml b/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/packageDebugAssets/merger.xml
 new file mode 100644
 index 0000000..a05fea6
@@ -810,10 +964,39 @@ index 0000000..a05fea6
 +<?xml version="1.0" encoding="utf-8"?>
 +<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/assets"/></dataSet><dataSet config="debug" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/debug/assets"/></dataSet><dataSet config="generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/build/intermediates/shader_assets/debug/compileDebugShaders/out"/></dataSet></merger>
 \ No newline at end of file
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/packageReleaseAssets/merger.xml b/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/packageReleaseAssets/merger.xml
+new file mode 100644
+index 0000000..f40168a
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/packageReleaseAssets/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/assets"/></dataSet><dataSet config="release" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/release/assets"/></dataSet><dataSet config="generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/build/intermediates/shader_assets/release/compileReleaseShaders/out"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/release/packageReleaseResources/compile-file-map.properties b/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/release/packageReleaseResources/compile-file-map.properties
+new file mode 100644
+index 0000000..5790399
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/release/packageReleaseResources/compile-file-map.properties
+@@ -0,0 +1 @@
++#Wed Feb 25 21:41:28 GST 2026
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/release/packageReleaseResources/merger.xml b/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/release/packageReleaseResources/merger.xml
+new file mode 100644
+index 0000000..7eaad7c
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/incremental/release/packageReleaseResources/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main" generated-set="main$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="release$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/release/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="release" generated-set="release$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/release/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/build/generated/res/resValues/release"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated" generated-set="generated$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/build/generated/res/resValues/release"/></dataSet><mergedItems/></merger>
+\ No newline at end of file
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/java_res/debug/processDebugJavaRes/out/META-INF/rn-vlc-plyr_debug.kotlin_module b/node_modules/rn-vlc-plyr/android/build/intermediates/java_res/debug/processDebugJavaRes/out/META-INF/rn-vlc-plyr_debug.kotlin_module
 new file mode 100644
 index 0000000..c998a4c
 Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/java_res/debug/processDebugJavaRes/out/META-INF/rn-vlc-plyr_debug.kotlin_module differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/java_res/release/processReleaseJavaRes/out/META-INF/rn-vlc-plyr_release.kotlin_module b/node_modules/rn-vlc-plyr/android/build/intermediates/java_res/release/processReleaseJavaRes/out/META-INF/rn-vlc-plyr_release.kotlin_module
+new file mode 100644
+index 0000000..c998a4c
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/java_res/release/processReleaseJavaRes/out/META-INF/rn-vlc-plyr_release.kotlin_module differ
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerDelegate.class b/node_modules/rn-vlc-plyr/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerDelegate.class
 new file mode 100644
 index 0000000..0341497
@@ -826,6 +1009,18 @@ diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/javac/debug/co
 new file mode 100644
 index 0000000..10d1b2e
 Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/rnvlcplyr/BuildConfig.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/javac/release/compileReleaseJavaWithJavac/classes/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerDelegate.class b/node_modules/rn-vlc-plyr/android/build/intermediates/javac/release/compileReleaseJavaWithJavac/classes/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerDelegate.class
+new file mode 100644
+index 0000000..0341497
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/javac/release/compileReleaseJavaWithJavac/classes/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerDelegate.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/javac/release/compileReleaseJavaWithJavac/classes/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerInterface.class b/node_modules/rn-vlc-plyr/android/build/intermediates/javac/release/compileReleaseJavaWithJavac/classes/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerInterface.class
+new file mode 100644
+index 0000000..df7cd21
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/javac/release/compileReleaseJavaWithJavac/classes/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerInterface.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/javac/release/compileReleaseJavaWithJavac/classes/com/rnvlcplyr/BuildConfig.class b/node_modules/rn-vlc-plyr/android/build/intermediates/javac/release/compileReleaseJavaWithJavac/classes/com/rnvlcplyr/BuildConfig.class
+new file mode 100644
+index 0000000..1372ce7
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/javac/release/compileReleaseJavaWithJavac/classes/com/rnvlcplyr/BuildConfig.class differ
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt b/node_modules/rn-vlc-plyr/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt
 new file mode 100644
 index 0000000..78ac5b8
@@ -834,11 +1029,32 @@ index 0000000..78ac5b8
 @@ -0,0 +1,2 @@
 +R_DEF: Internal format may change without notice
 +local
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/local_only_symbol_list/release/parseReleaseLocalResources/R-def.txt b/node_modules/rn-vlc-plyr/android/build/intermediates/local_only_symbol_list/release/parseReleaseLocalResources/R-def.txt
+new file mode 100644
+index 0000000..78ac5b8
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/local_only_symbol_list/release/parseReleaseLocalResources/R-def.txt
+@@ -0,0 +1,2 @@
++R_DEF: Internal format may change without notice
++local
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt b/node_modules/rn-vlc-plyr/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt
 new file mode 100644
 index 0000000..f46a8df
 --- /dev/null
 +++ b/node_modules/rn-vlc-plyr/android/build/intermediates/manifest_merge_blame_file/debug/processDebugManifest/manifest-merger-blame-debug-report.txt
+@@ -0,0 +1,7 @@
++1<?xml version="1.0" encoding="utf-8"?>
++2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++3    package="com.rnvlcplyr" >
++4
++5    <uses-sdk android:minSdkVersion="26" />
++6
++7</manifest>
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/manifest_merge_blame_file/release/processReleaseManifest/manifest-merger-blame-release-report.txt b/node_modules/rn-vlc-plyr/android/build/intermediates/manifest_merge_blame_file/release/processReleaseManifest/manifest-merger-blame-release-report.txt
+new file mode 100644
+index 0000000..f46a8df
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/manifest_merge_blame_file/release/processReleaseManifest/manifest-merger-blame-release-report.txt
 @@ -0,0 +1,7 @@
 +1<?xml version="1.0" encoding="utf-8"?>
 +2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -861,6 +1077,20 @@ index 0000000..98a4dba
 +
 +</manifest>
 \ No newline at end of file
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/merged_manifest/release/processReleaseManifest/AndroidManifest.xml b/node_modules/rn-vlc-plyr/android/build/intermediates/merged_manifest/release/processReleaseManifest/AndroidManifest.xml
+new file mode 100644
+index 0000000..98a4dba
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/merged_manifest/release/processReleaseManifest/AndroidManifest.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.rnvlcplyr" >
++
++    <uses-sdk android:minSdkVersion="26" />
++
++</manifest>
+\ No newline at end of file
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json b/node_modules/rn-vlc-plyr/android/build/intermediates/navigation_json/debug/extractDeepLinksDebug/navigation.json
 new file mode 100644
 index 0000000..0637a08
@@ -869,11 +1099,27 @@ index 0000000..0637a08
 @@ -0,0 +1 @@
 +[]
 \ No newline at end of file
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/navigation_json/release/extractDeepLinksRelease/navigation.json b/node_modules/rn-vlc-plyr/android/build/intermediates/navigation_json/release/extractDeepLinksRelease/navigation.json
+new file mode 100644
+index 0000000..0637a08
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/navigation_json/release/extractDeepLinksRelease/navigation.json
+@@ -0,0 +1 @@
++[]
+\ No newline at end of file
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt b/node_modules/rn-vlc-plyr/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt
 new file mode 100644
 index 0000000..08f4ebe
 --- /dev/null
 +++ b/node_modules/rn-vlc-plyr/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt
+@@ -0,0 +1 @@
++0 Warning/Error
+\ No newline at end of file
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/nested_resources_validation_report/release/generateReleaseResources/nestedResourcesValidationReport.txt b/node_modules/rn-vlc-plyr/android/build/intermediates/nested_resources_validation_report/release/generateReleaseResources/nestedResourcesValidationReport.txt
+new file mode 100644
+index 0000000..08f4ebe
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/nested_resources_validation_report/release/generateReleaseResources/nestedResourcesValidationReport.txt
 @@ -0,0 +1 @@
 +0 Warning/Error
 \ No newline at end of file
@@ -909,15 +1155,58 @@ diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_librar
 new file mode 100644
 index 0000000..2caeff7
 Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/debug/bundleLibRuntimeToDirDebug/com/rnvlcplyr/RnVlcPlyrViewPackage.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/META-INF/rn-vlc-plyr_release.kotlin_module b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/META-INF/rn-vlc-plyr_release.kotlin_module
+new file mode 100644
+index 0000000..c998a4c
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/META-INF/rn-vlc-plyr_release.kotlin_module differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerDelegate.class b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerDelegate.class
+new file mode 100644
+index 0000000..0341497
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerDelegate.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerInterface.class b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerInterface.class
+new file mode 100644
+index 0000000..df7cd21
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/facebook/react/viewmanagers/RnVlcPlyrViewManagerInterface.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/BuildConfig.class b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/BuildConfig.class
+new file mode 100644
+index 0000000..1372ce7
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/BuildConfig.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/RnVlcPlyrView.class b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/RnVlcPlyrView.class
+new file mode 100644
+index 0000000..e36c5bd
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/RnVlcPlyrView.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/RnVlcPlyrViewManager$Companion.class b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/RnVlcPlyrViewManager$Companion.class
+new file mode 100644
+index 0000000..d155a42
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/RnVlcPlyrViewManager$Companion.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/RnVlcPlyrViewManager.class b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/RnVlcPlyrViewManager.class
+new file mode 100644
+index 0000000..3612965
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/RnVlcPlyrViewManager.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/RnVlcPlyrViewPackage.class b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/RnVlcPlyrViewPackage.class
+new file mode 100644
+index 0000000..c9bc08c
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_dir/release/bundleLibRuntimeToDirRelease/com/rnvlcplyr/RnVlcPlyrViewPackage.class differ
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_jar/debug/bundleLibRuntimeToJarDebug/classes.jar b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_jar/debug/bundleLibRuntimeToJarDebug/classes.jar
 new file mode 100644
 index 0000000..5211529
 Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_jar/debug/bundleLibRuntimeToJarDebug/classes.jar differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_jar/release/bundleLibRuntimeToJarRelease/classes.jar b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_jar/release/bundleLibRuntimeToJarRelease/classes.jar
+new file mode 100644
+index 0000000..df084b8
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/intermediates/runtime_library_classes_jar/release/bundleLibRuntimeToJarRelease/classes.jar differ
 diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt b/node_modules/rn-vlc-plyr/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt
 new file mode 100644
 index 0000000..e7d5b17
 --- /dev/null
 +++ b/node_modules/rn-vlc-plyr/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt
+@@ -0,0 +1 @@
++com.rnvlcplyr
+diff --git a/node_modules/rn-vlc-plyr/android/build/intermediates/symbol_list_with_package_name/release/generateReleaseRFile/package-aware-r.txt b/node_modules/rn-vlc-plyr/android/build/intermediates/symbol_list_with_package_name/release/generateReleaseRFile/package-aware-r.txt
+new file mode 100644
+index 0000000..e7d5b17
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/intermediates/symbol_list_with_package_name/release/generateReleaseRFile/package-aware-r.txt
 @@ -0,0 +1 @@
 +com.rnvlcplyr
 diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileDebugKotlin/cacheable/caches-jvm/inputs/source-to-output.tab
@@ -1277,6 +1566,363 @@ diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileDebugKotlin/lo
 new file mode 100644
 index 0000000..df07a08
 Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileDebugKotlin/local-state/build-history.bin differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab
+new file mode 100644
+index 0000000..485794a
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream
+new file mode 100644
+index 0000000..4e02af2
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream.len
+new file mode 100644
+index 0000000..b4da131
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.keystream.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.len
+new file mode 100644
+index 0000000..a9f80ae
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.values.at b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.values.at
+new file mode 100644
+index 0000000..45da47f
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab.values.at differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i
+new file mode 100644
+index 0000000..36795ff
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/inputs/source-to-output.tab_i.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab
+new file mode 100644
+index 0000000..72bd8ae
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream
+new file mode 100644
+index 0000000..d53516a
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream.len
+new file mode 100644
+index 0000000..d585d71
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.len
+new file mode 100644
+index 0000000..93a595b
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.values.at b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.values.at
+new file mode 100644
+index 0000000..8f28327
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.values.at differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i
+new file mode 100644
+index 0000000..ade1b97
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab_i.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab
+new file mode 100644
+index 0000000..a61c14d
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream
+new file mode 100644
+index 0000000..d53516a
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream.len
+new file mode 100644
+index 0000000..d585d71
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.keystream.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.len
+new file mode 100644
+index 0000000..93a595b
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.values.at b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.values.at
+new file mode 100644
+index 0000000..f0ee892
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab.values.at differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i
+new file mode 100644
+index 0000000..ade1b97
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/class-fq-name-to-source.tab_i.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab
+new file mode 100644
+index 0000000..bdf584a
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.keystream b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.keystream
+new file mode 100644
+index 0000000..4c61c91
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.keystream differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.keystream.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.keystream.len
+new file mode 100644
+index 0000000..9ce7b83
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.keystream.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.len
+new file mode 100644
+index 0000000..2a17e6e
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.values.at b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.values.at
+new file mode 100644
+index 0000000..414a990
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab.values.at differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab_i b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab_i
+new file mode 100644
+index 0000000..bfe6d92
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab_i differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab_i.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/constants.tab_i.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab
+new file mode 100644
+index 0000000..a61c14d
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream
+new file mode 100644
+index 0000000..a80cf96
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream.len
+new file mode 100644
+index 0000000..d585d71
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.keystream.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.len
+new file mode 100644
+index 0000000..93a595b
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.values.at b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.values.at
+new file mode 100644
+index 0000000..f0ee892
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab.values.at differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i
+new file mode 100644
+index 0000000..e01116e
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/internal-name-to-source.tab_i.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab
+new file mode 100644
+index 0000000..f3beab0
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream
+new file mode 100644
+index 0000000..2f9e32b
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream.len
+new file mode 100644
+index 0000000..b9cfb12
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.keystream.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.len
+new file mode 100644
+index 0000000..ec8f944
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.values.at b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.values.at
+new file mode 100644
+index 0000000..275147e
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab.values.at differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i
+new file mode 100644
+index 0000000..b8b7cd9
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/proto.tab_i.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab
+new file mode 100644
+index 0000000..c8d07b6
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream
+new file mode 100644
+index 0000000..4e02af2
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream.len
+new file mode 100644
+index 0000000..b4da131
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.keystream.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.len
+new file mode 100644
+index 0000000..a9f80ae
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.values.at b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.values.at
+new file mode 100644
+index 0000000..0f8dab1
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab.values.at differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i
+new file mode 100644
+index 0000000..36795ff
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/source-to-classes.tab_i.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab
+new file mode 100644
+index 0000000..f046e06
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream
+new file mode 100644
+index 0000000..03d3cba
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream.len
+new file mode 100644
+index 0000000..ec8f944
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.keystream.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.len
+new file mode 100644
+index 0000000..93a595b
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.values.at b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.values.at
+new file mode 100644
+index 0000000..629faad
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab.values.at differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i
+new file mode 100644
+index 0000000..151ece5
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/subtypes.tab_i.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab
+new file mode 100644
+index 0000000..606d00c
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream
+new file mode 100644
+index 0000000..fca0b4d
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream.len
+new file mode 100644
+index 0000000..de8bf97
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.keystream.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.len
+new file mode 100644
+index 0000000..a9f80ae
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.values.at b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.values.at
+new file mode 100644
+index 0000000..89c2f7e
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab.values.at differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i
+new file mode 100644
+index 0000000..1584ee4
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/jvm/kotlin/supertypes.tab_i.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/counters.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/counters.tab
+new file mode 100644
+index 0000000..c393a51
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/counters.tab
+@@ -0,0 +1,2 @@
++3
++0
+\ No newline at end of file
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab
+new file mode 100644
+index 0000000..a5c1969
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream
+new file mode 100644
+index 0000000..4e02af2
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream.len
+new file mode 100644
+index 0000000..b4da131
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.keystream.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.len
+new file mode 100644
+index 0000000..a9f80ae
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.values.at b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.values.at
+new file mode 100644
+index 0000000..9f383b5
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab.values.at differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i
+new file mode 100644
+index 0000000..36795ff
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/file-to-id.tab_i.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab
+new file mode 100644
+index 0000000..54135b0
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream
+new file mode 100644
+index 0000000..636f34a
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream.len
+new file mode 100644
+index 0000000..29ce11c
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.keystream.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.len
+new file mode 100644
+index 0000000..a9f80ae
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.values.at b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.values.at
+new file mode 100644
+index 0000000..d1f9f98
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab.values.at differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab_i b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab_i
+new file mode 100644
+index 0000000..e9905b3
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab_i differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab_i.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/id-to-file.tab_i.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab
+new file mode 100644
+index 0000000..95e65c5
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream
+new file mode 100644
+index 0000000..f602997
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream.len
+new file mode 100644
+index 0000000..23c8bf1
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab.len
+new file mode 100644
+index 0000000..88460a4
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab.values.at b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab.values.at
+new file mode 100644
+index 0000000..0fc2b25
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab.values.at differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab_i b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab_i
+new file mode 100644
+index 0000000..6778d54
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab_i differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab_i.len b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab_i.len
+new file mode 100644
+index 0000000..131e265
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/caches-jvm/lookups/lookups.tab_i.len differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/last-build.bin b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/last-build.bin
+new file mode 100644
+index 0000000..716216d
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/cacheable/last-build.bin differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/classpath-snapshot/shrunk-classpath-snapshot.bin b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/classpath-snapshot/shrunk-classpath-snapshot.bin
+new file mode 100644
+index 0000000..966467f
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/classpath-snapshot/shrunk-classpath-snapshot.bin differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/local-state/build-history.bin b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/local-state/build-history.bin
+new file mode 100644
+index 0000000..ba0f84b
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/kotlin/compileReleaseKotlin/local-state/build-history.bin differ
 diff --git a/node_modules/rn-vlc-plyr/android/build/outputs/logs/manifest-merger-debug-report.txt b/node_modules/rn-vlc-plyr/android/build/outputs/logs/manifest-merger-debug-report.txt
 new file mode 100644
 index 0000000..f774591
@@ -1299,10 +1945,36 @@ index 0000000..f774591
 +		INJECTED from /Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/AndroidManifest.xml
 +	android:minSdkVersion
 +		INJECTED from /Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/AndroidManifest.xml
+diff --git a/node_modules/rn-vlc-plyr/android/build/outputs/logs/manifest-merger-release-report.txt b/node_modules/rn-vlc-plyr/android/build/outputs/logs/manifest-merger-release-report.txt
+new file mode 100644
+index 0000000..f774591
+--- /dev/null
++++ b/node_modules/rn-vlc-plyr/android/build/outputs/logs/manifest-merger-release-report.txt
+@@ -0,0 +1,16 @@
++-- Merging decision tree log ---
++manifest
++ADDED from /Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/AndroidManifest.xml:1:1-2:12
++INJECTED from /Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/AndroidManifest.xml:1:1-2:12
++	package
++		INJECTED from /Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/AndroidManifest.xml
++	xmlns:android
++		ADDED from /Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/AndroidManifest.xml:1:11-69
++uses-sdk
++INJECTED from /Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
++INJECTED from /Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/AndroidManifest.xml
++INJECTED from /Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/AndroidManifest.xml
++	android:targetSdkVersion
++		INJECTED from /Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/AndroidManifest.xml
++	android:minSdkVersion
++		INJECTED from /Users/ahmad.y91/Desktop/iptv/YaaqbaIPTVScreen/node_modules/rn-vlc-plyr/android/src/main/AndroidManifest.xml
 diff --git a/node_modules/rn-vlc-plyr/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin b/node_modules/rn-vlc-plyr/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin
 new file mode 100644
 index 0000000..a635ff5
 Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/tmp/compileDebugJavaWithJavac/previous-compilation-data.bin differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/tmp/compileReleaseJavaWithJavac/previous-compilation-data.bin b/node_modules/rn-vlc-plyr/android/build/tmp/compileReleaseJavaWithJavac/previous-compilation-data.bin
+new file mode 100644
+index 0000000..d620c98
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/tmp/compileReleaseJavaWithJavac/previous-compilation-data.bin differ
 diff --git a/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/debug/META-INF/rn-vlc-plyr_debug.kotlin_module b/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/debug/META-INF/rn-vlc-plyr_debug.kotlin_module
 new file mode 100644
 index 0000000..c998a4c
@@ -1323,6 +1995,415 @@ diff --git a/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/debug/com
 new file mode 100644
 index 0000000..2caeff7
 Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/debug/com/rnvlcplyr/RnVlcPlyrViewPackage.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/META-INF/rn-vlc-plyr_release.kotlin_module b/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/META-INF/rn-vlc-plyr_release.kotlin_module
+new file mode 100644
+index 0000000..c998a4c
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/META-INF/rn-vlc-plyr_release.kotlin_module differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/com/rnvlcplyr/RnVlcPlyrView.class b/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/com/rnvlcplyr/RnVlcPlyrView.class
+new file mode 100644
+index 0000000..e36c5bd
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/com/rnvlcplyr/RnVlcPlyrView.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/com/rnvlcplyr/RnVlcPlyrViewManager$Companion.class b/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/com/rnvlcplyr/RnVlcPlyrViewManager$Companion.class
+new file mode 100644
+index 0000000..d155a42
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/com/rnvlcplyr/RnVlcPlyrViewManager$Companion.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/com/rnvlcplyr/RnVlcPlyrViewManager.class b/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/com/rnvlcplyr/RnVlcPlyrViewManager.class
+new file mode 100644
+index 0000000..3612965
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/com/rnvlcplyr/RnVlcPlyrViewManager.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/com/rnvlcplyr/RnVlcPlyrViewPackage.class b/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/com/rnvlcplyr/RnVlcPlyrViewPackage.class
+new file mode 100644
+index 0000000..c9bc08c
+Binary files /dev/null and b/node_modules/rn-vlc-plyr/android/build/tmp/kotlin-classes/release/com/rnvlcplyr/RnVlcPlyrViewPackage.class differ
+diff --git a/node_modules/rn-vlc-plyr/android/src/main/java/com/rnvlcplyr/RnVlcPlyrView.kt b/node_modules/rn-vlc-plyr/android/src/main/java/com/rnvlcplyr/RnVlcPlyrView.kt
+index 4e4eaf4..f6d1ff4 100644
+--- a/node_modules/rn-vlc-plyr/android/src/main/java/com/rnvlcplyr/RnVlcPlyrView.kt
++++ b/node_modules/rn-vlc-plyr/android/src/main/java/com/rnvlcplyr/RnVlcPlyrView.kt
+@@ -18,12 +18,19 @@ class RnVlcPlyrView : FrameLayout {
+ 
+     private var lastVolumeBeforeMute: Int = 100
+     private var isEnded = false
++    private var hasEmittedLoad = false
+ 
+     private var url: String? = null
+     private var autoPlay: Boolean = true
+     private var loop: Boolean = false
+     private var muted: Boolean = false
+ 
++    // Callbacks to bridge to Fabric event emitter
++    var onProgressCallback: ((currentTime: Double, duration: Double) -> Unit)? = null
++    var onLoadCallback: ((duration: Double, width: Double, height: Double) -> Unit)? = null
++    var onStateChangeCallback: ((state: String) -> Unit)? = null
++    var onErrorCallback: ((message: String, code: Int) -> Unit)? = null
++
+     constructor(context: Context) : super(context) {
+         init(context)
+     }
+@@ -46,8 +53,45 @@ class RnVlcPlyrView : FrameLayout {
+         mediaPlayer?.attachViews(videoLayout!!, null, false, false)
+ 
+         mediaPlayer?.setEventListener { event ->
+-            if (event.type == MediaPlayer.Event.EndReached) {
+-                isEnded = true
++            when (event.type) {
++                MediaPlayer.Event.TimeChanged -> {
++                    val player = mediaPlayer ?: return@setEventListener
++                    val currentTimeMs = player.time.toDouble()
++                    val durationMs = player.length.toDouble()
++                    val currentTimeSec = currentTimeMs / 1000.0
++                    val durationSec = durationMs / 1000.0
++
++                    // Emit onLoad on first valid duration
++                    if (!hasEmittedLoad && durationSec > 0) {
++                        hasEmittedLoad = true
++                        onLoadCallback?.invoke(durationSec, 0.0, 0.0)
++                    }
++
++                    // Emit onProgress
++                    if (durationSec > 0) {
++                        onProgressCallback?.invoke(currentTimeSec, durationSec)
++                    }
++                }
++                MediaPlayer.Event.Playing -> {
++                    onStateChangeCallback?.invoke("playing")
++                }
++                MediaPlayer.Event.Paused -> {
++                    onStateChangeCallback?.invoke("paused")
++                }
++                MediaPlayer.Event.Stopped -> {
++                    onStateChangeCallback?.invoke("stopped")
++                }
++                MediaPlayer.Event.Buffering -> {
++                    onStateChangeCallback?.invoke("buffering")
++                }
++                MediaPlayer.Event.EncounteredError -> {
++                    onStateChangeCallback?.invoke("error")
++                    onErrorCallback?.invoke("VLC playback error", -1)
++                }
++                MediaPlayer.Event.EndReached -> {
++                    isEnded = true
++                    onStateChangeCallback?.invoke("ended")
++                }
+             }
+         }
+     }
+@@ -58,6 +102,7 @@ class RnVlcPlyrView : FrameLayout {
+         url = newUrl
+ 
+         isEnded = false
++        hasEmittedLoad = false
+ 
+         prepareMedia()
+     }
+diff --git a/node_modules/rn-vlc-plyr/android/src/main/java/com/rnvlcplyr/RnVlcPlyrViewManager.kt b/node_modules/rn-vlc-plyr/android/src/main/java/com/rnvlcplyr/RnVlcPlyrViewManager.kt
+index fef4043..ee325ee 100644
+--- a/node_modules/rn-vlc-plyr/android/src/main/java/com/rnvlcplyr/RnVlcPlyrViewManager.kt
++++ b/node_modules/rn-vlc-plyr/android/src/main/java/com/rnvlcplyr/RnVlcPlyrViewManager.kt
+@@ -1,13 +1,17 @@
+ package com.rnvlcplyr
+ 
+ import android.graphics.Color
++import com.facebook.react.bridge.Arguments
++import com.facebook.react.bridge.ReactContext
+ import com.facebook.react.module.annotations.ReactModule
+ import com.facebook.react.uimanager.SimpleViewManager
+ import com.facebook.react.uimanager.ThemedReactContext
+ import com.facebook.react.uimanager.ViewManagerDelegate
+ import com.facebook.react.uimanager.annotations.ReactProp
++import com.facebook.react.uimanager.events.EventDispatcher
+ import com.facebook.react.viewmanagers.RnVlcPlyrViewManagerInterface
+ import com.facebook.react.viewmanagers.RnVlcPlyrViewManagerDelegate
++import com.facebook.react.uimanager.UIManagerHelper
+ 
+ @ReactModule(name = RnVlcPlyrViewManager.NAME)
+ class RnVlcPlyrViewManager : SimpleViewManager<RnVlcPlyrView>(), RnVlcPlyrViewManagerInterface<RnVlcPlyrView> {
+@@ -25,8 +29,54 @@ class RnVlcPlyrViewManager : SimpleViewManager<RnVlcPlyrView>(), RnVlcPlyrViewMa
+     return NAME
+   }
+ 
++  override fun getExportedCustomDirectEventTypeConstants(): MutableMap<String, Any>? {
++    return mutableMapOf(
++      "topStateChange" to mutableMapOf("registrationName" to "onStateChange"),
++      "topProgress" to mutableMapOf("registrationName" to "onProgress"),
++      "topLoad" to mutableMapOf("registrationName" to "onLoad"),
++      "topError" to mutableMapOf("registrationName" to "onError"),
++      "topVolumeChange" to mutableMapOf("registrationName" to "onVolumeChange")
++    )
++  }
++
+   public override fun createViewInstance(context: ThemedReactContext): RnVlcPlyrView {
+-    return RnVlcPlyrView(context)
++    val view = RnVlcPlyrView(context)
++    setupEventCallbacks(view, context)
++    return view
++  }
++
++  private fun setupEventCallbacks(view: RnVlcPlyrView, context: ThemedReactContext) {
++    view.onProgressCallback = { currentTime, duration ->
++      val event = Arguments.createMap().apply {
++        putDouble("currentTime", currentTime)
++        putDouble("duration", duration)
++      }
++      val dispatcher = UIManagerHelper.getEventDispatcherForReactTag(context, view.id)
++      dispatcher?.dispatchEvent(
++        TopProgressEvent(UIManagerHelper.getSurfaceId(context), view.id, currentTime, duration)
++      )
++    }
++
++    view.onLoadCallback = { duration, width, height ->
++      val dispatcher = UIManagerHelper.getEventDispatcherForReactTag(context, view.id)
++      dispatcher?.dispatchEvent(
++        TopLoadEvent(UIManagerHelper.getSurfaceId(context), view.id, duration, width, height)
++      )
++    }
++
++    view.onStateChangeCallback = { state ->
++      val dispatcher = UIManagerHelper.getEventDispatcherForReactTag(context, view.id)
++      dispatcher?.dispatchEvent(
++        TopStateChangeEvent(UIManagerHelper.getSurfaceId(context), view.id, state)
++      )
++    }
++
++    view.onErrorCallback = { message, code ->
++      val dispatcher = UIManagerHelper.getEventDispatcherForReactTag(context, view.id)
++      dispatcher?.dispatchEvent(
++        TopErrorEvent(UIManagerHelper.getSurfaceId(context), view.id, message, code)
++      )
++    }
+   }
+ 
+   @ReactProp(name = "url")
+@@ -79,3 +129,65 @@ class RnVlcPlyrViewManager : SimpleViewManager<RnVlcPlyrView>(), RnVlcPlyrViewMa
+     const val NAME = "RnVlcPlyrView"
+   }
+ }
++
++// --- Custom Fabric Events ---
++
++private class TopProgressEvent(
++  surfaceId: Int,
++  viewTag: Int,
++  private val currentTime: Double,
++  private val duration: Double
++) : com.facebook.react.uimanager.events.Event<TopProgressEvent>(surfaceId, viewTag) {
++  override fun getEventName() = "topProgress"
++  override fun getEventData(): com.facebook.react.bridge.WritableMap {
++    return Arguments.createMap().apply {
++      putDouble("currentTime", currentTime)
++      putDouble("duration", duration)
++    }
++  }
++}
++
++private class TopLoadEvent(
++  surfaceId: Int,
++  viewTag: Int,
++  private val duration: Double,
++  private val width: Double,
++  private val height: Double
++) : com.facebook.react.uimanager.events.Event<TopLoadEvent>(surfaceId, viewTag) {
++  override fun getEventName() = "topLoad"
++  override fun getEventData(): com.facebook.react.bridge.WritableMap {
++    return Arguments.createMap().apply {
++      putDouble("duration", duration)
++      putDouble("width", width)
++      putDouble("height", height)
++    }
++  }
++}
++
++private class TopStateChangeEvent(
++  surfaceId: Int,
++  viewTag: Int,
++  private val state: String
++) : com.facebook.react.uimanager.events.Event<TopStateChangeEvent>(surfaceId, viewTag) {
++  override fun getEventName() = "topStateChange"
++  override fun getEventData(): com.facebook.react.bridge.WritableMap {
++    return Arguments.createMap().apply {
++      putString("state", state)
++    }
++  }
++}
++
++private class TopErrorEvent(
++  surfaceId: Int,
++  viewTag: Int,
++  private val message: String,
++  private val code: Int
++) : com.facebook.react.uimanager.events.Event<TopErrorEvent>(surfaceId, viewTag) {
++  override fun getEventName() = "topError"
++  override fun getEventData(): com.facebook.react.bridge.WritableMap {
++    return Arguments.createMap().apply {
++      putString("message", message)
++      putInt("code", code)
++    }
++  }
++}
+diff --git a/node_modules/rn-vlc-plyr/ios/RnVlcPlyrView.mm b/node_modules/rn-vlc-plyr/ios/RnVlcPlyrView.mm
+index fc80b89..8ee9103 100644
+--- a/node_modules/rn-vlc-plyr/ios/RnVlcPlyrView.mm
++++ b/node_modules/rn-vlc-plyr/ios/RnVlcPlyrView.mm
+@@ -23,6 +23,13 @@ - (void)stop;
+ - (void)seek:(double)timeMs;
+ - (void)setVolume:(double)volume;
+ 
++// callbacks
++@optional
++- (void)setOnProgressCallback:(void (^)(double currentTime, double duration))callback;
++- (void)setOnLoadCallback:(void (^)(double duration, double width, double height))callback;
++- (void)setOnStateChangeCallback:(void (^)(NSString *state))callback;
++- (void)setOnErrorCallback:(void (^)(NSString *message, NSInteger code))callback;
++
+ @end
+ 
+ using namespace facebook::react;
+@@ -58,6 +65,53 @@ - (instancetype)initWithFrame:(CGRect)frame
+       self.vlcPlayerView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+       self.contentView = self.vlcPlayerView;
+ 
++      // Wire up event callbacks from Swift -> Fabric event emitter
++      __weak RnVlcPlyrView *weakSelf = self;
++
++      if ([playerViewInstance respondsToSelector:@selector(setOnProgressCallback:)]) {
++        [(id)playerViewInstance setOnProgressCallback:^(double currentTime, double duration) {
++          RnVlcPlyrView *strongSelf = weakSelf;
++          if (strongSelf && strongSelf->_eventEmitter) {
++            auto emitter = std::static_pointer_cast<const RnVlcPlyrViewEventEmitter>(strongSelf->_eventEmitter);
++            RnVlcPlyrViewEventEmitter::OnProgress event{currentTime, duration};
++            emitter->onProgress(event);
++          }
++        }];
++      }
++
++      if ([playerViewInstance respondsToSelector:@selector(setOnLoadCallback:)]) {
++        [(id)playerViewInstance setOnLoadCallback:^(double duration, double width, double height) {
++          RnVlcPlyrView *strongSelf = weakSelf;
++          if (strongSelf && strongSelf->_eventEmitter) {
++            auto emitter = std::static_pointer_cast<const RnVlcPlyrViewEventEmitter>(strongSelf->_eventEmitter);
++            RnVlcPlyrViewEventEmitter::OnLoad event{duration, width, height};
++            emitter->onLoad(event);
++          }
++        }];
++      }
++
++      if ([playerViewInstance respondsToSelector:@selector(setOnStateChangeCallback:)]) {
++        [(id)playerViewInstance setOnStateChangeCallback:^(NSString *state) {
++          RnVlcPlyrView *strongSelf = weakSelf;
++          if (strongSelf && strongSelf->_eventEmitter) {
++            auto emitter = std::static_pointer_cast<const RnVlcPlyrViewEventEmitter>(strongSelf->_eventEmitter);
++            RnVlcPlyrViewEventEmitter::OnStateChange event{std::string([state UTF8String])};
++            emitter->onStateChange(event);
++          }
++        }];
++      }
++
++      if ([playerViewInstance respondsToSelector:@selector(setOnErrorCallback:)]) {
++        [(id)playerViewInstance setOnErrorCallback:^(NSString *message, NSInteger code) {
++          RnVlcPlyrView *strongSelf = weakSelf;
++          if (strongSelf && strongSelf->_eventEmitter) {
++            auto emitter = std::static_pointer_cast<const RnVlcPlyrViewEventEmitter>(strongSelf->_eventEmitter);
++            RnVlcPlyrViewEventEmitter::OnError event{std::string([message UTF8String]), (int)code};
++            emitter->onError(event);
++          }
++        }];
++      }
++
+     } else {
+       UIView *fallbackView = [[UIView alloc] init];
+       fallbackView.backgroundColor = [UIColor redColor];
+diff --git a/node_modules/rn-vlc-plyr/ios/VlcPlyrView.swift b/node_modules/rn-vlc-plyr/ios/VlcPlyrView.swift
+index f604afd..9c7ba11 100644
+--- a/node_modules/rn-vlc-plyr/ios/VlcPlyrView.swift
++++ b/node_modules/rn-vlc-plyr/ios/VlcPlyrView.swift
+@@ -2,14 +2,22 @@ import UIKit
+ import MobileVLCKit
+ 
+ @objc(VlcPlyrView)
+-final class VlcPlyrView: UIView, VLCMediaPlayerDelegate {
++final class VlcPlyrView: UIView, @preconcurrency VLCMediaPlayerDelegate {
+   
+   private var player: VLCMediaPlayer?
+   private var media: VLCMedia?
++  private var hasEmittedLoad = false
++  
++  // Callbacks to bridge to ObjC++/Fabric event emitter
++  @objc var onProgressCallback: ((_ currentTime: Double, _ duration: Double) -> Void)?
++  @objc var onLoadCallback: ((_ duration: Double, _ width: Double, _ height: Double) -> Void)?
++  @objc var onStateChangeCallback: ((_ state: String) -> Void)?
++  @objc var onErrorCallback: ((_ message: String, _ code: Int) -> Void)?
+   
+   @objc var url: String? {
+     didSet {
+       if oldValue != url {
++        hasEmittedLoad = false
+         prepareMedia()
+       }
+     }
+@@ -94,6 +102,64 @@ final class VlcPlyrView: UIView, VLCMediaPlayerDelegate {
+     }
+   }
+   
++  // MARK: - VLCMediaPlayerDelegate
++  // These are called from VLC's internal thread, so we dispatch to main for safety.
++  
++  nonisolated func mediaPlayerTimeChanged(_ aNotification: Notification) {
++    DispatchQueue.main.async { [weak self] in
++      guard let self = self, let player = self.player else { return }
++      
++      let currentTimeMs = Double(player.time.intValue)
++      let durationMs = Double(player.media?.length.intValue ?? 0)
++      
++      // Convert to seconds for JS
++      let currentTimeSec = currentTimeMs / 1000.0
++      let durationSec = durationMs / 1000.0
++      
++      // Emit onLoad on first valid duration
++      if !self.hasEmittedLoad && durationSec > 0 {
++        self.hasEmittedLoad = true
++        self.onLoadCallback?(durationSec, 0, 0)
++      }
++      
++      // Emit onProgress
++      if durationSec > 0 {
++        self.onProgressCallback?(currentTimeSec, durationSec)
++      }
++    }
++  }
++  
++  nonisolated func mediaPlayerStateChanged(_ aNotification: Notification) {
++    DispatchQueue.main.async { [weak self] in
++      guard let self = self, let player = self.player else { return }
++      
++      let state: String
++      switch player.state {
++      case .buffering:
++        state = "buffering"
++      case .playing:
++        state = "playing"
++      case .paused:
++        state = "paused"
++      case .stopped:
++        state = "stopped"
++      case .ended:
++        state = "ended"
++      case .error:
++        state = "error"
++        self.onErrorCallback?("VLC playback error", -1)
++      case .opening:
++        state = "buffering"
++      default:
++        state = "idle"
++      }
++      
++      self.onStateChangeCallback?(state)
++    }
++  }
++  
++  // MARK: - Commands
++  
+   @objc func play() {
+     guard let player = player else {
+       return
 diff --git a/node_modules/rn-vlc-plyr/lib/module/RnVlcPlyrViewNativeComponent.ts b/node_modules/rn-vlc-plyr/lib/module/RnVlcPlyrViewNativeComponent.ts
 index 293feaa..7c43977 100644
 --- a/node_modules/rn-vlc-plyr/lib/module/RnVlcPlyrViewNativeComponent.ts

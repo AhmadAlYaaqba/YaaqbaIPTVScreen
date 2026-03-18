@@ -9,6 +9,7 @@ import {
   ScrollView,
   Alert,
   ImageBackground,
+  Switch,
 } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import axios from 'axios';
@@ -17,7 +18,7 @@ import DeviceInfo from 'react-native-device-info';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../store';
 import { setUserCredentials } from '../store/slices/userSlice';
-import NetworkLogger from 'react-native-network-logger';
+import { proxyApiUrl } from '../utils/proxy';
 
 const SECRET_KEY = '5w.=:uehB3#jwUJ';
 
@@ -43,15 +44,46 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
     (state: RootState) => state.user,
   );
 
-  const [activationCode, setActivationCode] = useState('66858020362');
+  const [activationCode, setActivationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const proxyFromRedux = useSelector((state: RootState) => state.user.useProxy);
+  const [useProxy, setUseProxy] = useState(proxyFromRedux);
+
+  useEffect(() => {
+    const loadProxyPref = async () => {
+      try {
+        const creds = await Keychain.getGenericPassword({ service: 'my-iptv-credentials' });
+        if (creds) {
+          const parsed = JSON.parse(creds.password);
+          const stored = parsed.useProxy ?? parsed.vlcUseProxy ?? true;
+          setUseProxy(stored);
+          dispatch(setUserCredentials({ useProxy: stored }));
+        }
+      } catch (_) {}
+    };
+    loadProxyPref();
+  }, [dispatch]);
 
   useEffect(() => {
     if (username && password && serverDomain && serverPort) {
       navigation.replace('Main');
     }
   }, [username, password, serverDomain, serverPort, navigation]);
+
+  const handleToggleProxy = async (value: boolean) => {
+    setUseProxy(value);
+    dispatch(setUserCredentials({ useProxy: value }));
+    try {
+      const creds = await Keychain.getGenericPassword({ service: 'my-iptv-credentials' });
+      const parsed = creds ? JSON.parse(creds.password) : {};
+      await Keychain.setGenericPassword(
+        'xtream-creds',
+        JSON.stringify({ ...parsed, useProxy: value }),
+        { service: 'my-iptv-credentials' },
+      );
+    } catch (_) {}
+  };
 
   const handleChange = (txt: string) => {
     const cleaned = txt.replace(/-/g, '').replace(/[^a-zA-Z0-9]/g, '');
@@ -81,8 +113,9 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
       const body = new URLSearchParams();
       body.append('json', encryptedPayload);
 
+      const activationUrl = proxyApiUrl('http://screen-net.live/iptv/V7.php/', useProxy);
       const { data: encryptedResponse } = await axios.post(
-        'https://v0-next-js-proxy-api.vercel.app/api/proxy?url=http://calcioa.vip/iptv/V7.php/',
+        activationUrl,
         body.toString(),
         {
           headers: {
@@ -110,6 +143,7 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
           password: parsed.password,
           serverDomain: parsed.server_info.url,
           serverPort: parsed.server_info.port.replace(':', ''),
+          useProxy,
         }),
         { service: 'my-iptv-credentials' },
       );
@@ -179,6 +213,17 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.errorText}> {error}</Text>
           </View>
         )}
+
+        <View style={styles.proxyRow}>
+          <FontAwesome5 name="shield-alt" size={14} color="#4CAF50" />
+          <Text style={styles.proxyLabel}>Use HTTP Proxy</Text>
+          <Switch
+            value={useProxy}
+            onValueChange={handleToggleProxy}
+            trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#4CAF50' }}
+            thumbColor={useProxy ? '#fff' : '#A0ABC0'}
+          />
+        </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
@@ -264,6 +309,23 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#ff4d4f',
+  },
+  proxyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  proxyLabel: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '500',
+    marginLeft: 10,
   },
   footer: {
     marginTop: 60,

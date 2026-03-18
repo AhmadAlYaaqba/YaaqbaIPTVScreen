@@ -1,355 +1,406 @@
-// src/components/CategoryPickerModal.tsx
-import React, { useState, useCallback, useEffect } from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    TextInput,
-    FlatList,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    Dimensions,
-    KeyboardAvoidingView,
-    Platform,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  useWindowDimensions,
 } from 'react-native';
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withTiming,
-    withSpring,
-    Easing,
-} from 'react-native-reanimated';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const MODAL_HEIGHT = SCREEN_HEIGHT * 0.7;
-
-interface Category {
-    category_id: string;
-    category_name: string;
-}
-
-interface CategoryPickerModalProps {
-    visible: boolean;
-    categories: Category[];
-    activeCategory: string | null;
-    onSelect: (categoryId: string, categoryName: string) => void;
-    onClose: () => void;
-}
-
-// TouchableWithoutFeedback is used for backdrop instead of AnimatedPressable
-// to avoid gesture competition with list items on Android
-
-const CategoryItem = React.memo(
-    ({
-        item,
-        isActive,
-        onPress,
-    }: {
-        item: Category;
-        isActive: boolean;
-        onPress: () => void;
-    }) => (
-        <TouchableOpacity
-            style={[styles.categoryItem, isActive && styles.categoryItemActive]}
-            onPress={onPress}
-            activeOpacity={0.7}>
-            <View style={styles.categoryLeft}>
-                <View
-                    style={[
-                        styles.categoryDot,
-                        isActive && styles.categoryDotActive,
-                    ]}
-                />
-                <Text
-                    style={[
-                        styles.categoryName,
-                        isActive && styles.categoryNameActive,
-                    ]}
-                    numberOfLines={1}>
-                    {item.category_name}
-                </Text>
-            </View>
-            {isActive && (
-                <FontAwesome5 name="check" size={14} color="#4A90E2" />
-            )}
-        </TouchableOpacity>
-    ),
-);
-
-const CategoryPickerModal: React.FC<CategoryPickerModalProps> = ({
-    visible,
-    categories,
-    activeCategory,
-    onSelect,
-    onClose,
-}) => {
-    const [search, setSearch] = useState('');
-    const translateY = useSharedValue(MODAL_HEIGHT);
-    const backdropOpacity = useSharedValue(0);
-
-    useEffect(() => {
-        if (visible) {
-            setSearch('');
-            translateY.value = withSpring(0, {
-                damping: 20,
-                stiffness: 150,
-                mass: 0.8,
-            });
-            backdropOpacity.value = withTiming(1, {
-                duration: 250,
-                easing: Easing.out(Easing.cubic),
-            });
-        } else {
-            translateY.value = withTiming(MODAL_HEIGHT, {
-                duration: 250,
-                easing: Easing.in(Easing.cubic),
-            });
-            backdropOpacity.value = withTiming(0, { duration: 200 });
-        }
-    }, [visible]);
-
-    const animatedModalStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: translateY.value }],
-    }));
-
-    const animatedBackdropStyle = useAnimatedStyle(() => ({
-        opacity: backdropOpacity.value,
-    }));
-
-    const filteredCategories = categories.filter(c =>
-        c.category_name.toLowerCase().includes(search.toLowerCase()),
-    );
-
-    const handleSelect = useCallback(
-        (categoryId: string, categoryName: string) => {
-            onSelect(categoryId, categoryName);
-        },
-        [onSelect],
-    );
-
-    const renderItem = useCallback(
-        ({ item }: { item: Category }) => (
-            <CategoryItem
-                item={item}
-                isActive={item.category_id === activeCategory}
-                onPress={() => handleSelect(item.category_id, item.category_name)}
-            />
-        ),
-        [activeCategory, handleSelect],
-    );
-
-    const keyExtractor = useCallback(
-        (item: Category) => item.category_id.toString(),
-        [],
-    );
-
-    if (!visible) return null;
-
-    return (
-        <View style={[StyleSheet.absoluteFill, { zIndex: 100, elevation: 100 }]} pointerEvents="box-none">
-            {/* Backdrop — TouchableWithoutFeedback avoids gesture competition with list items on Android */}
-            <TouchableWithoutFeedback onPress={onClose}>
-                <Animated.View style={[styles.backdrop, animatedBackdropStyle]} />
-            </TouchableWithoutFeedback>
-
-            {/* Modal content — onStartShouldSetResponder prevents touches from propagating to backdrop */}
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                style={styles.modalContainer}
-                pointerEvents="box-none">
-                <Animated.View
-                    style={[styles.modalContent, animatedModalStyle]}>
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <View style={styles.dragHandle} />
-                        <View style={styles.headerRow}>
-                            <Text style={styles.headerTitle}>Categories</Text>
-                            <TouchableOpacity
-                                onPress={onClose}
-                                style={styles.closeButton}
-                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                <FontAwesome5 name="times" size={18} color="#666" />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {/* Search */}
-                    <View style={styles.searchContainer}>
-                        <FontAwesome5
-                            name="search"
-                            size={14}
-                            color="#999"
-                            style={styles.searchIcon}
-                        />
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="Search categories..."
-                            placeholderTextColor="#999"
-                            value={search}
-                            onChangeText={setSearch}
-                            autoCorrect={false}
-                            clearButtonMode="while-editing"
-                        />
-                    </View>
-
-                    {/* Category count */}
-                    <Text style={styles.countText}>
-                        {filteredCategories.length} categories
-                    </Text>
-
-                    {/* List */}
-                    <FlatList
-                        data={filteredCategories}
-                        keyExtractor={keyExtractor}
-                        renderItem={renderItem}
-                        contentContainerStyle={styles.listContent}
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                        initialNumToRender={15}
-                        maxToRenderPerBatch={10}
-                        windowSize={5}
-                    />
-                </Animated.View>
-            </KeyboardAvoidingView>
-        </View>
-    );
+type Category = {
+  category_id: string;
+  category_name: string;
 };
 
-export default CategoryPickerModal;
+type CategoryPickerModalProps = {
+  visible: boolean;
+  categories: Category[];
+  activeCategory: string | null;
+  onSelect: (categoryId: string, categoryName: string) => void;
+  onClose: () => void;
+};
+
+const ESTIMATED_ROW_HEIGHT = 64;
+
+const CategoryItem = React.memo(
+  ({
+    item,
+    isActive,
+    onPress,
+  }: {
+    item: Category;
+    isActive: boolean;
+    onPress: () => void;
+  }) => {
+    return (
+      <Pressable
+        onPress={onPress}
+        android_ripple={{color: 'rgba(255,255,255,0.08)'}}
+        style={({pressed}) => [
+          styles.categoryItem,
+          isActive && styles.categoryItemActive,
+          pressed && styles.categoryItemPressed,
+        ]}>
+        <View style={styles.categoryLeft}>
+          <View
+            style={[styles.categoryDot, isActive && styles.categoryDotActive]}
+          />
+          <Text
+            style={[
+              styles.categoryName,
+              isActive && styles.categoryNameActive,
+            ]}
+            numberOfLines={1}>
+            {item.category_name}
+          </Text>
+        </View>
+
+        {isActive ? (
+          <FontAwesome5 name="check" size={14} color="#4A90E2" />
+        ) : null}
+      </Pressable>
+    );
+  },
+);
+
+function EmptyState({hasSearch}: {hasSearch: boolean}) {
+  return (
+    <View style={styles.emptyState}>
+      <FontAwesome5
+        name={hasSearch ? 'search' : 'layer-group'}
+        size={18}
+        color="#94A3B8"
+      />
+      <Text style={styles.emptyTitle}>
+        {hasSearch ? 'No matching categories' : 'No categories available'}
+      </Text>
+      <Text style={styles.emptySubtitle}>
+        {hasSearch
+          ? 'Try a different search term.'
+          : 'Categories will appear here once they load.'}
+      </Text>
+    </View>
+  );
+}
+
+export default function CategoryPickerModal({
+  visible,
+  categories,
+  activeCategory,
+  onSelect,
+  onClose,
+}: CategoryPickerModalProps) {
+  const {height: windowHeight} = useWindowDimensions();
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      setSearch('');
+    }
+  }, [visible]);
+
+  const safeCategories = useMemo(
+    () => (Array.isArray(categories) ? categories : []),
+    [categories],
+  );
+
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredCategories = useMemo(() => {
+    if (!normalizedSearch) {
+      return safeCategories;
+    }
+
+    return safeCategories.filter(category =>
+      category.category_name?.toLowerCase().includes(normalizedSearch),
+    );
+  }, [normalizedSearch, safeCategories]);
+
+  const sheetHeight = Math.min(windowHeight * 0.72, 640);
+
+  const handleSelect = useCallback(
+    (categoryId: string, categoryName: string) => {
+      onSelect(categoryId, categoryName);
+    },
+    [onSelect],
+  );
+
+  const renderItem = useCallback(
+    ({item}: {item: Category}) => (
+      <CategoryItem
+        item={item}
+        isActive={item.category_id === activeCategory}
+        onPress={() => handleSelect(item.category_id, item.category_name)}
+      />
+    ),
+    [activeCategory, handleSelect],
+  );
+
+  const keyExtractor = useCallback(
+    (item: Category) => String(item.category_id),
+    [],
+  );
+
+  const getItemLayout = useCallback(
+    (_: ArrayLike<Category> | null | undefined, index: number) => ({
+      length: ESTIMATED_ROW_HEIGHT,
+      offset: ESTIMATED_ROW_HEIGHT * index,
+      index,
+    }),
+    [],
+  );
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      hardwareAccelerated
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+
+        <View style={styles.sheetWrapper} pointerEvents="box-none">
+          <View style={[styles.sheet, {maxHeight: sheetHeight}]}>
+            <View style={styles.header}>
+              <View style={styles.dragHandle} />
+              <View style={styles.headerRow}>
+                <Text style={styles.headerTitle}>Categories</Text>
+                <Pressable
+                  onPress={onClose}
+                  hitSlop={10}
+                  android_ripple={{color: 'rgba(255,255,255,0.08)', radius: 18}}
+                  style={({pressed}) => [
+                    styles.closeButton,
+                    pressed && styles.closeButtonPressed,
+                  ]}>
+                  <FontAwesome5 name="times" size={18} color="#CBD5E1" />
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.searchContainer}>
+              <FontAwesome5
+                name="search"
+                size={14}
+                color="#94A3B8"
+                style={styles.searchIcon}
+              />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                style={styles.searchInput}
+                placeholder="Search categories..."
+                placeholderTextColor="#94A3B8"
+                autoCorrect={false}
+                autoCapitalize="none"
+                clearButtonMode="while-editing"
+                selectionColor="#4A90E2"
+              />
+            </View>
+
+            <Text style={styles.countText}>
+              {filteredCategories.length} categories
+            </Text>
+
+            <FlatList
+              data={filteredCategories}
+              keyExtractor={keyExtractor}
+              renderItem={renderItem}
+              getItemLayout={getItemLayout}
+              keyboardShouldPersistTaps="always"
+              keyboardDismissMode="none"
+              nestedScrollEnabled
+              removeClippedSubviews={false}
+              overScrollMode="never"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={
+                filteredCategories.length > 0
+                  ? styles.listContent
+                  : styles.emptyListContent
+              }
+              ListEmptyComponent={
+                <EmptyState hasSearch={normalizedSearch.length > 0} />
+              }
+              initialNumToRender={20}
+              maxToRenderPerBatch={20}
+              windowSize={10}
+            />
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
 
 const styles = StyleSheet.create({
-    backdrop: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-    },
-    modalContainer: {
-        flex: 1,
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        height: MODAL_HEIGHT,
-        backgroundColor: '#1E293B',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        overflow: 'hidden',
-        borderTopWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.4,
-        shadowRadius: 16,
-        elevation: 10,
-    },
-    header: {
-        alignItems: 'center',
-        paddingTop: 12,
-        paddingBottom: 4,
-    },
-    dragHandle: {
-        width: 36,
-        height: 5,
-        borderRadius: 2.5,
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-        marginBottom: 16,
-    },
-    headerRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        width: '100%',
-    },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#fff',
-    },
-    closeButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.08)',
-        borderRadius: 12,
-        marginHorizontal: 20,
-        marginTop: 16,
-        paddingHorizontal: 14,
-        height: 48,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.15)',
-    },
-    searchIcon: {
-        marginRight: 10,
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: 16,
-        color: '#fff',
-        padding: 0,
-    },
-    countText: {
-        fontSize: 13,
-        color: '#A0ABC0',
-        marginHorizontal: 20,
-        marginTop: 14,
-        marginBottom: 8,
-    },
-    listContent: {
-        paddingHorizontal: 12,
-        paddingBottom: 24,
-    },
-    categoryItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 14,
-        paddingHorizontal: 16,
-        borderRadius: 12,
-        marginVertical: 4,
-        backgroundColor: 'rgba(255, 255, 255, 0.03)',
-        borderWidth: 1,
-        borderColor: 'transparent',
-    },
-    categoryItemActive: {
-        backgroundColor: 'rgba(74, 144, 226, 0.15)',
-        borderColor: 'rgba(74, 144, 226, 0.3)',
-    },
-    categoryLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    categoryDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        marginRight: 14,
-    },
-    categoryDotActive: {
-        backgroundColor: '#4A90E2',
-        shadowColor: '#4A90E2',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.6,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    categoryName: {
-        fontSize: 15,
-        color: '#E2E8F0',
-        flex: 1,
-    },
-    categoryNameActive: {
-        color: '#fff',
-        fontWeight: '600',
-    },
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(2, 6, 23, 0.68)',
+  },
+  sheetWrapper: {
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#1E293B',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
+    elevation: 24,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: -6},
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+  },
+  header: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
+  dragHandle: {
+    width: 36,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.28)',
+    marginBottom: 16,
+  },
+  headerRow: {
+    width: '100%',
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  closeButtonPressed: {
+    opacity: 0.85,
+  },
+  searchContainer: {
+    marginTop: 16,
+    marginHorizontal: 20,
+    height: 48,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#FFFFFF',
+    paddingVertical: 0,
+  },
+  countText: {
+    marginTop: 14,
+    marginBottom: 8,
+    marginHorizontal: 20,
+    color: '#A0ABC0',
+    fontSize: 13,
+  },
+  listContent: {
+    paddingHorizontal: 12,
+    paddingBottom: 28,
+  },
+  emptyListContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+  },
+  categoryItem: {
+    minHeight: 56,
+    marginVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  categoryItemActive: {
+    backgroundColor: 'rgba(74,144,226,0.15)',
+    borderColor: 'rgba(74,144,226,0.3)',
+  },
+  categoryItemPressed: {
+    opacity: 0.9,
+  },
+  categoryLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  categoryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  categoryDotActive: {
+    backgroundColor: '#4A90E2',
+  },
+  categoryName: {
+    flex: 1,
+    color: '#E2E8F0',
+    fontSize: 15,
+  },
+  categoryNameActive: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 36,
+  },
+  emptyTitle: {
+    marginTop: 12,
+    color: '#E2E8F0',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptySubtitle: {
+    marginTop: 6,
+    color: '#94A3B8',
+    fontSize: 13,
+    textAlign: 'center',
+  },
 });

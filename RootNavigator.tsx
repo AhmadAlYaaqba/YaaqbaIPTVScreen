@@ -69,13 +69,14 @@ const RootNavigator = () => {
         });
         if (creds) {
           const parsed = JSON.parse(creds.password);
-          // If found, dispatch to Redux to sync user credentials
-          // (Adjust if you also store domain/port in Keychain)
+          // Migrate vlcUseProxy -> useProxy for backward compatibility
+          if (parsed.vlcUseProxy !== undefined && parsed.useProxy === undefined) {
+            parsed.useProxy = parsed.vlcUseProxy;
+            delete parsed.vlcUseProxy;
+          }
           dispatch(
             setUserCredentials({
               ...parsed,
-              // domain and port if stored or in Redux
-              // e.g. serverDomain, serverPort
             }),
           );
         } else {

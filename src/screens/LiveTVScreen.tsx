@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,6 @@ import { useSelector, useDispatch } from 'react-redux';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Animated, {
   FadeInDown,
-  FadeInUp,
-  Layout,
 } from 'react-native-reanimated';
 
 import { RootState, AppDispatch } from '../store';
@@ -28,6 +26,8 @@ import {
   fetchLiveStreamsByCategory,
 } from '../store/slices/iptvSlice';
 import CategoryPickerModal from '../components/CategoryPickerModal';
+import { proxyStreamUrl } from '../utils/proxy';
+import { buildLiveStreamUrl } from '../utils/xtream';
 
 const { width } = Dimensions.get('window');
 const CARD_SIZE = (width - 56) / 3; // 3-column grid with 16px gutter
@@ -38,17 +38,15 @@ const ChannelCard = React.memo(
     item,
     onPress,
     cardSize,
+    useProxy,
   }: {
     item: any;
     onPress: () => void;
     cardSize: number;
+    useProxy: boolean;
   }) => {
     const rawIcon = item.stream_icon || item.icon || null;
-    const icon = rawIcon
-      ? `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(
-        rawIcon,
-      )}`
-      : null;
+    const icon = rawIcon ? proxyStreamUrl(rawIcon, useProxy) : null;
     return (
       <TouchableOpacity
         style={[styles.channelCard, { width: cardSize }]}
@@ -75,7 +73,7 @@ const LiveTVScreen: React.FC<any> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
 
   // credentials
-  const { username, password, serverDomain, serverPort } = useSelector(
+  const { username, password, serverDomain, serverPort, useProxy } = useSelector(
     (state: RootState) => state.user,
   );
 
@@ -97,15 +95,24 @@ const LiveTVScreen: React.FC<any> = ({ navigation }) => {
           password,
           domain: serverDomain,
           port: serverPort,
+          useProxy,
         }),
       );
     }
-  }, [dispatch, username, password, serverDomain, serverPort]);
+  }, [dispatch, username, password, serverDomain, serverPort, useProxy]);
 
-  // once categories arrive, default to first category
+  const categories = useMemo(
+    () => (Array.isArray(liveCategories) ? liveCategories : []),
+    [liveCategories],
+  );
+  const channels = useMemo(
+    () => (Array.isArray(liveChannels) ? liveChannels : []),
+    [liveChannels],
+  );
+
   useEffect(() => {
-    if (liveCategories.length && !activeCategory) {
-      const first = liveCategories[0];
+    if (categories.length && !activeCategory) {
+      const first = categories[0];
       setActiveCategory(first.category_id);
       setActiveCategoryName(first.category_name);
       dispatch(
@@ -115,10 +122,11 @@ const LiveTVScreen: React.FC<any> = ({ navigation }) => {
           domain: serverDomain,
           port: serverPort,
           categoryId: first.category_id,
+          useProxy,
         }),
       );
     }
-  }, [liveCategories]);
+  }, [categories, activeCategory, username, password, serverDomain, serverPort, useProxy, dispatch]);
 
   // fetch streams when category changes (after initial)
   const handleCategorySelect = useCallback(
@@ -134,27 +142,31 @@ const LiveTVScreen: React.FC<any> = ({ navigation }) => {
           domain: serverDomain,
           port: serverPort,
           categoryId,
+          useProxy,
         }),
       );
     },
-    [dispatch, username, password, serverDomain, serverPort],
+    [dispatch, username, password, serverDomain, serverPort, useProxy],
   );
 
   const renderChannelCard = useCallback(
     ({ item }: { item: any }) => {
       const rawIcon = item.stream_icon || item.icon || null;
-      const icon = rawIcon
-        ? `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(
-          rawIcon,
-        )}`
-        : null;
-      const originalStreamUrl = `http://${serverDomain}:${serverPort}/live/${username}/${password}/${item.stream_id}.m3u8`;
-      const streamUrl = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalStreamUrl)}`;
+      const icon = rawIcon ? proxyStreamUrl(rawIcon, useProxy) : null;
+      const originalStreamUrl = buildLiveStreamUrl({
+        domain: serverDomain,
+        port: serverPort,
+        username,
+        password,
+        streamId: item.stream_id,
+      });
+      const streamUrl = proxyStreamUrl(originalStreamUrl, useProxy);
 
       return (
         <ChannelCard
           item={item}
           cardSize={CARD_SIZE}
+          useProxy={useProxy}
           onPress={() =>
             navigation.navigate('VideoPlayer', {
               streamUrl,
@@ -167,24 +179,11 @@ const LiveTVScreen: React.FC<any> = ({ navigation }) => {
         />
       );
     },
-    [navigation, serverDomain, serverPort, username, password],
+    [navigation, serverDomain, serverPort, username, password, useProxy, activeCategory],
   );
 
-  // filter channels by search
-  const filteredChannels = liveChannels.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()),
-  );
-
-  console.log("filteredChannels ===>", filteredChannels)
-
-  // FlatList layout optimization for fixed-size cards
-  const getItemLayout = useCallback(
-    (_: any, index: number) => ({
-      length: CARD_SIZE + 20 + 20, // card height + margin + text
-      offset: (CARD_SIZE + 20 + 20) * Math.floor(index / 3),
-      index,
-    }),
-    [],
+  const filteredChannels = channels.filter(c =>
+    c.name?.toLowerCase().includes(search.toLowerCase()),
   );
 
   // ---------- render ---------- //
@@ -211,6 +210,7 @@ const LiveTVScreen: React.FC<any> = ({ navigation }) => {
                 password,
                 domain: serverDomain,
                 port: serverPort,
+                useProxy,
               }),
             )
           }>
@@ -312,7 +312,7 @@ const LiveTVScreen: React.FC<any> = ({ navigation }) => {
 
         <CategoryPickerModal
           visible={showCategoryModal}
-          categories={liveCategories}
+          categories={categories}
           activeCategory={activeCategory}
           onSelect={handleCategorySelect}
           onClose={() => setShowCategoryModal(false)}

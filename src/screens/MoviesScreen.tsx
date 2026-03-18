@@ -102,10 +102,11 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
     }
   }, [dispatch, username, password, serverDomain, serverPort]);
 
-  // once categories arrive, default to first category
+  const safeMovieCategories = Array.isArray(movieCategories) ? movieCategories : [];
+
   useEffect(() => {
-    if (movieCategories.length && !activeCategory) {
-      const first = movieCategories[0];
+    if (safeMovieCategories.length && !activeCategory) {
+      const first = safeMovieCategories[0];
       setActiveCategory(first.category_id);
       setActiveCategoryName(first.category_name);
       dispatch(
@@ -118,7 +119,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
         }),
       );
     }
-  }, [movieCategories]);
+  }, [safeMovieCategories]);
 
   // fetch movies when category changes (after initial)
   const handleCategorySelect = useCallback(
@@ -156,9 +157,9 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
     [navigation],
   );
 
-  // filter movies by search
-  const filteredMovies = movieList.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()),
+  const movies = Array.isArray(movieList) ? movieList : [];
+  const filteredMovies = movies.filter(c =>
+    c.name?.toLowerCase().includes(search.toLowerCase()),
   );
 
   // FlatList layout optimization for fixed-size cards
@@ -172,7 +173,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
   );
 
   // ---------- render ---------- //
-  if (!movieCategories.length && loading) {
+  if (!safeMovieCategories.length && loading) {
     return (
       <ImageBackground source={backgroundImage} style={styles.backgroundImage}>
         <View style={styles.center}>
@@ -183,7 +184,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
     );
   }
 
-  if (error && !movieCategories.length) {
+  if (error && !safeMovieCategories.length) {
     return (
       <ImageBackground source={backgroundImage} style={styles.backgroundImage}>
         <View style={styles.center}>
@@ -301,7 +302,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
 
         <CategoryPickerModal
           visible={showCategoryModal}
-          categories={movieCategories}
+          categories={safeMovieCategories}
           activeCategory={activeCategory}
           onSelect={handleCategorySelect}
           onClose={() => setShowCategoryModal(false)}

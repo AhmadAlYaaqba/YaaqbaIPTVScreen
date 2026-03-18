@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,12 +14,14 @@ import FastImage from 'react-native-fast-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import { useDispatch, useSelector } from 'react-redux';
-import { RouteProp } from '@react-navigation/native';
+import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../RootNavigator';
 import { RootState, AppDispatch } from '../store';
 import { fetchSeriesInfo } from '../store/slices/iptvSlice';
 import { storage } from '../utils/storage';
+import { proxyStreamUrl } from '../utils/proxy';
+import { buildSeriesStreamUrl } from '../utils/xtream';
 
 const backgroundImage = require('../assets/background-image-mobile.png');
 
@@ -61,7 +63,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
 
-  const { username, password, serverDomain, serverPort } = useSelector(
+  const { username, password, serverDomain, serverPort, useProxy } = useSelector(
     (s: RootState) => s.user,
   );
   const { selectedSeriesInfo, loading, error } = useSelector(
@@ -80,14 +82,15 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         domain: serverDomain,
         port: serverPort,
         seriesId,
+        useProxy,
       }),
     );
-  }, [seriesId]);
+  }, [seriesId, username, password, serverDomain, serverPort, useProxy]);
 
   /* Local state */
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
 
-  const info = baseInfo ?? selectedSeriesInfo?.info ?? ({} as any);
+  const info = selectedSeriesInfo?.info ?? baseInfo ?? ({} as any);
   const episodes =
     selectedSeriesInfo?.episodes ?? ({} as Record<string, any[]>);
   const seasons = Object.keys(episodes);
@@ -101,37 +104,44 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     [selectedSeason, episodes],
   );
 
-  // Load watch progress when component mounts or season changes
-  useEffect(() => {
-    const loadProgress = async () => {
-      if (seriesId && selectedSeason && episodes[selectedSeason]) {
-        const progressMap: Record<string, WatchProgress> = {};
-
-        // Load progress for each episode in the current season
-        for (const episode of episodes[selectedSeason]) {
-          const progress = await storage.getWatchProgress(
-            seriesId,
-            false,
-            seriesId,
-            episode.id
-          );
-          if (progress) {
-            progressMap[episode.id] = progress;
-          }
+  // Reload watch progress every time this screen gains focus
+  // (covers initial mount, season change, AND returning from VideoPlayer)
+  const loadProgress = useCallback(async () => {
+    if (seriesId && selectedSeason && episodes[selectedSeason]) {
+      const progressMap: Record<string, WatchProgress> = {};
+      for (const episode of episodes[selectedSeason]) {
+        const progress = await storage.getWatchProgress(
+          seriesId,
+          false,
+          seriesId,
+          episode.id,
+        );
+        if (progress) {
+          progressMap[episode.id] = progress;
         }
-
-        setWatchProgress(progressMap);
       }
-    };
-    loadProgress();
+      setWatchProgress(progressMap);
+    }
   }, [seriesId, selectedSeason, episodes]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProgress();
+    }, [loadProgress]),
+  );
 
   /* Play episode */
   const playEpisode = (ep: any, index: number) => {
     if (!ep) return;
-    const originalUrl = `http://${serverDomain}:${serverPort}/series/${username}/${password}/${ep.id
-      }.${ep.container_extension || 'mp4'}`;
-    const url = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalUrl)}`;
+    const originalUrl = buildSeriesStreamUrl({
+      domain: serverDomain,
+      port: serverPort,
+      username,
+      password,
+      streamId: ep.id,
+      extension: ep.container_extension || 'mp4',
+    });
+    const url = proxyStreamUrl(originalUrl, useProxy);
 
     navigation.navigate('VideoPlayer', {
       streamUrl: url,
@@ -159,7 +169,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     const episodeProgress = watchProgress[ep.id];
     const progress = episodeProgress ? (episodeProgress.progress / episodeProgress.totalDuration) * 100 : 0;
     const epImageProxy = (ep.info?.movie_image || heroImg)
-      ? `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(ep.info?.movie_image || heroImg)}`
+      ? proxyStreamUrl(ep.info?.movie_image || heroImg, useProxy)
       : null;
 
     return (
@@ -219,7 +229,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <View style={[styles.heroWrapper]}>
             {heroImg ? (
               <FastImage
-                source={{ uri: `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(heroImg)}` }}
+                source={{ uri: proxyStreamUrl(heroImg, useProxy) }}
                 style={styles.heroImg}
                 resizeMode={FastImage.resizeMode.cover}
               />

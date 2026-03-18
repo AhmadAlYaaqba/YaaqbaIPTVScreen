@@ -1,6 +1,11 @@
 // store/slices/iptvSlice.ts
 import {createSlice, createAsyncThunk, PayloadAction} from '@reduxjs/toolkit';
 import axios from 'axios';
+import {proxyApiUrl} from '../../utils/proxy';
+import {
+  buildPlayerApiUrl,
+  XTREAM_REQUEST_HEADERS,
+} from '../../utils/xtream';
 
 interface Channel {
   num: number;
@@ -90,6 +95,40 @@ const initialState: IPTVState = {
   error: null,
 };
 
+const xtreamRequestConfig = {
+  headers: XTREAM_REQUEST_HEADERS,
+  timeout: 15000,
+};
+
+type XtreamRequestMeta = {
+  context: string;
+  requestUrl: string;
+};
+
+async function fetchXtreamData({
+  context,
+  requestUrl,
+}: XtreamRequestMeta) {
+  try {
+    const response = await axios.get(requestUrl, xtreamRequestConfig);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const data =
+        typeof error.response?.data === 'string'
+          ? error.response.data.slice(0, 160)
+          : JSON.stringify(error.response?.data ?? '').slice(0, 160);
+      const detail = status
+        ? `HTTP ${status}${data ? `: ${data}` : ''}`
+        : error.message;
+      throw new Error(`Xtream request failed (${context}): ${detail}`);
+    }
+
+    throw error;
+  }
+}
+
 // 1) Fetch Live Categories
 export const fetchLiveChannels = createAsyncThunk(
   'iptv/fetchLiveChannels',
@@ -98,17 +137,26 @@ export const fetchLiveChannels = createAsyncThunk(
     password,
     domain,
     port,
+    useProxy = true,
   }: {
     username: string;
     password: string;
     domain: string;
     port: string;
+    useProxy?: boolean;
   }) => {
-    // For Xtream: get_live_categories or get_live_streams
-    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_live_categories`;
-    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
-    const response = await axios.get(url);
-    return response.data;
+    const originalUrl = buildPlayerApiUrl({
+      username,
+      password,
+      domain,
+      port,
+      action: 'get_live_categories',
+    });
+    const url = proxyApiUrl(originalUrl, useProxy);
+    return fetchXtreamData({
+      context: 'get_live_categories',
+      requestUrl: url,
+    });
   },
 );
 
@@ -120,16 +168,26 @@ export const fetchSeries = createAsyncThunk(
     password,
     domain,
     port,
+    useProxy = true,
   }: {
     username: string;
     password: string;
     domain: string;
     port: string;
+    useProxy?: boolean;
   }) => {
-    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_series_categories`;
-    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
-    const response = await axios.get(url);
-    return response.data;
+    const originalUrl = buildPlayerApiUrl({
+      username,
+      password,
+      domain,
+      port,
+      action: 'get_series_categories',
+    });
+    const url = proxyApiUrl(originalUrl, useProxy);
+    return fetchXtreamData({
+      context: 'get_series_categories',
+      requestUrl: url,
+    });
   },
 );
 
@@ -141,16 +199,26 @@ export const fetchMovieCategories = createAsyncThunk(
     password,
     domain,
     port,
+    useProxy = true,
   }: {
     username: string;
     password: string;
     domain: string;
     port: string;
+    useProxy?: boolean;
   }) => {
-    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_vod_categories`;
-    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
-    const response = await axios.get(url);
-    return response.data as MovieCategory[];
+    const originalUrl = buildPlayerApiUrl({
+      username,
+      password,
+      domain,
+      port,
+      action: 'get_vod_categories',
+    });
+    const url = proxyApiUrl(originalUrl, useProxy);
+    return (await fetchXtreamData({
+      context: 'get_vod_categories',
+      requestUrl: url,
+    })) as MovieCategory[];
   },
 );
 
@@ -163,18 +231,28 @@ export const fetchMoviesInCategory = createAsyncThunk(
     domain,
     port,
     categoryId,
+    useProxy = true,
   }: {
     username: string;
     password: string;
     domain: string;
     port: string;
     categoryId: string;
+    useProxy?: boolean;
   }) => {
-    // e.g. http://domain:port/player_api.php?username=USER&password=PASS&action=get_vod_streams&category_id=XX
-    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_vod_streams&category_id=${categoryId}`;
-    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
-    const response = await axios.get(url);
-    return response.data as MovieStream[];
+    const originalUrl = buildPlayerApiUrl({
+      username,
+      password,
+      domain,
+      port,
+      action: 'get_vod_streams',
+      extraParams: {category_id: categoryId},
+    });
+    const url = proxyApiUrl(originalUrl, useProxy);
+    return (await fetchXtreamData({
+      context: 'get_vod_streams',
+      requestUrl: url,
+    })) as MovieStream[];
   },
 );
 
@@ -186,23 +264,28 @@ export const fetchLiveStreamsByCategory = createAsyncThunk(
     domain,
     port,
     categoryId,
+    useProxy = true,
   }: {
     username: string;
     password: string;
     domain: string;
     port: string;
     categoryId: string;
+    useProxy?: boolean;
   }) => {
-    // e.g.:
-    //  http://DOMAIN:PORT/player_api.php?username=USER&password=PASS&action=get_live_streams&category_id=XX
-    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_live_streams&category_id=${categoryId}`;
-    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
-    const response = await axios.get(url);
-
-    // The response is typically an array of channels. Might need transformation:
-    // Example returned data shape:
-    // [ { "num": "1", "name": "BBC One", "stream_type": "live", ... }, { ... } ]
-    return response.data;
+    const originalUrl = buildPlayerApiUrl({
+      username,
+      password,
+      domain,
+      port,
+      action: 'get_live_streams',
+      extraParams: {category_id: categoryId},
+    });
+    const url = proxyApiUrl(originalUrl, useProxy);
+    return fetchXtreamData({
+      context: 'get_live_streams',
+      requestUrl: url,
+    });
   },
 );
 
@@ -216,16 +299,26 @@ export const fetchSeriesCategories = createAsyncThunk(
     password,
     domain,
     port,
+    useProxy = true,
   }: {
     username: string;
     password: string;
     domain: string;
     port: string;
+    useProxy?: boolean;
   }) => {
-    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_series_categories`;
-    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
-    const response = await axios.get(url);
-    return response.data as SeriesCategory[];
+    const originalUrl = buildPlayerApiUrl({
+      username,
+      password,
+      domain,
+      port,
+      action: 'get_series_categories',
+    });
+    const url = proxyApiUrl(originalUrl, useProxy);
+    return (await fetchXtreamData({
+      context: 'get_series_categories',
+      requestUrl: url,
+    })) as SeriesCategory[];
   },
 );
 
@@ -238,17 +331,28 @@ export const fetchSeriesByCategory = createAsyncThunk(
     domain,
     port,
     categoryId,
+    useProxy = true,
   }: {
     username: string;
     password: string;
     domain: string;
     port: string;
     categoryId: string;
+    useProxy?: boolean;
   }) => {
-    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_series&category_id=${categoryId}`;
-    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
-    const response = await axios.get(url);
-    return response.data as SeriesItem[];
+    const originalUrl = buildPlayerApiUrl({
+      username,
+      password,
+      domain,
+      port,
+      action: 'get_series',
+      extraParams: {category_id: categoryId},
+    });
+    const url = proxyApiUrl(originalUrl, useProxy);
+    return (await fetchXtreamData({
+      context: 'get_series',
+      requestUrl: url,
+    })) as SeriesItem[];
   },
 );
 
@@ -261,17 +365,28 @@ export const fetchSeriesInfo = createAsyncThunk(
     domain,
     port,
     seriesId,
+    useProxy = true,
   }: {
     username: string;
     password: string;
     domain: string;
     port: string;
     seriesId: string;
+    useProxy?: boolean;
   }) => {
-    const originalUrl = `http://${domain}:${port}/player_api.php?username=${username}&password=${password}&action=get_series_info&series_id=${seriesId}`;
-    const url = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
-    const response = await axios.get(url);
-    return response.data as SeriesInfo;
+    const originalUrl = buildPlayerApiUrl({
+      username,
+      password,
+      domain,
+      port,
+      action: 'get_series_info',
+      extraParams: {series_id: seriesId},
+    });
+    const url = proxyApiUrl(originalUrl, useProxy);
+    return (await fetchXtreamData({
+      context: 'get_series_info',
+      requestUrl: url,
+    })) as SeriesInfo;
   },
 );
 
@@ -290,7 +405,7 @@ const iptvSlice = createSlice({
         fetchLiveChannels.fulfilled,
         (state, action: PayloadAction<Category[]>) => {
           state.loadingCategories = false;
-          state.liveCategories = action.payload; // parse as needed
+          state.liveCategories = Array.isArray(action.payload) ? action.payload : [];
         },
       )
       .addCase(fetchLiveChannels.rejected, (state, action) => {
@@ -309,7 +424,7 @@ const iptvSlice = createSlice({
         fetchSeries.fulfilled,
         (state, action: PayloadAction<Category[]>) => {
           state.loading = false;
-          state.seriesCategories = action.payload;
+          state.seriesCategories = Array.isArray(action.payload) ? action.payload : [];
         },
       )
       .addCase(fetchSeries.rejected, (state, action) => {
@@ -327,7 +442,7 @@ const iptvSlice = createSlice({
         fetchMovieCategories.fulfilled,
         (state, action: PayloadAction<MovieCategory[]>) => {
           state.loadingCategories = false;
-          state.movieCategories = action.payload;
+          state.movieCategories = Array.isArray(action.payload) ? action.payload : [];
         },
       )
       .addCase(fetchMovieCategories.rejected, (state, action) => {
@@ -346,7 +461,7 @@ const iptvSlice = createSlice({
         fetchMoviesInCategory.fulfilled,
         (state, action: PayloadAction<MovieStream[]>) => {
           state.loadingMovies = false;
-          state.movieList = action.payload;
+          state.movieList = Array.isArray(action.payload) ? action.payload : [];
         },
       )
       .addCase(fetchMoviesInCategory.rejected, (state, action) => {
@@ -364,8 +479,7 @@ const iptvSlice = createSlice({
         fetchLiveStreamsByCategory.fulfilled,
         (state, action: PayloadAction<Channel[]>) => {
           state.loading = false;
-          // Here we store them in liveChannels
-          state.liveChannels = action.payload;
+          state.liveChannels = Array.isArray(action.payload) ? action.payload : [];
         },
       )
       .addCase(fetchLiveStreamsByCategory.rejected, (state, action) => {
@@ -382,7 +496,7 @@ const iptvSlice = createSlice({
         fetchSeriesCategories.fulfilled,
         (state, action: PayloadAction<SeriesCategory[]>) => {
           state.loadingCategories = false;
-          state.seriesCategories = action.payload;
+          state.seriesCategories = Array.isArray(action.payload) ? action.payload : [];
         },
       )
       .addCase(fetchSeriesCategories.rejected, (state, action) => {
@@ -401,7 +515,7 @@ const iptvSlice = createSlice({
         fetchSeriesByCategory.fulfilled,
         (state, action: PayloadAction<SeriesItem[]>) => {
           state.loading = false;
-          state.seriesList = action.payload;
+          state.seriesList = Array.isArray(action.payload) ? action.payload : [];
         },
       )
       .addCase(fetchSeriesByCategory.rejected, (state, action) => {

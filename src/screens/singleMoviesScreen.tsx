@@ -29,7 +29,9 @@ import {
   fetchMoviesInCategory,
 } from '../store/slices/iptvSlice';
 import { storage } from '../utils/storage';
+import { proxyStreamUrl } from '../utils/proxy';
 import CategoryPickerModal from '../components/CategoryPickerModal';
+import { buildMovieStreamUrl } from '../utils/xtream';
 
 const { width } = Dimensions.get('window');
 const CARD_SIZE = (width - 56) / 3;
@@ -42,7 +44,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const searchRef = useRef<TextInput>(null);
 
-  const { username, password, serverDomain, serverPort, showMoviesSlider } = useSelector(
+  const { username, password, serverDomain, serverPort, showMoviesSlider, useProxy } = useSelector(
     (s: RootState) => s.user,
   );
   const {
@@ -68,6 +70,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
         password,
         domain: serverDomain,
         port: serverPort,
+        useProxy,
       }),
     );
   }, [dispatch, username, password, serverDomain, serverPort]);
@@ -85,6 +88,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
           domain: serverDomain,
           port: serverPort,
           categoryId: first.category_id,
+          useProxy,
         }),
       );
     }
@@ -119,6 +123,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
           domain: serverDomain,
           port: serverPort,
           categoryId,
+          useProxy,
         }),
       );
     },
@@ -126,20 +131,20 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
   );
 
   /* ─── Derived data */
-  const featuredMovies = useMemo(() => {
-    if (movieList.length < 1) return [];
-    return [...movieList].sort(() => 0.5 - Math.random()).slice(0, 5);
-  }, [movieList]);
+  const movies = Array.isArray(movieList) ? movieList : [];
 
-  const filteredMovies = movieList.filter(m =>
-    m.name.toLowerCase().includes(search.toLowerCase()),
+  const featuredMovies = useMemo(() => {
+    if (movies.length < 1) return [];
+    return [...movies].sort(() => 0.5 - Math.random()).slice(0, 5);
+  }, [movies]);
+
+  const filteredMovies = movies.filter(m =>
+    m.name?.toLowerCase().includes(search.toLowerCase()),
   );
 
   /* ─── Helper components */
   const Poster = ({ uri, style }: { uri?: string; style: any }) => {
-    const icon = uri
-      ? `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(uri)}`
-      : null;
+    const icon = uri ? proxyStreamUrl(uri, useProxy) : null;
     return icon ? (
       <FastImage
         style={style}
@@ -392,8 +397,15 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
                             const ext =
                               selectedMovie.container_extension?.replace('.', '') ||
                               'mp4';
-                            const originalUrl = `http://${serverDomain}:${serverPort}/movie/${username}/${password}/${selectedMovie.stream_id}.${ext}`;
-                            const url = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalUrl)}`;
+                            const originalUrl = buildMovieStreamUrl({
+                              domain: serverDomain,
+                              port: serverPort,
+                              username,
+                              password,
+                              streamId: selectedMovie.stream_id,
+                              extension: ext,
+                            });
+                            const url = proxyStreamUrl(originalUrl, useProxy);
                             setSelectedMovie(null);
                             navigation.navigate('VideoPlayer', {
                               streamUrl: url,

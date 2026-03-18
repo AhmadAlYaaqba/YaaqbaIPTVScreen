@@ -21,6 +21,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { fetchSeries, fetchSeriesByCategory } from '../store/slices/iptvSlice';
 import CategoryPickerModal from '../components/CategoryPickerModal';
+import { proxyStreamUrl } from '../utils/proxy';
 
 const backgroundImage = require('../assets/background-image-mobile.png');
 
@@ -34,7 +35,7 @@ const SeriesHomeScreen: React.FC<any> = ({ navigation }) => {
   const searchRef = useRef<TextInput>(null);
 
   /* Redux state ---------------------------------------------------- */
-  const { username, password, serverDomain, serverPort, showSeriesSlider } = useSelector(
+  const { username, password, serverDomain, serverPort, showSeriesSlider, useProxy } = useSelector(
     (s: RootState) => s.user,
   );
   const {
@@ -54,9 +55,9 @@ const SeriesHomeScreen: React.FC<any> = ({ navigation }) => {
   /* Fetch categories on mount -------------------------------------- */
   useEffect(() => {
     dispatch(
-      fetchSeries({ username, password, domain: serverDomain, port: serverPort }),
+      fetchSeries({ username, password, domain: serverDomain, port: serverPort, useProxy }),
     );
-  }, [dispatch, username, password, serverDomain, serverPort]);
+  }, [dispatch, username, password, serverDomain, serverPort, useProxy]);
 
   /* When categories arrive fetch first cat ------------------------- */
   useEffect(() => {
@@ -79,20 +80,20 @@ const SeriesHomeScreen: React.FC<any> = ({ navigation }) => {
         domain: serverDomain,
         port: serverPort,
         categoryId,
+        useProxy,
       }),
     );
-  }, [dispatch, username, password, serverDomain, serverPort, activeCategory]);
+  }, [dispatch, username, password, serverDomain, serverPort, activeCategory, useProxy]);
 
   /* Derived lists -------------------------------------------------- */
+  const safeSeriesList = Array.isArray(seriesList) ? seriesList : [];
   const filtered = useMemo(
     () =>
-      seriesList.filter(s =>
-        s.name.toLowerCase().includes(search.toLowerCase()),
+      safeSeriesList.filter(s =>
+        s.name?.toLowerCase().includes(search.toLowerCase()),
       ),
-    [seriesList, search],
+    [safeSeriesList, search],
   );
-
-  if (__DEV__) console.log('filtered ===>', filtered)
 
   const trending = filtered.filter(item => item.backdrop_path?.[0]).slice(0, 5);
   const recentlyAdded = [...filtered].sort(
@@ -104,9 +105,7 @@ const SeriesHomeScreen: React.FC<any> = ({ navigation }) => {
 
   /* Card component ------------------------------------------------- */
   const PosterCard = ({ item }: { item: any }) => {
-    const icon = item.cover
-      ? `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(item.cover)}`
-      : null;
+    const icon = item.cover ? proxyStreamUrl(item.cover, useProxy) : null;
 
     return (
       <TouchableOpacity
@@ -243,7 +242,7 @@ const SeriesHomeScreen: React.FC<any> = ({ navigation }) => {
                       activeDotColor="#4A90E2">
                       {trending.map(s => {
                         const bgUri = s.backdrop_path?.[0]
-                          ? `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(s.backdrop_path[0])}`
+                          ? proxyStreamUrl(s.backdrop_path[0], useProxy)
                           : null;
                         return (
                           <TouchableOpacity

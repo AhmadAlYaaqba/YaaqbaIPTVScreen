@@ -1,5 +1,5 @@
 // src/components/PlayerControls.tsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -9,6 +9,7 @@ import {
     ActivityIndicator,
     Dimensions,
     PanResponder,
+    LayoutChangeEvent,
 } from 'react-native';
 import Animated, {
     useSharedValue,
@@ -87,9 +88,68 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     const opacity = useSharedValue(0);
     const translateY = useSharedValue(-10);
 
-    // Track pan state
+    // Track pan state (for brightness gesture on hidden controls)
     const isPanning = useRef(false);
     const panStart = useRef<{ x: number; y: number } | null>(null);
+
+    // --- Seekbar state ---
+    const [isSeeking, setIsSeeking] = useState(false);
+    const [seekTime, setSeekTime] = useState(0);
+    const seekBarWidth = useRef(0);
+    const seekBarPageX = useRef(0);
+
+    const onSeekBarLayout = useCallback((event: LayoutChangeEvent) => {
+        seekBarWidth.current = event.nativeEvent.layout.width;
+        // Also measure pageX for accurate touch position
+        event.target?.measure?.((_x: number, _y: number, _w: number, _h: number, pageX: number) => {
+            if (pageX !== undefined) {
+                seekBarPageX.current = pageX;
+            }
+        });
+    }, []);
+
+    // Use refs so PanResponder callbacks always read the latest duration & onSeek
+    const durationRef = useRef(duration);
+    const onSeekRef = useRef(onSeek);
+    durationRef.current = duration;
+    onSeekRef.current = onSeek;
+
+    const seekPanResponderLatest = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: () => true,
+            onPanResponderTerminationRequest: () => false,
+            onPanResponderGrant: (evt) => {
+                const touchX = evt.nativeEvent.locationX;
+                const dur = durationRef.current;
+                if (seekBarWidth.current > 0 && dur > 0) {
+                    const time = Math.max(0, Math.min(dur, (touchX / seekBarWidth.current) * dur));
+                    setIsSeeking(true);
+                    setSeekTime(time);
+                }
+            },
+            onPanResponderMove: (evt) => {
+                const touchX = evt.nativeEvent.locationX;
+                const dur = durationRef.current;
+                if (seekBarWidth.current > 0 && dur > 0) {
+                    const time = Math.max(0, Math.min(dur, (touchX / seekBarWidth.current) * dur));
+                    setSeekTime(time);
+                }
+            },
+            onPanResponderRelease: (evt) => {
+                const touchX = evt.nativeEvent.locationX;
+                const dur = durationRef.current;
+                if (seekBarWidth.current > 0 && dur > 0) {
+                    const time = Math.max(0, Math.min(dur, (touchX / seekBarWidth.current) * dur));
+                    onSeekRef.current?.(time);
+                }
+                setIsSeeking(false);
+            },
+            onPanResponderTerminate: () => {
+                setIsSeeking(false);
+            },
+        }),
+    ).current;
 
     useEffect(() => {
         if (visible || error || isReconnecting) {
@@ -109,7 +169,9 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
         transform: [{ translateY: translateY.value }],
     }));
 
-    const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+    // Use seekTime while dragging, otherwise use currentTime
+    const displayTime = isSeeking ? seekTime : currentTime;
+    const progress = duration > 0 ? (displayTime / duration) * 100 : 0;
 
     // PanResponder for the transparent touch zone (ONLY active when controls hidden)
     // Handles: tap → show controls, vertical pan → brightness
@@ -289,10 +351,23 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                 <View style={styles.bottomBar}>
                     {!isLive && duration > 0 && (
                         <View style={styles.progressContainer}>
-                            <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-                            <View style={styles.progressBarBg}>
+                            <Text style={styles.timeText}>{formatTime(displayTime)}</Text>
+                            <View
+                                style={styles.seekBarTouchTarget}
+                                onLayout={onSeekBarLayout}
+                                {...seekPanResponderLatest.panHandlers}
+                            >
+                                <View style={styles.progressBarBg}>
+                                    <View
+                                        style={[styles.progressBarFill, { width: `${progress}%` }]}
+                                    />
+                                </View>
+                                {/* Seek thumb */}
                                 <View
-                                    style={[styles.progressBarFill, { width: `${progress}%` }]}
+                                    style={[
+                                        styles.seekThumb,
+                                        { left: `${progress}%` },
+                                    ]}
                                 />
                             </View>
                             <Text style={styles.timeText}>{formatTime(duration)}</Text>
@@ -416,18 +491,41 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    progressBarBg: {
+    seekBarTouchTarget: {
         flex: 1,
+        height: 40,
+        justifyContent: 'center',
+        marginHorizontal: 10,
+        position: 'relative',
+    },
+    progressBarBg: {
+        width: '100%',
         height: 4,
         backgroundColor: 'rgba(255,255,255,0.3)',
         borderRadius: 2,
-        marginHorizontal: 10,
         overflow: 'hidden',
     },
     progressBarFill: {
         height: '100%',
         backgroundColor: '#4A90E2',
         borderRadius: 2,
+    },
+    seekThumb: {
+        position: 'absolute',
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: '#4A90E2',
+        top: '50%',
+        marginTop: -7,
+        marginLeft: -7,
+        borderWidth: 2,
+        borderColor: '#fff',
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.3,
+        shadowRadius: 2,
     },
     timeText: {
         color: '#fff',

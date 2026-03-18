@@ -2,8 +2,6 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
-  Platform,
-  TouchableWithoutFeedback,
   StatusBar,
 } from 'react-native';
 import Orientation from 'react-native-orientation-locker';
@@ -13,6 +11,8 @@ import { RootStackParamList } from '../../RootNavigator';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { storage } from '../utils/storage';
+import { unwrapProxyUrl, proxyStreamUrl } from '../utils/proxy';
+import { buildSeriesStreamUrl } from '../utils/xtream';
 
 // Components
 import NativeVideoPlayer, { NativeVideoPlayerRef } from '../components/NativeVideoPlayer';
@@ -35,17 +35,7 @@ type Props = {
 };
 
 // Extract original URL from proxy URL for VLC (VLC handles IPTV streams natively)
-const getDirectStreamUrl = (url: string): string => {
-  try {
-    const proxyPrefix = 'https://v0-next-js-proxy-api.vercel.app/api/stream?url=';
-    if (url.startsWith(proxyPrefix)) {
-      return decodeURIComponent(url.substring(proxyPrefix.length));
-    }
-  } catch (e) {
-    // fallback to original
-  }
-  return url;
-};
+const getDirectStreamUrl = (url: string): string => unwrapProxyUrl(url);
 
 const CONTROLS_TIMEOUT = 5000; // Auto-hide controls after 5 seconds
 
@@ -62,13 +52,9 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     movieId,
     continueTime,
     thumbnail = '',
-    categoryId,
   } = route.params;
 
-  const useVLC = useSelector((state: RootState) => state.user.useVLC);
-  const useNewVLC = useSelector((state: RootState) => state.user.useNewVLC);
-  const vlcUseProxy = useSelector((state: RootState) => state.user.vlcUseProxy);
-  const { username, password, serverDomain, serverPort } = useSelector(
+  const { useVLC, useNewVLC, useProxy, username, password, serverDomain, serverPort } = useSelector(
     (state: RootState) => state.user,
   );
   // Get channels for current category from Redux
@@ -98,6 +84,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     password,
     streamId: currentStreamId,
     isLive,
+    useProxy,
     autoReconnect: true,
     maxRetries: 10,
   });
@@ -222,8 +209,15 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         if (nextEpisodeIndex < episodeList.length) {
           const nextEpisode = episodeList[nextEpisodeIndex];
           const ext = nextEpisode.container_extension?.replace('.', '') || 'mp4';
-          const originalNextUrl = `http://${serverDomain}:${serverPort}/series/${username}/${password}/${nextEpisode.id}.${ext}`;
-          const nextUrl = `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalNextUrl)}`;
+          const originalNextUrl = buildSeriesStreamUrl({
+            domain: serverDomain,
+            port: serverPort,
+            username,
+            password,
+            streamId: nextEpisode.id,
+            extension: ext,
+          });
+          const nextUrl = proxyStreamUrl(originalNextUrl, useProxy);
 
           navigation.replace('VideoPlayer', {
             streamUrl: nextUrl,
@@ -327,7 +321,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   }, [navigation]);
 
   // --- Render ---
-  if (__DEV__) console.log('[VideoPlayerScreen] render, useVLC:', useVLC, 'useNewVLC:', useNewVLC);
+  if (__DEV__) console.log('[VideoPlayerScreen] render, useVLC:', useVLC, 'useNewVLC:', useNewVLC, 'url:', useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl));
 
   return (
     <View style={styles.container}>
@@ -347,7 +341,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         <VLCPlyrPlayer
           key={`vlcplyr-${player.playerKey}-${currentStreamId}`}
           ref={vlcPlyrRef}
-          uri={vlcUseProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl)}
+          uri={useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl)}
           isLive={isLive}
           isPaused={player.isPaused}
           onLoad={player.onLoad}
@@ -415,6 +409,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
           serverPort={serverPort}
           username={username}
           password={password}
+          useProxy={useProxy}
           onSelectChannel={handleChannelSwitch}
           onClose={() => setChannelSwitcherVisible(false)}
         />

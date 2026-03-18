@@ -8,7 +8,7 @@ interface UserState {
   serverPort: string;
   useVLC: boolean;
   useNewVLC: boolean;
-  vlcUseProxy: boolean;
+  useProxy: boolean;
   showMoviesSlider: boolean;
   showSeriesSlider: boolean;
   // Potentially more fields:
@@ -23,7 +23,7 @@ const initialState: UserState = {
   serverPort: '',
   useVLC: true,
   useNewVLC: false,
-  vlcUseProxy: true,
+  useProxy: true,
   showMoviesSlider: true,
   showSeriesSlider: true,
 };

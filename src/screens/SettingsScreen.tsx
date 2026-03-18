@@ -21,7 +21,7 @@ const backgroundImage = require('../assets/background-image-mobile.png');
 
 const SettingsScreen: React.FC<any> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { useVLC, useNewVLC, vlcUseProxy, username, showMoviesSlider, showSeriesSlider } = useSelector((state: RootState) => state.user);
+  const { useVLC, useNewVLC, useProxy, username, showMoviesSlider, showSeriesSlider } = useSelector((state: RootState) => state.user);
 
   const handleTogglePlayer = async (value: boolean) => {
     dispatch(setUseVlcPlayer({ useVLC: value }));
@@ -65,7 +65,7 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
   };
 
   const handleToggleProxy = async (value: boolean) => {
-    dispatch(setUseVlcPlayer({ vlcUseProxy: value }));
+    dispatch(setUseVlcPlayer({ useProxy: value }));
 
     try {
       const creds = await Keychain.getGenericPassword({
@@ -75,7 +75,7 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
         const parsed = JSON.parse(creds.password);
         await Keychain.setGenericPassword(
           'xtream-creds',
-          JSON.stringify({ ...parsed, vlcUseProxy: value }),
+          JSON.stringify({ ...parsed, useProxy: value }),
           { service: 'my-iptv-credentials' },
         );
       }
@@ -259,25 +259,28 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
               </View>
             )}
 
-            {useVLC && useNewVLC && (
-              <View style={[styles.card, { marginTop: 12 }]}>
-                <View style={styles.row}>
-                  <FontAwesome5 name="shield-alt" size={16} color="#4CAF50" />
-                  <View style={styles.rowContent}>
-                    <Text style={styles.rowLabel}>Use HTTPS Proxy</Text>
-                    <Text style={styles.rowHint}>
-                      Routes streams through HTTPS proxy. Disable if live streams don't play.
-                    </Text>
-                  </View>
-                  <Switch
-                    value={vlcUseProxy}
-                    onValueChange={handleToggleProxy}
-                    trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#4CAF50' }}
-                    thumbColor={vlcUseProxy ? '#fff' : '#A0ABC0'}
-                  />
+          </View>
+
+          {/* Network Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Network</Text>
+            <View style={styles.card}>
+              <View style={styles.row}>
+                <FontAwesome5 name="shield-alt" size={16} color="#4CAF50" />
+                <View style={styles.rowContent}>
+                  <Text style={styles.rowLabel}>Use HTTP Proxy</Text>
+                  <Text style={styles.rowHint}>
+                    Route all traffic through HTTPS proxy. Disable if you experience connection issues.
+                  </Text>
                 </View>
+                <Switch
+                  value={useProxy}
+                  onValueChange={handleToggleProxy}
+                  trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#4CAF50' }}
+                  thumbColor={useProxy ? '#fff' : '#A0ABC0'}
+                />
               </View>
-            )}
+            </View>
           </View>
 
           {/* Actions Section */}

@@ -1,5 +1,7 @@
 // src/components/ChannelSwitcher.tsx
 import React, { useCallback, useEffect } from 'react';
+import { proxyStreamUrl } from '../utils/proxy';
+import { buildLiveStreamUrl } from '../utils/xtream';
 import {
     View,
     Text,
@@ -36,6 +38,7 @@ interface ChannelSwitcherProps {
     serverPort: string;
     username: string;
     password: string;
+    useProxy: boolean;
     onSelectChannel: (streamUrl: string, channelName: string, streamId: string) => void;
     onClose: () => void;
 }
@@ -87,6 +90,7 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
     serverPort,
     username,
     password,
+    useProxy,
     onSelectChannel,
     onClose,
 }) => {
@@ -119,10 +123,16 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
 
     const buildStreamUrl = useCallback(
         (streamId: number) => {
-            const originalUrl = `http://${serverDomain}:${serverPort}/live/${username}/${password}/${streamId}.m3u8`;
-            return `https://v0-next-js-proxy-api.vercel.app/api/stream?url=${encodeURIComponent(originalUrl)}`;
+            const originalUrl = buildLiveStreamUrl({
+                domain: serverDomain,
+                port: serverPort,
+                username,
+                password,
+                streamId,
+            });
+            return proxyStreamUrl(originalUrl, useProxy);
         },
-        [serverDomain, serverPort, username, password],
+        [serverDomain, serverPort, username, password, useProxy],
     );
 
     const renderItem = useCallback(

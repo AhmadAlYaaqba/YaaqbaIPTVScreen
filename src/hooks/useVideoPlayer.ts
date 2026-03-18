@@ -1,6 +1,8 @@
 // src/hooks/useVideoPlayer.ts
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
+import { proxyStreamUrl } from '../utils/proxy';
+import { buildLiveStreamUrl } from '../utils/xtream';
 
 /**
  * Source fallback strategy:
@@ -22,6 +24,7 @@ export interface UseVideoPlayerOptions {
     password: string;
     streamId: string | number;
     isLive: boolean;
+    useProxy?: boolean;
     autoReconnect?: boolean;
     maxRetries?: number;
     onSourceExhausted?: () => void;
@@ -40,8 +43,6 @@ export interface VideoPlayerState {
     isCompleted: boolean;
 }
 
-const PROXY_BASE = 'https://v0-next-js-proxy-api.vercel.app/api/stream';
-
 function buildSources(
     originalStreamUrl: string,
     serverDomain: string,
@@ -49,25 +50,38 @@ function buildSources(
     username: string,
     password: string,
     streamId: string | number,
+    useProxy: boolean,
 ): StreamSource[] {
-    // Always start with the original URL that was passed in (already working)
     const sources: StreamSource[] = [
         {
             uri: originalStreamUrl,
-            label: 'Original (proxied)',
+            label: useProxy ? 'Original (proxied)' : 'Original (direct)',
         },
     ];
 
-    // Only add alternatives if we have a valid streamId
     if (streamId) {
-        const baseHls = `http://${serverDomain}:${serverPort}/live/${username}/${password}/${streamId}.m3u8`;
-        const baseTs = `http://${serverDomain}:${serverPort}/live/${username}/${password}/${streamId}.ts`;
+        const baseHls = buildLiveStreamUrl({
+            domain: serverDomain,
+            port: serverPort,
+            username,
+            password,
+            streamId,
+            extension: 'm3u8',
+        });
+        const baseTs = buildLiveStreamUrl({
+            domain: serverDomain,
+            port: serverPort,
+            username,
+            password,
+            streamId,
+            extension: 'ts',
+        });
 
         sources.push(
             {
-                uri: `${PROXY_BASE}?url=${encodeURIComponent(baseTs)}`,
+                uri: proxyStreamUrl(baseTs, useProxy),
                 type: 'mpegts',
-                label: 'TS (proxied)',
+                label: useProxy ? 'TS (proxied)' : 'TS (direct)',
             },
             {
                 uri: baseHls,
@@ -94,14 +108,14 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         password,
         streamId,
         isLive,
+        useProxy: proxyEnabled = true,
         autoReconnect = true,
         maxRetries = 10,
         onSourceExhausted,
     } = options;
 
-    // Build sources: original URL first, then alternatives
     const sources = isLive
-        ? buildSources(originalStreamUrl, serverDomain, serverPort, username, password, streamId)
+        ? buildSources(originalStreamUrl, serverDomain, serverPort, username, password, streamId, proxyEnabled)
         : [{ uri: originalStreamUrl, type: undefined, label: 'Original' }];
 
     const [currentSourceIndex, setCurrentSourceIndex] = useState(0);
