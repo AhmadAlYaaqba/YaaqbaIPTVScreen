@@ -1,18 +1,24 @@
 // src/components/NativeVideoPlayer.tsx
 import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import { StyleSheet, Platform } from 'react-native';
-import Video, { OnLoadData, OnVideoErrorData } from 'react-native-video';
+import Video, {
+    BufferConfig,
+    OnBufferData,
+    OnLoadData,
+    OnVideoErrorData,
+    ReactVideoSource,
+} from 'react-native-video';
 
 interface NativeVideoPlayerProps {
     uri: string;
     type?: string;
     isLive: boolean;
     isPaused: boolean;
-    bufferConfig: any;
+    bufferConfig?: BufferConfig;
     onLoad: (data: OnLoadData) => void;
     onError: (error: OnVideoErrorData) => void;
     onProgress: (data: any) => void;
-    onBuffer: (data: { isBuffering: boolean }) => void;
+    onBuffer: (data: OnBufferData) => void;
     continueTime?: number;
 }
 
@@ -60,14 +66,21 @@ const NativeVideoPlayer = forwardRef<NativeVideoPlayerRef, NativeVideoPlayerProp
             onLoad(data);
         };
 
+        const source: ReactVideoSource = {
+            uri,
+            type: type || inferVideoType(uri),
+            ...(Platform.OS === 'android'
+                ? {
+                    bufferConfig,
+                    minLoadRetryCount: isLive ? 5 : 3,
+                }
+                : {}),
+        };
+
         return (
             <Video
                 ref={videoRef}
-                source={{
-                    uri,
-                    type: type || inferVideoType(uri),
-                }}
-                bufferConfig={bufferConfig}
+                source={source}
                 style={styles.video}
                 fullscreenAutorotate={true}
                 fullscreenOrientation="landscape"
@@ -83,7 +96,8 @@ const NativeVideoPlayer = forwardRef<NativeVideoPlayerRef, NativeVideoPlayerProp
                 playWhenInactive={false}
                 ignoreSilentSwitch="ignore"
                 automaticallyWaitsToMinimizeStalling={true}
-                maxBitRate={0} // unlimited
+                preferredForwardBufferDuration={isLive ? 10 : 0}
+                maxBitRate={isLive ? 2500000 : 0}
             />
         );
     },

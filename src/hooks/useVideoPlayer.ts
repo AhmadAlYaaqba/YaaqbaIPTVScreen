@@ -1,6 +1,7 @@
 // src/hooks/useVideoPlayer.ts
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
+import type { BufferConfig } from 'react-native-video';
 import { proxyStreamUrl } from '../utils/proxy';
 import { buildLiveStreamUrl } from '../utils/xtream';
 
@@ -41,6 +42,17 @@ export interface VideoPlayerState {
     duration: number;
     currentTime: number;
     isCompleted: boolean;
+}
+
+export interface PlaybackDebugEntry {
+    id: number;
+    at: string;
+    label: string;
+    uri: string;
+    sourceIndex: number;
+    reconnectAttempt: number;
+    status: 'requesting' | 'loaded' | 'failed';
+    error?: string;
 }
 
 function buildSources(
@@ -99,6 +111,15 @@ function getBackoffDelay(attempt: number): number {
     return Math.min(1000 * Math.pow(2, attempt), 30000);
 }
 
+function getPlaybackErrorMessage(err: any): string {
+    return (
+        err?.error?.errorString ||
+        err?.error?.message ||
+        err?.message ||
+        'Playback error occurred'
+    );
+}
+
 export function useVideoPlayer(options: UseVideoPlayerOptions) {
     const {
         originalStreamUrl,
@@ -114,9 +135,31 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         onSourceExhausted,
     } = options;
 
-    const sources = isLive
-        ? buildSources(originalStreamUrl, serverDomain, serverPort, username, password, streamId, proxyEnabled)
-        : [{ uri: originalStreamUrl, type: undefined, label: 'Original' }];
+    const sources = useMemo(
+        () => (
+            isLive
+                ? buildSources(
+                    originalStreamUrl,
+                    serverDomain,
+                    serverPort,
+                    username,
+                    password,
+                    streamId,
+                    proxyEnabled,
+                )
+                : [{ uri: originalStreamUrl, type: undefined, label: 'Original' }]
+        ),
+        [
+            isLive,
+            originalStreamUrl,
+            serverDomain,
+            serverPort,
+            username,
+            password,
+            streamId,
+            proxyEnabled,
+        ],
+    );
 
     const [currentSourceIndex, setCurrentSourceIndex] = useState(0);
     const [isReconnecting, setIsReconnecting] = useState(false);
@@ -127,15 +170,18 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
     const [isCompleted, setIsCompleted] = useState(false);
+    const [lastFailureReason, setLastFailureReason] = useState<string | null>(null);
+    const [debugEntries, setDebugEntries] = useState<PlaybackDebugEntry[]>([]);
     // Used to force re-mount the player on reconnect
     const [playerKey, setPlayerKey] = useState(0);
 
     const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
     const bufferStallTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const videoRef = useRef<any>(null);
     const currentProgressRef = useRef(0);
     const appStateRef = useRef<AppStateStatus>('active');
     const prevStreamUrlRef = useRef(originalStreamUrl);
+    const debugEntryIdRef = useRef(0);
+    const lastRequestLogKeyRef = useRef('');
 
     // Reset state when stream URL changes (channel switch)
     if (originalStreamUrl !== prevStreamUrlRef.current) {
@@ -150,10 +196,55 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         setDuration(0);
         setCurrentTime(0);
         setIsCompleted(false);
+        setLastFailureReason(null);
+        setDebugEntries([]);
         setPlayerKey(k => k + 1);
     }
 
     const currentSource = sources[currentSourceIndex] || sources[0];
+
+    const pushDebugEntry = useCallback(
+        (
+            entry: Omit<PlaybackDebugEntry, 'id' | 'at'>,
+        ) => {
+            const nextEntry: PlaybackDebugEntry = {
+                ...entry,
+                id: ++debugEntryIdRef.current,
+                at: new Date().toISOString(),
+            };
+
+            setDebugEntries(prev => [nextEntry, ...prev].slice(0, 8));
+        },
+        [],
+    );
+
+    useEffect(() => {
+        if (!__DEV__ || !isLive || !currentSource?.uri) {
+            return;
+        }
+
+        const requestLogKey = `${playerKey}:${currentSourceIndex}:${currentSource.uri}`;
+        if (lastRequestLogKeyRef.current === requestLogKey) {
+            return;
+        }
+        lastRequestLogKeyRef.current = requestLogKey;
+
+        pushDebugEntry({
+            label: currentSource.label,
+            uri: currentSource.uri,
+            sourceIndex: currentSourceIndex,
+            reconnectAttempt,
+            status: 'requesting',
+        });
+    }, [
+        currentSource?.label,
+        currentSource?.uri,
+        currentSourceIndex,
+        isLive,
+        playerKey,
+        pushDebugEntry,
+        reconnectAttempt,
+    ]);
 
     // Clear reconnect timer
     const clearReconnectTimer = useCallback(() => {
@@ -180,7 +271,9 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
             setIsReconnecting(false);
             setReconnectAttempt(0);
             setPlayerKey(k => k + 1);
-            if (__DEV__) console.log(`[Player] Switching to source: ${sources[nextIndex].label}`);
+            if (__DEV__) {
+                console.log(`[Player] Switching to source: ${sources[nextIndex].label}`);
+            }
         } else {
             // All sources exhausted
             setError('All stream sources failed. Please try again later.');
@@ -191,7 +284,9 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
 
     // Reconnect with exponential backoff
     const attemptReconnect = useCallback(() => {
-        if (!autoReconnect || !isLive) return;
+        if (!autoReconnect || !isLive) {
+            return;
+        }
 
         if (reconnectAttempt >= maxRetries) {
             // Max retries for current source, try next source
@@ -201,7 +296,9 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
 
         setIsReconnecting(true);
         const delay = getBackoffDelay(reconnectAttempt);
-        if (__DEV__) console.log(`[Player] Reconnecting in ${delay}ms (attempt ${reconnectAttempt + 1}/${maxRetries})`);
+        if (__DEV__) {
+            console.log(`[Player] Reconnecting in ${delay}ms (attempt ${reconnectAttempt + 1}/${maxRetries})`);
+        }
 
         clearReconnectTimer();
         reconnectTimerRef.current = setTimeout(() => {
@@ -215,7 +312,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         isLive,
         reconnectAttempt,
         maxRetries,
-        currentSourceIndex,
         tryNextSource,
         clearReconnectTimer,
     ]);
@@ -223,15 +319,35 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     // Handle video error
     const onError = useCallback(
         (err: any) => {
-            if (__DEV__) console.log('[Player] Error:', JSON.stringify(err));
+            if (__DEV__) {
+                console.log('[Player] Error:', JSON.stringify(err));
+            }
+            const errorMessage = getPlaybackErrorMessage(err);
+            setLastFailureReason(errorMessage);
 
-            // On Android, detect BEHIND_LIVE_WINDOW and seek to live edge
+            if (__DEV__ && currentSource?.uri) {
+                pushDebugEntry({
+                    label: currentSource.label,
+                    uri: currentSource.uri,
+                    sourceIndex: currentSourceIndex,
+                    reconnectAttempt,
+                    status: 'failed',
+                    error: errorMessage,
+                });
+            }
+
+            // On Android, recover by remounting the player at the live edge.
             if (
                 Platform.OS === 'android' &&
                 err?.error?.errorString?.includes('BEHIND_LIVE_WINDOW')
             ) {
-                if (__DEV__) console.log('[Player] Behind live window, seeking to live edge');
-                videoRef.current?.seek(0); // seek to live edge
+                if (__DEV__) {
+                    console.log('[Player] Behind live window, remounting player');
+                }
+                setReconnectAttempt(0);
+                setIsReconnecting(false);
+                setError(null);
+                setPlayerKey(k => k + 1);
                 return;
             }
 
@@ -239,34 +355,52 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
                 attemptReconnect();
             } else {
                 // For VOD, just show the error
-                setError(
-                    err?.error?.errorString ||
-                    err?.error?.message ||
-                    'Playback error occurred',
-                );
+                setError(errorMessage);
             }
         },
-        [isLive, autoReconnect, attemptReconnect],
+        [
+            isLive,
+            autoReconnect,
+            attemptReconnect,
+            currentSource,
+            currentSourceIndex,
+            reconnectAttempt,
+            pushDebugEntry,
+        ],
     );
 
     // Handle video load success
     const onLoad = useCallback(
         (data: any) => {
-            if (__DEV__) console.log('[Player] Loaded:', data.duration);
+            if (__DEV__) {
+                console.log('[Player] Loaded:', data.duration);
+            }
             setDuration(data.duration || 0);
             setError(null);
             setIsReconnecting(false);
             setReconnectAttempt(0);
             setIsBuffering(false);
             clearBufferStallTimer();
+
+            if (__DEV__ && currentSource?.uri) {
+                pushDebugEntry({
+                    label: currentSource.label,
+                    uri: currentSource.uri,
+                    sourceIndex: currentSourceIndex,
+                    reconnectAttempt,
+                    status: 'loaded',
+                });
+            }
         },
-        [clearBufferStallTimer],
+        [clearBufferStallTimer, currentSource, currentSourceIndex, pushDebugEntry, reconnectAttempt],
     );
 
     // Handle progress
     const onProgress = useCallback(
         (data: any) => {
-            if (isLive) return;
+            if (isLive) {
+                return;
+            }
             const ct = data.currentTime || 0;
             setCurrentTime(ct);
             currentProgressRef.current = ct;
@@ -288,7 +422,9 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
                 // Start stall detection timer — if buffering for >15s, attempt reconnect
                 clearBufferStallTimer();
                 bufferStallTimerRef.current = setTimeout(() => {
-                    if (__DEV__) console.log('[Player] Buffer stall detected, attempting reconnect');
+                    if (__DEV__) {
+                        console.log('[Player] Buffer stall detected, attempting reconnect');
+                    }
                     attemptReconnect();
                 }, 15000);
             } else {
@@ -301,12 +437,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     // Toggle play/pause
     const togglePlayPause = useCallback(() => {
         setIsPaused(prev => !prev);
-    }, []);
-
-    // Seek
-    const seek = useCallback((time: number) => {
-        videoRef.current?.seek(time);
-        setCurrentTime(time);
     }, []);
 
     // Manual retry
@@ -329,7 +459,9 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
                     isLive &&
                     autoReconnect
                 ) {
-                    if (__DEV__) console.log('[Player] App resumed, refreshing stream');
+                    if (__DEV__) {
+                        console.log('[Player] App resumed, refreshing stream');
+                    }
                     // Force re-mount the player
                     setPlayerKey(k => k + 1);
                     setReconnectAttempt(0);
@@ -345,47 +477,37 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
             clearReconnectTimer();
             clearBufferStallTimer();
         };
-    }, [isLive, autoReconnect]);
+    }, [isLive, autoReconnect, clearReconnectTimer, clearBufferStallTimer]);
 
     // Platform-specific buffer config
-    const bufferConfig = isLive
-        ? Platform.select({
-            android: {
-                minBufferMs: 15000,
-                maxBufferMs: 50000,
-                bufferForPlaybackMs: 2500,
-                bufferForPlaybackAfterRebufferMs: 5000,
-                cacheSizeMB: 0,
-                live: {
-                    targetOffsetMs: 3000,
-                },
-            },
-            ios: {
-                minBufferMs: 15000,
-                maxBufferMs: 30000,
-                bufferForPlaybackMs: 2500,
-                bufferForPlaybackAfterRebufferMs: 5000,
-            },
-        })
-        : Platform.select({
-            android: {
-                minBufferMs: 15000,
-                maxBufferMs: 50000,
-                bufferForPlaybackMs: 2500,
-                bufferForPlaybackAfterRebufferMs: 5000,
-                cacheSizeMB: 200,
-            },
-            ios: {
-                minBufferMs: 15000,
-                maxBufferMs: 50000,
-                bufferForPlaybackMs: 2500,
-                bufferForPlaybackAfterRebufferMs: 5000,
-            },
-        });
+    const bufferConfig: BufferConfig | undefined =
+        Platform.OS !== 'android'
+            ? undefined
+            : isLive
+                ? {
+                    minBufferMs: 15000,
+                    maxBufferMs: 50000,
+                    bufferForPlaybackMs: 2500,
+                    bufferForPlaybackAfterRebufferMs: 5000,
+                    backBufferDurationMs: 0,
+                    cacheSizeMB: 0,
+                    live: {
+                        targetOffsetMs: 6000,
+                        minOffsetMs: 4000,
+                        maxOffsetMs: 10000,
+                        minPlaybackSpeed: 0.97,
+                        maxPlaybackSpeed: 1.03,
+                    },
+                }
+                : {
+                    minBufferMs: 15000,
+                    maxBufferMs: 50000,
+                    bufferForPlaybackMs: 2500,
+                    bufferForPlaybackAfterRebufferMs: 5000,
+                    cacheSizeMB: 200,
+                };
 
     return {
-        // Refs
-        videoRef,
         currentProgressRef,
 
         // State
@@ -396,6 +518,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         maxRetries,
         isBuffering,
         error,
+        lastFailureReason,
         isPaused,
         duration,
         currentTime,
@@ -403,6 +526,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         bufferConfig,
         sources,
         playerKey,
+        debugEntries,
 
         // Actions
         onError,
@@ -410,7 +534,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         onProgress,
         onBuffer,
         togglePlayPause,
-        seek,
         retry,
         tryNextSource,
         setIsPaused,

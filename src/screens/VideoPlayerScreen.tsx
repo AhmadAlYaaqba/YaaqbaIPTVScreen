@@ -20,6 +20,7 @@ import VLCVideoPlayer, { VLCVideoPlayerRef } from '../components/VLCVideoPlayer'
 import VLCPlyrPlayer, { VLCPlyrPlayerRef } from '../components/VLCPlyrPlayer';
 import PlayerControls from '../components/PlayerControls';
 import ChannelSwitcher from '../components/ChannelSwitcher';
+// import DevStreamDebugOverlay from '../components/DevStreamDebugOverlay';
 
 
 // Hooks
@@ -89,14 +90,13 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     maxRetries: 10,
   });
 
-  // Gesture hook (brightness, seek)
-  const gestures = usePlayerGestures({
-    isLive,
-    duration: player.duration,
-    onSeek: player.seek,
-  });
+  const useOldVLC = useVLC && !useNewVLC;
+  const useNewVLCPlayer = useVLC && useNewVLC;
 
-
+  // Player refs
+  const nativePlayerRef = useRef<NativeVideoPlayerRef>(null);
+  const vlcPlayerRef = useRef<VLCVideoPlayerRef>(null);
+  const vlcPlyrRef = useRef<VLCPlyrPlayerRef>(null);
 
   // --- Controls auto-hide logic ---
   const resetControlsTimeout = useCallback(() => {
@@ -120,6 +120,28 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     });
   }, [resetControlsTimeout]);
 
+  // --- Seek ---
+  const handleSeek = useCallback(
+    (time: number) => {
+      if (useOldVLC) {
+        vlcPlayerRef.current?.seek(time);
+      } else if (useNewVLCPlayer) {
+        vlcPlyrRef.current?.seek(time);
+      } else {
+        nativePlayerRef.current?.seek(time);
+      }
+      resetControlsTimeout();
+    },
+    [useOldVLC, useNewVLCPlayer, resetControlsTimeout],
+  );
+
+  // Gesture hook (brightness, seek)
+  const gestures = usePlayerGestures({
+    isLive,
+    duration: player.duration,
+    onSeek: handleSeek,
+  });
+
   // Show controls initially, then auto-hide
   useEffect(() => {
     resetControlsTimeout();
@@ -128,7 +150,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         clearTimeout(controlsTimeoutRef.current);
       }
     };
-  }, []);
+  }, [resetControlsTimeout]);
 
   // Reset auto-hide when paused/error state changes
   useEffect(() => {
@@ -140,7 +162,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     } else {
       resetControlsTimeout();
     }
-  }, [player.isPaused, player.error, player.isReconnecting]);
+  }, [player.isPaused, player.error, player.isReconnecting, resetControlsTimeout]);
 
   // --- Orientation lock ---
   useEffect(() => {
@@ -162,9 +184,13 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const saveProgress = useCallback(
     async (currentProgress: number) => {
-      if (isLive) return;
+      if (isLive) {
+        return;
+      }
       const contentId = episodeId || movieId;
-      if (!contentId || currentProgress <= 0) return;
+      if (!contentId || currentProgress <= 0) {
+        return;
+      }
 
       await storage.saveWatchProgress(
         {
@@ -183,7 +209,9 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   );
 
   useEffect(() => {
-    if (isLive) return;
+    if (isLive) {
+      return;
+    }
 
     progressSaveIntervalRef.current = setInterval(() => {
       if (player.currentProgressRef.current > 0 && player.duration > 0) {
@@ -292,36 +320,32 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     setChannelSwitcherVisible(v => !v);
   }, []);
 
-  // Determine which player to use
-  const useOldVLC = useVLC && !useNewVLC;
-  const useNewVLCPlayer = useVLC && useNewVLC;
-
-  // Player refs
-  const nativePlayerRef = useRef<NativeVideoPlayerRef>(null);
-  const vlcPlayerRef = useRef<VLCVideoPlayerRef>(null);
-  const vlcPlyrRef = useRef<VLCPlyrPlayerRef>(null);
-
-  // --- Seek ---
-  const handleSeek = useCallback(
-    (time: number) => {
-      if (useOldVLC) {
-        vlcPlayerRef.current?.seek(time);
-      } else if (useNewVLCPlayer) {
-        vlcPlyrRef.current?.seek(time);
-      } else {
-        nativePlayerRef.current?.seek(time);
-      }
-      resetControlsTimeout();
-    },
-    [useOldVLC, useNewVLCPlayer, resetControlsTimeout],
-  );
-
   const handleGoBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
 
+  const activeRequestUrl = useOldVLC
+    ? currentStreamUrl
+    : useNewVLCPlayer
+      ? (useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl))
+      : player.currentSource?.uri || currentStreamUrl;
+
+  const activeSourceLabel = useOldVLC
+    ? `VLC${useProxy ? ' (proxied)' : ' (direct)'}`
+    : useNewVLCPlayer
+      ? `VLCPlyr${useProxy ? ' (proxied)' : ' (direct)'}`
+      : player.currentSource?.label;
+
+  const activePlayerName = useOldVLC
+    ? 'VLC'
+    : useNewVLCPlayer
+      ? 'VLCPlyr'
+      : 'NativeVideo';
+
   // --- Render ---
-  if (__DEV__) console.log('[VideoPlayerScreen] render, useVLC:', useVLC, 'useNewVLC:', useNewVLC, 'url:', useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl));
+  if (__DEV__) {
+    console.log('[VideoPlayerScreen] render, useVLC:', useVLC, 'useNewVLC:', useNewVLC, 'url:', useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl));
+  }
 
   return (
     <View style={styles.container}>
@@ -334,7 +358,10 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
           isLive={isLive}
           title={title}
           onGoBack={handleGoBack}
+          onLoad={player.onLoad}
           onProgress={player.onProgress}
+          onError={player.onError}
+          onBuffering={player.onBuffer}
         />
       ) : useNewVLCPlayer ? (
         // New VLC player — raw surface, uses shared PlayerControls
@@ -414,6 +441,19 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
           onClose={() => setChannelSwitcherVisible(false)}
         />
       )}
+
+      {/* {__DEV__ && isLive && activeRequestUrl ? (
+        <DevStreamDebugOverlay
+          playerName={activePlayerName}
+          requestUrl={activeRequestUrl}
+          sourceLabel={activeSourceLabel}
+          isBuffering={player.isBuffering}
+          isReconnecting={player.isReconnecting}
+          reconnectAttempt={player.reconnectAttempt}
+          lastFailureReason={player.lastFailureReason}
+          debugEntries={player.debugEntries}
+        />
+      ) : null} */}
     </View>
   );
 };

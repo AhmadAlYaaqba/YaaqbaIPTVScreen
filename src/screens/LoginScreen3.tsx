@@ -141,7 +141,8 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
         JSON.stringify({
           username: parsed.username,
           password: parsed.password,
-          serverDomain: parsed.server_info.url,
+          // serverDomain: parsed.server_info.url,
+          serverDomain: 'screen-net.live',
           serverPort: parsed.server_info.port.replace(':', ''),
           useProxy,
         }),
@@ -152,7 +153,7 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
         setUserCredentials({
           username: parsed.username,
           password: parsed.password,
-          serverDomain: parsed.server_info.url,
+          serverDomain: 'screen-net.live',
           serverPort: parsed.server_info.port.replace(':', ''),
         }),
       );
