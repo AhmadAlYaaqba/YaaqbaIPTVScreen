@@ -2,11 +2,8 @@
 if (__DEV__) {
   require('./ReactotronConfig');
 }
-import {startNetworkLogging} from 'react-native-network-logger';
 
-startNetworkLogging();
-
-import React, {useEffect} from 'react';
+import React from 'react';
 import {Provider} from 'react-redux';
 import {store} from './src/store';
 import {NavigationContainer} from '@react-navigation/native';

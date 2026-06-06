@@ -16,7 +16,6 @@ import { buildSeriesStreamUrl } from '../utils/xtream';
 
 // Components
 import NativeVideoPlayer, { NativeVideoPlayerRef } from '../components/NativeVideoPlayer';
-import VLCVideoPlayer, { VLCVideoPlayerRef } from '../components/VLCVideoPlayer';
 import VLCPlyrPlayer, { VLCPlyrPlayerRef } from '../components/VLCPlyrPlayer';
 import PlayerControls from '../components/PlayerControls';
 import ChannelSwitcher from '../components/ChannelSwitcher';
@@ -55,7 +54,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     thumbnail = '',
   } = route.params;
 
-  const { useVLC, useNewVLC, useProxy, username, password, serverDomain, serverPort } = useSelector(
+  const { useVLC, useProxy, username, password, serverDomain, serverPort } = useSelector(
     (state: RootState) => state.user,
   );
   // Get channels for current category from Redux
@@ -71,7 +70,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
 
   // Controls visibility
   const [controlsVisible, setControlsVisible] = useState(true);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Channel switcher
   const [channelSwitcherVisible, setChannelSwitcherVisible] = useState(false);
@@ -90,12 +89,8 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     maxRetries: 10,
   });
 
-  const useOldVLC = useVLC && !useNewVLC;
-  const useNewVLCPlayer = useVLC && useNewVLC;
-
   // Player refs
   const nativePlayerRef = useRef<NativeVideoPlayerRef>(null);
-  const vlcPlayerRef = useRef<VLCVideoPlayerRef>(null);
   const vlcPlyrRef = useRef<VLCPlyrPlayerRef>(null);
 
   // --- Controls auto-hide logic ---
@@ -123,16 +118,14 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   // --- Seek ---
   const handleSeek = useCallback(
     (time: number) => {
-      if (useOldVLC) {
-        vlcPlayerRef.current?.seek(time);
-      } else if (useNewVLCPlayer) {
+      if (useVLC) {
         vlcPlyrRef.current?.seek(time);
       } else {
         nativePlayerRef.current?.seek(time);
       }
       resetControlsTimeout();
     },
-    [useOldVLC, useNewVLCPlayer, resetControlsTimeout],
+    [useVLC, resetControlsTimeout],
   );
 
   // Gesture hook (brightness, seek)
@@ -180,7 +173,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
 
 
   // --- Progress saving (for VOD) ---
-  const progressSaveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const progressSaveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const saveProgress = useCallback(
     async (currentProgress: number) => {
@@ -324,47 +317,26 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     navigation.goBack();
   }, [navigation]);
 
-  const activeRequestUrl = useOldVLC
-    ? currentStreamUrl
-    : useNewVLCPlayer
-      ? (useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl))
-      : player.currentSource?.uri || currentStreamUrl;
+  const activeRequestUrl = useVLC
+    ? (useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl))
+    : player.currentSource?.uri || currentStreamUrl;
 
-  const activeSourceLabel = useOldVLC
-    ? `VLC${useProxy ? ' (proxied)' : ' (direct)'}`
-    : useNewVLCPlayer
-      ? `VLCPlyr${useProxy ? ' (proxied)' : ' (direct)'}`
-      : player.currentSource?.label;
+  const activeSourceLabel = useVLC
+    ? `VLCPlyr${useProxy ? ' (proxied)' : ' (direct)'}`
+    : player.currentSource?.label;
 
-  const activePlayerName = useOldVLC
-    ? 'VLC'
-    : useNewVLCPlayer
-      ? 'VLCPlyr'
-      : 'NativeVideo';
+  const activePlayerName = useVLC ? 'VLCPlyr' : 'NativeVideo';
 
   // --- Render ---
   if (__DEV__) {
-    console.log('[VideoPlayerScreen] render, useVLC:', useVLC, 'useNewVLC:', useNewVLC, 'url:', useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl));
+    console.log('[VideoPlayerScreen] render, useVLC:', useVLC, 'url:', useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl));
   }
 
   return (
     <View style={styles.container}>
       {/* Video player */}
-      {useOldVLC ? (
-        // Old VLC player — has its own built-in controls
-        <VLCVideoPlayer
-          ref={vlcPlayerRef}
-          uri={currentStreamUrl}
-          isLive={isLive}
-          title={title}
-          onGoBack={handleGoBack}
-          onLoad={player.onLoad}
-          onProgress={player.onProgress}
-          onError={player.onError}
-          onBuffering={player.onBuffer}
-        />
-      ) : useNewVLCPlayer ? (
-        // New VLC player — raw surface, uses shared PlayerControls
+      {useVLC ? (
+        // VLC player — raw surface, uses shared PlayerControls
         <VLCPlyrPlayer
           key={`vlcplyr-${player.playerKey}-${currentStreamId}`}
           ref={vlcPlyrRef}
@@ -397,34 +369,31 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         )
       )}
 
-      {/* Custom controls overlay — shown for ExoPlayer and new VLC (old VLC has its own) */}
-      {!useOldVLC && (
-        <PlayerControls
-          visible={controlsVisible}
-          channelName={currentChannelName}
-          isLive={isLive}
-          isPaused={player.isPaused}
-          isBuffering={player.isBuffering}
-          isReconnecting={player.isReconnecting}
-          reconnectAttempt={player.reconnectAttempt}
-          maxRetries={player.maxRetries}
-          error={player.error}
-          currentTime={player.currentTime}
-          duration={player.duration}
-          brightness={gestures.brightness}
-          showBrightnessIndicator={gestures.showBrightnessIndicator}
-          brightnessIndicatorStyle={gestures.brightnessIndicatorStyle}
-          onTogglePlayPause={player.togglePlayPause}
-          onGoBack={handleGoBack}
-          onSeek={handleSeek}
-          onRetry={player.retry}
-          onToggleVisibility={toggleControls}
-          onToggleChannelSwitcher={isLive ? toggleChannelSwitcher : undefined}
-          onVerticalPanStart={gestures.onVerticalPanStart}
-          onVerticalPanMove={gestures.onVerticalPanMove}
-          onVerticalPanEnd={gestures.onVerticalPanEnd}
-        />
-      )}
+      <PlayerControls
+        visible={controlsVisible}
+        channelName={currentChannelName}
+        isLive={isLive}
+        isPaused={player.isPaused}
+        isBuffering={player.isBuffering}
+        isReconnecting={player.isReconnecting}
+        reconnectAttempt={player.reconnectAttempt}
+        maxRetries={player.maxRetries}
+        error={player.error}
+        currentTime={player.currentTime}
+        duration={player.duration}
+        brightness={gestures.brightness}
+        showBrightnessIndicator={gestures.showBrightnessIndicator}
+        brightnessIndicatorStyle={gestures.brightnessIndicatorStyle}
+        onTogglePlayPause={player.togglePlayPause}
+        onGoBack={handleGoBack}
+        onSeek={handleSeek}
+        onRetry={player.retry}
+        onToggleVisibility={toggleControls}
+        onToggleChannelSwitcher={isLive ? toggleChannelSwitcher : undefined}
+        onVerticalPanStart={gestures.onVerticalPanStart}
+        onVerticalPanMove={gestures.onVerticalPanMove}
+        onVerticalPanEnd={gestures.onVerticalPanEnd}
+      />
 
       {/* Channel switcher panel (live only) */}
       {isLive && (

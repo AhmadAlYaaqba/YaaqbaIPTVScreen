@@ -21,7 +21,7 @@ const backgroundImage = require('../assets/background-image-mobile.png');
 
 const SettingsScreen: React.FC<any> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { useVLC, useNewVLC, useProxy, username, showMoviesSlider, showSeriesSlider } = useSelector((state: RootState) => state.user);
+  const { useVLC, useProxy, showMoviesSlider, showSeriesSlider } = useSelector((state: RootState) => state.user);
 
   const handleTogglePlayer = async (value: boolean) => {
     dispatch(setUseVlcPlayer({ useVLC: value }));
@@ -41,26 +41,6 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
       }
     } catch (error) {
       if (__DEV__) console.error('Error saving player preference:', error);
-    }
-  };
-
-  const handleToggleNewVLC = async (value: boolean) => {
-    dispatch(setUseVlcPlayer({ useNewVLC: value }));
-
-    try {
-      const creds = await Keychain.getGenericPassword({
-        service: 'my-iptv-credentials',
-      });
-      if (creds) {
-        const parsed = JSON.parse(creds.password);
-        await Keychain.setGenericPassword(
-          'xtream-creds',
-          JSON.stringify({ ...parsed, useNewVLC: value }),
-          { service: 'my-iptv-credentials' },
-        );
-      }
-    } catch (error) {
-      if (__DEV__) console.error('Error saving new VLC preference:', error);
     }
   };
 
@@ -238,27 +218,6 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
             <Text style={styles.disclaimer}>
               Note: If you experience playback issues, try switching players.
             </Text>
-
-            {useVLC && (
-              <View style={[styles.card, { marginTop: 12 }]}>
-                <View style={styles.row}>
-                  <FontAwesome5 name="flask" size={16} color="#FF9800" />
-                  <View style={styles.rowContent}>
-                    <Text style={styles.rowLabel}>Use New VLC Engine</Text>
-                    <Text style={styles.rowHint}>
-                      Experimental: rn-vlc-plyr with custom controls
-                    </Text>
-                  </View>
-                  <Switch
-                    value={useNewVLC}
-                    onValueChange={handleToggleNewVLC}
-                    trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#FF9800' }}
-                    thumbColor={useNewVLC ? '#fff' : '#A0ABC0'}
-                  />
-                </View>
-              </View>
-            )}
-
           </View>
 
           {/* Network Section */}

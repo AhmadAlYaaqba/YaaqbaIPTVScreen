@@ -175,8 +175,8 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     // Used to force re-mount the player on reconnect
     const [playerKey, setPlayerKey] = useState(0);
 
-    const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const bufferStallTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const bufferStallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const currentProgressRef = useRef(0);
     const appStateRef = useRef<AppStateStatus>('active');
     const prevStreamUrlRef = useRef(originalStreamUrl);

@@ -7,7 +7,6 @@ interface UserState {
   serverDomain: string;
   serverPort: string;
   useVLC: boolean;
-  useNewVLC: boolean;
   useProxy: boolean;
   showMoviesSlider: boolean;
   showSeriesSlider: boolean;
@@ -22,7 +21,6 @@ const initialState: UserState = {
   serverDomain: '',
   serverPort: '',
   useVLC: true,
-  useNewVLC: false,
   useProxy: true,
   showMoviesSlider: true,
   showSeriesSlider: true,

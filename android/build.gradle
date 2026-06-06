@@ -1,11 +1,11 @@
 buildscript {
     ext {
-        buildToolsVersion = "35.0.0"
+        buildToolsVersion = "36.0.0"
         minSdkVersion = 26
-        compileSdkVersion = 35
-        targetSdkVersion = 35
+        compileSdkVersion = 36
+        targetSdkVersion = 36
         ndkVersion = "27.1.12297006"
-        kotlinVersion = "2.0.21"
+        kotlinVersion = "2.1.20"
         useExoplayerIMA = false
         useExoplayerRtsp = true
         useExoplayerSmoothStreaming = true
@@ -24,12 +24,3 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
-
-// Force stable androidx.core to avoid requiring AGP 8.9.1+
-// (react-native-video 6.19 pulls in 1.18.0-rc01 which needs compileSdk 36 + AGP 8.9.1)
-subprojects {
-    configurations.all {
-        resolutionStrategy.force 'androidx.core:core:1.15.0'
-        resolutionStrategy.force 'androidx.core:core-ktx:1.15.0'
-    }
-}
