@@ -20,8 +20,8 @@ import SettingsScreen from './SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 
-const ACTIVE_COLOR = '#4A90E2';
-const INACTIVE_COLOR = 'rgba(160, 175, 200, 0.65)';
+const ACTIVE_COLOR = '#8b7bff';
+const INACTIVE_COLOR = '#7b829a';
 
 const TAB_LABELS: Record<string, string> = {
   Home: 'Home',
@@ -115,11 +115,11 @@ const styles = StyleSheet.create({
     left: 25,
     right: 25,
     height: 68,
-    borderRadius: 34,
+    borderRadius: 24,
     overflow: 'hidden',
     // Subtle glass border
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     // Floating shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   },
   tintOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10, 14, 30, 0.45)',
+    backgroundColor: 'rgba(14, 20, 40, 0.72)',
   },
   tabBarInner: {
     flex: 1,

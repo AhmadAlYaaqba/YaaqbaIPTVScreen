@@ -7,29 +7,30 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
-  SafeAreaView,
-  ImageBackground,
+  Platform,
+  Pressable,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
+import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import { useDispatch, useSelector } from 'react-redux';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+
 import { RootStackParamList } from '../../RootNavigator';
 import { RootState, AppDispatch } from '../store';
 import { fetchSeriesInfo } from '../store/slices/iptvSlice';
 import { storage } from '../utils/storage';
 import { proxyStreamUrl } from '../utils/proxy';
 import { buildSeriesStreamUrl } from '../utils/xtream';
+import { colors, sectionAccents, radii } from '../theme/colors';
 
-const backgroundImage = require('../assets/background-image-mobile.png');
+const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
+const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
+const ACCENT = sectionAccents.series; // cyan
 
-/* ───────────────────────────── Types */
-export type SeriesDetailRouteProp = RouteProp<
-  RootStackParamList,
-  'SeriesDetail'
->;
+export type SeriesDetailRouteProp = RouteProp<RootStackParamList, 'SeriesDetail'>;
 export type SeriesDetailNavProp = StackNavigationProp<
   RootStackParamList,
   'SeriesDetail'
@@ -51,15 +52,30 @@ interface Props {
   navigation: SeriesDetailNavProp;
 }
 
-/* ───────────────────────────── Layout */
 const { width } = Dimensions.get('window');
-const THUMB_W = 120;
-const THUMB_H = 80;
-const GAP = 14;
+const THUMB_W = 124;
 
-/* ───────────────────────────── Component */
+const initials = (name: string) =>
+  name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0])
+    .join('')
+    .toUpperCase();
+
+function formatRemaining(p?: WatchProgress) {
+  if (!p || !p.totalDuration) return null;
+  const left = Math.max(0, p.totalDuration - p.progress);
+  if (left < 30) return null;
+  const min = Math.ceil(left / 60);
+  return min >= 60
+    ? `Continue · ${Math.floor(min / 60)}h ${min % 60}m left`
+    : `Continue · ${min}m left`;
+}
+
 const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { seriesId, seriesName, baseInfo } = route.params; // baseInfo comes from Home
+  const { seriesId, seriesName, baseInfo } = route.params;
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
 
@@ -70,9 +86,13 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     (s: RootState) => s.iptv,
   );
 
-  const [watchProgress, setWatchProgress] = useState<Record<string, WatchProgress>>({});
+  const [watchProgress, setWatchProgress] = useState<
+    Record<string, WatchProgress>
+  >({});
+  const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [seasonOpen, setSeasonOpen] = useState(false);
 
-  /* Fetch full details */
   useEffect(() => {
     navigation.setOptions({ title: seriesName });
     dispatch(
@@ -87,25 +107,21 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     );
   }, [seriesId, username, password, serverDomain, serverPort, useProxy]);
 
-  /* Local state */
-  const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
-
   const info = selectedSeriesInfo?.info ?? baseInfo ?? ({} as any);
   const episodes =
     selectedSeriesInfo?.episodes ?? ({} as Record<string, any[]>);
   const seasons = Object.keys(episodes);
+  const multiSeason = seasons.length > 1;
 
   useEffect(() => {
     if (seasons.length && !selectedSeason) setSelectedSeason(seasons[0]);
   }, [seasons]);
 
   const currentEpisodes = useMemo(
-    () => (selectedSeason ? episodes[selectedSeason] : []),
+    () => (selectedSeason ? episodes[selectedSeason] || [] : []),
     [selectedSeason, episodes],
   );
 
-  // Reload watch progress every time this screen gains focus
-  // (covers initial mount, season change, AND returning from VideoPlayer)
   const loadProgress = useCallback(async () => {
     if (seriesId && selectedSeason && episodes[selectedSeason]) {
       const progressMap: Record<string, WatchProgress> = {};
@@ -130,7 +146,25 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     }, [loadProgress]),
   );
 
-  /* Play episode */
+  /* Data helpers */
+  const heroImg = info.backdrop_path?.[0] || info.cover;
+  const ratingRaw = parseFloat(info.rating_5based || info.rating);
+  const rating =
+    !Number.isNaN(ratingRaw) && ratingRaw > 0 ? ratingRaw.toFixed(1) : null;
+  const year = info.releaseDate?.substring(0, 4) || info.year || '';
+  const genres: string[] = info.genre
+    ? String(info.genre)
+        .split(/[,/|]/)
+        .map((g: string) => g.trim())
+        .filter(Boolean)
+    : [];
+  const castArr: string[] = info.cast
+    ? String(info.cast)
+        .split(',')
+        .map((n: string) => n.trim())
+        .filter(Boolean)
+    : [];
+
   const playEpisode = (ep: any, index: number) => {
     if (!ep) return;
     const originalUrl = buildSeriesStreamUrl({
@@ -156,368 +190,727 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     });
   };
 
-  /* Data helpers */
-  const heroImg = info.backdrop_path?.[0] || info.cover;
-  const rating = info.rating_5based || info.rating;
-  const year = info.releaseDate?.substring(0, 4) || '';
-  const castArr = info.cast
-    ? info.cast.split(',').map((n: string) => n.trim())
-    : [];
-
-  // Render episode with continue watching indicator and fallback image support
-  const renderEpisode = (ep: any, index: number) => {
-    const episodeProgress = watchProgress[ep.id];
-    const progress = episodeProgress ? (episodeProgress.progress / episodeProgress.totalDuration) * 100 : 0;
-    const epImageProxy = (ep.info?.movie_image || heroImg)
-      ? proxyStreamUrl(ep.info?.movie_image || heroImg, useProxy)
-      : null;
-
+  /* Loading / error states */
+  if (loading) {
     return (
-      <TouchableOpacity
-        key={ep.id}
-        style={styles.epCard}
-        onPress={() => playEpisode(ep, index)}>
-        <View style={styles.thumbWrapper}>
-          {epImageProxy ? (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={ACCENT} />
+      </View>
+    );
+  }
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <FontAwesome5
+          name="exclamation-circle"
+          size={36}
+          color={colors.danger}
+        />
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+
+  const playLabel = `Play · S${selectedSeason || 1} E1`;
+
+  return (
+    <View style={styles.root}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+      >
+        {/* ── Hero ── */}
+        <View style={styles.hero}>
+          {heroImg ? (
             <FastImage
-              source={{ uri: epImageProxy }}
-              style={styles.thumbImg}
+              source={{ uri: proxyStreamUrl(heroImg, useProxy) }}
+              style={StyleSheet.absoluteFill}
+              resizeMode={FastImage.resizeMode.cover}
             />
           ) : (
-            <View style={[styles.thumbImg, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
+            <View style={[StyleSheet.absoluteFill, styles.heroPlaceholder]} />
           )}
-          <View style={styles.thumbOverlay}>
-            <FontAwesome5 name="play" size={14} color="#fff" />
-          </View>
-          {episodeProgress && (
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${progress}%` }]} />
-            </View>
-          )}
-        </View>
-        <Text style={styles.epTitle} numberOfLines={2}>
-          {ep.title}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+          <LinearGradient
+            colors={['transparent', 'rgba(7,11,21,0.6)', colors.bg]}
+            locations={[0, 0.55, 1]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
 
-  /* Loading / error states */
-  if (loading)
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4A90E2" />
-      </View>
-    );
-  if (error)
-    return (
-      <View style={styles.center}>
-        <Text style={{ color: '#E53935' }}>{error}</Text>
-      </View>
-    );
-
-  /* ───────────────────────────── UI */
-  return (
-    <ImageBackground
-      source={backgroundImage}
-      style={styles.backgroundImage}
-      resizeMode="cover"
-    >
-      <SafeAreaView style={styles.container} edges={['bottom']}>
-        <ScrollView contentContainerStyle={{ paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
-          {/* ───── Hero banner ───── */}
-          <View style={[styles.heroWrapper]}>
-            {heroImg ? (
-              <FastImage
-                source={{ uri: proxyStreamUrl(heroImg, useProxy) }}
-                style={styles.heroImg}
-                resizeMode={FastImage.resizeMode.cover}
-              />
-            ) : (
-              <View style={[styles.heroImg, { backgroundColor: 'rgba(255,255,255,0.05)' }]} />
-            )}
-            <View style={styles.heroOverlay} />
-
-            {/* Back button (safe‑area) */}
+          {/* top buttons */}
+          <View style={[styles.heroTopRow, { top: insets.top + 8 }]}>
             <TouchableOpacity
-              style={[styles.backBtn, { top: insets.top + 8 }]}
-              onPress={() => navigation.goBack()}>
-              <FontAwesome5 name="arrow-left" size={16} color="#fff" />
+              style={styles.glassBtn}
+              activeOpacity={0.8}
+              onPress={() => navigation.goBack()}
+            >
+              <FontAwesome5 name="chevron-left" size={17} color={colors.fg} />
             </TouchableOpacity>
+          </View>
 
-            {/* Title over banner */}
-            <View style={styles.nameWrapper}>
-              <Text style={styles.seriesName} numberOfLines={1}>
+          {/* poster + title */}
+          <View style={styles.heroBottom}>
+            <View style={styles.poster}>
+              {info.cover ? (
+                <FastImage
+                  source={{ uri: proxyStreamUrl(info.cover, useProxy) }}
+                  style={StyleSheet.absoluteFill}
+                  resizeMode={FastImage.resizeMode.cover}
+                />
+              ) : (
+                <View style={[StyleSheet.absoluteFill, styles.heroPlaceholder]}>
+                  <FontAwesome5 name="tv" size={24} color={colors.fgSubtle} />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.heroTextBlock}>
+              <Text style={styles.eyebrow}>SERIES</Text>
+              <Text style={styles.title} numberOfLines={2}>
                 {info.name || seriesName}
               </Text>
-            </View>
-
-            {/* Meta + play */}
-            <View style={styles.heroMeta}>
-              <View style={styles.badgeRow}>
-                {rating ? (
-                  <View style={styles.badge}>
-                    <FontAwesome5 name="star" size={10} color="#FFD700" />
-                    <Text style={styles.badgeText}>{rating}</Text>
+              <View style={styles.metaRow}>
+                {rating != null && (
+                  <View style={styles.metaItem}>
+                    <FontAwesome5
+                      name="star"
+                      size={11}
+                      color={colors.warning}
+                      solid
+                    />
+                    <Text style={styles.metaStrong}>{rating}</Text>
                   </View>
-                ) : null}
-                {year ? (
-                  <View style={styles.badgeOutline}>
-                    <Text style={styles.badgeText}>{year}</Text>
-                  </View>
-                ) : null}
-                {info.genre ? (
-                  <View style={styles.badgeOutline}>
-                    <Text style={styles.badgeText}>{info.genre}</Text>
-                  </View>
-                ) : null}
-              </View>
-
-              <View style={styles.playRow}>
-                <TouchableOpacity
-                  style={[styles.playBtn, { flex: 1 }]}
-                  onPress={() => playEpisode(currentEpisodes[0], 0)}>
-                  <FontAwesome5 name="play" size={14} color="#fff" />
-                  <Text style={styles.playText}>Play</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.playBtn,
-                    { width: 48, backgroundColor: 'rgba(255,255,255,0.2)' },
-                  ]}>
-                  <FontAwesome5 name="plus" size={14} color="#fff" />
-                </TouchableOpacity>
+                )}
+                {!!year && (
+                  <>
+                    {rating != null && <Text style={styles.metaDot}>·</Text>}
+                    <Text style={styles.metaText}>{year}</Text>
+                  </>
+                )}
+                {seasons.length > 0 && (
+                  <>
+                    {(rating != null || !!year) && (
+                      <Text style={styles.metaDot}>·</Text>
+                    )}
+                    <Text style={styles.metaText}>
+                      {seasons.length} season{seasons.length === 1 ? '' : 's'}
+                    </Text>
+                  </>
+                )}
               </View>
             </View>
           </View>
+        </View>
 
-          {/* ───── Plot / description ───── */}
-          {info.plot ? (
-            <View style={styles.plotBox}>
-              <Text style={styles.plotHeader}>Story</Text>
-              <Text style={styles.plotText}>{info.plot}</Text>
-            </View>
-          ) : null}
+        {/* ── Genre chips ── */}
+        {genres.length > 0 && (
+          <View style={styles.genreRow}>
+            {genres.map((g, i) => (
+              <View key={`${g}-${i}`} style={styles.genreChip}>
+                <Text style={styles.genreText}>{g}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
-          {/* ───── Cast chips (names only) ───── */}
-          {castArr.length ? (
-            <View style={styles.plotBox}>
-              <Text style={styles.plotHeader}>Casts</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingVertical: 6,
-                }}>
-                {castArr.map((name, idx) => (
-                  <View key={idx} style={styles.castChip}>
-                    <Text style={styles.castText}>{name}</Text>
+        {/* ── Primary actions ── */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.playButton}
+            activeOpacity={0.85}
+            onPress={() => playEpisode(currentEpisodes[0], 0)}
+          >
+            <FontAwesome5 name="play" size={14} color={colors.scene} solid />
+            <Text style={styles.playText}>{playLabel}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Description ── */}
+        {!!info.plot && (
+          <View style={styles.descBlock}>
+            <Text
+              style={styles.descText}
+              numberOfLines={expanded ? undefined : 3}
+            >
+              {info.plot}
+            </Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setExpanded(e => !e)}
+            >
+              <Text style={styles.readMore}>
+                {expanded ? 'Show less' : 'Read more'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── Cast ── */}
+        {castArr.length > 0 && (
+          <View style={styles.castBlock}>
+            <Text style={styles.sectionEyebrow}>CAST</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.castScroll}
+            >
+              {castArr.map((name, i) => (
+                <View key={`${name}-${i}`} style={styles.castItem}>
+                  <View style={styles.castAvatar}>
+                    <Text style={styles.castInitials}>{initials(name)}</Text>
                   </View>
-                ))}
-              </ScrollView>
-            </View>
-          ) : null}
+                  <Text style={styles.castName} numberOfLines={2}>
+                    {name}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
-          {/* ───── Season selector ───── */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-            {seasons.map(num => {
-              const active = num === selectedSeason;
+        {/* ── Episodes ── */}
+        <View style={styles.episodesBlock}>
+          <View style={styles.episodesHeader}>
+            <Text style={styles.episodesTitle}>Episodes</Text>
+
+            {multiSeason ? (
+              <View style={styles.seasonWrap}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setSeasonOpen(o => !o)}
+                  style={[
+                    styles.seasonBtn,
+                    seasonOpen && { borderColor: `${ACCENT}66` },
+                  ]}
+                >
+                  <Text style={styles.seasonBtnText}>
+                    Season {selectedSeason}
+                  </Text>
+                  <FontAwesome5
+                    name={seasonOpen ? 'chevron-up' : 'chevron-down'}
+                    size={12}
+                    color={colors.fgMuted}
+                  />
+                </TouchableOpacity>
+
+                {seasonOpen && (
+                  <>
+                    <Pressable
+                      style={styles.seasonScrim}
+                      onPress={() => setSeasonOpen(false)}
+                    />
+                    <View style={styles.seasonPanel}>
+                      <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        style={{ maxHeight: 260 }}
+                      >
+                        {seasons.map(num => {
+                          const on = num === selectedSeason;
+                          return (
+                            <TouchableOpacity
+                              key={num}
+                              activeOpacity={0.7}
+                              onPress={() => {
+                                setSelectedSeason(num);
+                                setSeasonOpen(false);
+                              }}
+                              style={[
+                                styles.seasonRow,
+                                on && { backgroundColor: `${ACCENT}1f` },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.seasonRowText,
+                                  on && { color: colors.fg },
+                                ]}
+                              >
+                                Season {num}
+                              </Text>
+                              <Text style={styles.seasonRowCount}>
+                                {episodes[num]?.length || 0} ep
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+                  </>
+                )}
+              </View>
+            ) : (
+              <Text style={styles.episodesCount}>
+                {currentEpisodes.length} episodes
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.episodeList}>
+            {currentEpisodes.map((ep, index) => {
+              const p = watchProgress[ep.id];
+              const pct =
+                p && p.totalDuration
+                  ? Math.max(0, Math.min(100, (p.progress / p.totalDuration) * 100))
+                  : 0;
+              const epImg = ep.info?.movie_image || heroImg;
+              const synopsis = ep.info?.plot;
+              const rawDuration = ep.info?.duration;
+              // Hide null/0/"00:00:00" durations — only show if it has a non-zero digit
+              const duration =
+                rawDuration && /[1-9]/.test(String(rawDuration))
+                  ? rawDuration
+                  : null;
+              const remaining = formatRemaining(p);
+
               return (
                 <TouchableOpacity
-                  key={num}
-                  style={[styles.seasonPill, active && styles.seasonPillActive]}
-                  onPress={() => setSelectedSeason(num)}>
-                  <Text
-                    style={[
-                      styles.seasonText,
-                      active && styles.seasonTextActive,
-                    ]}>{`Season ${num}`}</Text>
+                  key={ep.id}
+                  style={styles.episodeRow}
+                  activeOpacity={0.8}
+                  onPress={() => playEpisode(ep, index)}
+                >
+                  <View style={styles.epThumb}>
+                    {epImg ? (
+                      <FastImage
+                        source={{ uri: proxyStreamUrl(epImg, useProxy) }}
+                        style={StyleSheet.absoluteFill}
+                        resizeMode={FastImage.resizeMode.cover}
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          StyleSheet.absoluteFill,
+                          styles.heroPlaceholder,
+                        ]}
+                      />
+                    )}
+                    <View style={styles.epPlay}>
+                      <FontAwesome5 name="play" size={11} color={colors.fg} solid />
+                    </View>
+                    {pct > 0 && (
+                      <View style={styles.epProgressTrack}>
+                        <View
+                          style={[styles.epProgressFill, { width: `${pct}%` }]}
+                        />
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.epBody}>
+                    <Text style={styles.epTitle}>{ep.title}</Text>
+                    {!!duration && (
+                      <Text style={styles.epDuration}>{duration}</Text>
+                    )}
+                    {!!synopsis && (
+                      <Text style={styles.epSynopsis} numberOfLines={2}>
+                        {synopsis}
+                      </Text>
+                    )}
+                    {!!remaining && (
+                      <Text style={styles.epContinue}>{remaining}</Text>
+                    )}
+                  </View>
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
-
-          {/* ───── Episodes grid ───── */}
-          <View style={styles.episodeGrid}>
-            {currentEpisodes.map((ep, index) => renderEpisode(ep, index))}
           </View>
-        </ScrollView>
-      </SafeAreaView>
-    </ImageBackground>
+        </View>
+      </ScrollView>
+    </View>
   );
 };
 
 export default SeriesDetailScreen;
 
-/* ───────────────────────────── Styles */
 const styles = StyleSheet.create({
-  backgroundImage: {
+  root: {
     flex: 1,
-    width: '100%',
-    height: '100%',
+    backgroundColor: colors.bg,
   },
-  container: {
+  scroll: {
+    paddingBottom: 120,
+  },
+  center: {
     flex: 1,
-    backgroundColor: 'transparent'
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bg,
+    paddingHorizontal: 24,
   },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  errorText: {
+    fontFamily: FONT,
+    color: colors.danger,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 12,
+  },
 
-  /* Hero */
-  heroWrapper: { width: '100%', height: 260 },
-  heroImg: { width: '100%', height: '100%' },
-  heroOverlay: {
-    position: 'absolute',
-    inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)', // slightly darker than plain overlay to help text
+  // hero
+  hero: {
+    width: '100%',
+    aspectRatio: 16 / 11,
+    backgroundColor: colors.surface,
   },
-  backBtn: {
+  heroPlaceholder: {
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTopRow: {
     position: 'absolute',
     left: 16,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)', // glassmorphic circle
+    right: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: 5,
+  },
+  glassBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(8,11,22,0.5)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  nameWrapper: { position: 'absolute', top: 60, right: 16 },
-  seriesName: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 10,
+  heroBottom: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 14,
   },
-
-  heroMeta: { position: 'absolute', bottom: 12, left: 16, right: 16 },
-  badgeRow: { flexDirection: 'row', marginBottom: 8 },
-  badge: {
+  poster: {
+    width: 92,
+    aspectRatio: 2 / 3,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  heroTextBlock: {
+    flex: 1,
+    minWidth: 0,
+    paddingBottom: 2,
+  },
+  eyebrow: {
+    fontFamily: FONT,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1.8,
+    color: ACCENT,
+    marginBottom: 6,
+  },
+  title: {
+    fontFamily: FONT,
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.fg,
+    lineHeight: 28,
+  },
+  metaRow: {
+    marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A90E2',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginRight: 6,
+    flexWrap: 'wrap',
+    gap: 6,
   },
-  badgeOutline: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginRight: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  badgeText: { color: '#fff', fontSize: 10, marginLeft: 2, fontWeight: '500' },
-  playRow: { flexDirection: 'row' },
-  playBtn: {
+  metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#4A90E2', // matching blue theme
-    borderRadius: 8,
-    paddingVertical: 10,
-    marginRight: 8,
+    gap: 3,
   },
-  playText: { color: '#fff', fontSize: 14, marginLeft: 6, fontWeight: 'bold' },
+  metaStrong: {
+    fontFamily: MONO,
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.fg,
+  },
+  metaText: {
+    fontFamily: MONO,
+    fontSize: 12,
+    color: colors.fgMuted,
+  },
+  metaDot: {
+    fontFamily: MONO,
+    fontSize: 12,
+    color: colors.fgSubtle,
+  },
 
-  /* Plot */
-  plotBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  plotHeader: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#A0ABC0',
-    marginBottom: 8,
-  },
-  plotText: { color: '#E2E8F0', fontSize: 13, lineHeight: 18 },
-
-  /* Cast chips */
-  castChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  castText: { fontSize: 12, color: '#E2E8F0', fontWeight: '500' },
-
-  /* Season pills */
-  seasonPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  seasonPillActive: {
-    backgroundColor: '#4A90E2',
-    borderColor: '#4A90E2',
-  },
-  seasonText: { fontSize: 13, color: '#A0ABC0', fontWeight: '500' },
-  seasonTextActive: { color: '#fff', fontWeight: 'bold' },
-
-  /* Episodes grid */
-  episodeGrid: {
+  // genre chips
+  genreRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginTop: 8,
+    gap: 7,
+    paddingHorizontal: 20,
+    paddingTop: 6,
   },
-  epCard: { width: (width - GAP * 4) / 3, marginBottom: GAP },
-  thumbWrapper: {
-    width: THUMB_W,
-    height: THUMB_H,
-    borderRadius: 8,
-    overflow: 'hidden',
-    alignSelf: 'center',
+  genreChip: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: radii.pill,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: 'rgba(74, 144, 226, 0.5)',
+    borderColor: colors.border,
   },
-  thumbImg: { width: '100%', height: '100%' },
-  thumbOverlay: {
-    position: 'absolute',
-    inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+  genreText: {
+    fontFamily: FONT,
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.fgMuted,
+  },
+
+  // actions
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  playButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: colors.fg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  playText: {
+    fontFamily: FONT,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.scene,
+  },
+
+  // description
+  descBlock: {
+    paddingHorizontal: 20,
+    paddingTop: 18,
+  },
+  descText: {
+    fontFamily: FONT,
+    fontSize: 14,
+    lineHeight: 22,
+    color: colors.fgMuted,
+  },
+  readMore: {
+    marginTop: 6,
+    fontFamily: FONT,
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: ACCENT,
+  },
+
+  // cast
+  castBlock: {
+    marginTop: 22,
+  },
+  sectionEyebrow: {
+    fontFamily: FONT,
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 1.7,
+    color: colors.fgSubtle,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  castScroll: {
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  castItem: {
+    width: 64,
+    alignItems: 'center',
+  },
+  castAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 8,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  epTitle: {
-    marginTop: 6,
-    fontSize: 12,
-    color: '#E2E8F0',
-    textAlign: 'center',
-    fontWeight: '500'
+  castInitials: {
+    fontFamily: MONO,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.fg,
   },
-  progressBar: {
+  castName: {
+    fontFamily: FONT,
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: colors.fg,
+    textAlign: 'center',
+    lineHeight: 15,
+  },
+
+  // episodes
+  episodesBlock: {
+    marginTop: 26,
+    paddingHorizontal: 20,
+  },
+  episodesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    zIndex: 30,
+  },
+  episodesTitle: {
+    fontFamily: FONT,
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.fg,
+  },
+  episodesCount: {
+    fontFamily: MONO,
+    fontSize: 12,
+    color: colors.fgSubtle,
+  },
+  seasonWrap: {
+    position: 'relative',
+    zIndex: 30,
+  },
+  seasonBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 11,
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  seasonBtnText: {
+    fontFamily: FONT,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.fg,
+  },
+  seasonScrim: {
     position: 'absolute',
-    bottom: 0,
+    top: 40,
+    right: -20,
+    width: width,
+    height: 2000,
+    zIndex: 1,
+  },
+  seasonPanel: {
+    position: 'absolute',
+    top: 44,
+    right: 0,
+    minWidth: 160,
+    zIndex: 2,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    padding: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.5,
+    shadowRadius: 30,
+    elevation: 24,
+  },
+  seasonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 11,
+    borderRadius: 9,
+  },
+  seasonRowText: {
+    fontFamily: FONT,
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: colors.fgMuted,
+  },
+  seasonRowCount: {
+    fontFamily: MONO,
+    fontSize: 11,
+    color: colors.fgSubtle,
+  },
+  episodeList: {
+    gap: 14,
+  },
+  episodeRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  epThumb: {
+    width: THUMB_W,
+    aspectRatio: 16 / 9,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  epPlay: {
+    position: 'absolute',
+    top: 0,
     left: 0,
     right: 0,
-    height: 4,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  progressFill: {
+  epProgressTrack: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 3,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  epProgressFill: {
     height: '100%',
-    backgroundColor: '#4A90E2',
+    backgroundColor: ACCENT,
+  },
+  epBody: {
+    flex: 1,
+    minWidth: 0,
+    paddingTop: 1,
+  },
+  epTitle: {
+    fontFamily: FONT,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.fg,
+    lineHeight: 18,
+  },
+  epDuration: {
+    marginTop: 3,
+    fontFamily: MONO,
+    fontSize: 11,
+    color: colors.fgSubtle,
+  },
+  epSynopsis: {
+    marginTop: 4,
+    fontFamily: FONT,
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.fgMuted,
+  },
+  epContinue: {
+    marginTop: 6,
+    fontFamily: FONT,
+    fontSize: 11,
+    fontWeight: '500',
+    color: ACCENT,
   },
 });

@@ -1,5 +1,11 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+  useCallback,
+} from 'react';
 import {
   View,
   Text,
@@ -12,16 +18,13 @@ import {
   Modal,
   Alert,
   SafeAreaView,
-  ImageBackground,
+  Platform,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
+import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import Swiper from 'react-native-swiper';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-
-const backgroundImage = require('../assets/background-image-mobile.png');
 
 import { RootState, AppDispatch } from '../store';
 import {
@@ -30,39 +33,118 @@ import {
 } from '../store/slices/iptvSlice';
 import { storage } from '../utils/storage';
 import { proxyStreamUrl } from '../utils/proxy';
-import CategoryPickerModal from '../components/CategoryPickerModal';
 import { buildMovieStreamUrl } from '../utils/xtream';
+import { colors, sectionAccents, radii } from '../theme/colors';
+import AmbientGlow from '../components/mirror/AmbientGlow';
+import CategoryDropdown from '../components/mirror/CategoryDropdown';
 
+const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
+const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
+
+const ACCENT = sectionAccents.movies;
 const { width } = Dimensions.get('window');
-const CARD_SIZE = (width - 56) / 3;
-const CARD_HEIGHT = CARD_SIZE * 1.5; // 2:3 aspect ratio
+const H_PAD = 20;
+const GUTTER = 12;
+const COLUMNS = 3;
+const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
+const POSTER_HEIGHT = ITEM_WIDTH * 1.5; // 2:3 portrait
 
-/* ─────────────────────────────────────────────── Component */
+// ─────────────────────────────────────────────────────────────
+// Movie poster card — portrait 2:3, scrim title, rating badge
+// ─────────────────────────────────────────────────────────────
+const MoviePoster = React.memo(
+  ({
+    item,
+    onPress,
+    useProxy,
+    progressPercent,
+  }: {
+    item: any;
+    onPress: () => void;
+    useProxy: boolean;
+    progressPercent: number;
+  }) => {
+    const raw = item.stream_icon?.trim();
+    const uri = raw ? proxyStreamUrl(raw, useProxy) : null;
+    const ratingRaw = parseFloat(item.rating);
+    const rating = !Number.isNaN(ratingRaw) && ratingRaw > 0 ? ratingRaw : null;
+    const year =
+      item.year && /^\d{4}$/.test(String(item.year)) ? String(item.year) : null;
+
+    return (
+      <TouchableOpacity
+        style={[styles.card, { width: ITEM_WIDTH }]}
+        onPress={onPress}
+        activeOpacity={0.85}
+      >
+        <View style={styles.poster}>
+          {uri ? (
+            <FastImage
+              style={StyleSheet.absoluteFill}
+              source={{ uri, priority: FastImage.priority.normal }}
+              resizeMode={FastImage.resizeMode.cover}
+            />
+          ) : (
+            <View style={styles.posterPlaceholder}>
+              <FontAwesome5 name="film" size={26} color={colors.fgSubtle} />
+            </View>
+          )}
+
+          {rating != null && (
+            <View style={styles.ratingBadge}>
+              <FontAwesome5 name="star" size={9} color={colors.warning} solid />
+              <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+            </View>
+          )}
+
+          {/* title scrim */}
+          <LinearGradient
+            colors={['transparent', 'rgba(6,8,16,0.55)', 'rgba(6,8,16,0.92)']}
+            style={styles.scrim}
+            pointerEvents="none"
+          >
+            <Text style={styles.posterTitle} numberOfLines={2}>
+              {item.name}
+            </Text>
+          </LinearGradient>
+
+          {progressPercent > 0 && (
+            <View style={styles.progressTrack}>
+              <View
+                style={[styles.progressFill, { width: `${progressPercent}%` }]}
+              />
+            </View>
+          )}
+        </View>
+
+        {!!year && (
+          <Text style={styles.cardYear} numberOfLines={1}>
+            {year}
+          </Text>
+        )}
+      </TouchableOpacity>
+    );
+  },
+);
+
 const MoviesScreen: React.FC<any> = ({ navigation }) => {
-  /* ─── Hooks / Redux */
   const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
   const searchRef = useRef<TextInput>(null);
 
-  const { username, password, serverDomain, serverPort, showMoviesSlider, useProxy } = useSelector(
-    (s: RootState) => s.user,
-  );
-  const {
-    movieCategories,
-    movieList,
-    loadingCategories,
-    loadingMovies,
-    error,
-  } = useSelector((s: RootState) => s.iptv);
+  const { username, password, serverDomain, serverPort, useProxy } =
+    useSelector((s: RootState) => s.user);
+  const { movieCategories, movieList, loadingCategories, loadingMovies, error } =
+    useSelector((s: RootState) => s.iptv);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeCategoryName, setActiveCategoryName] = useState<string>('');
   const [search, setSearch] = useState('');
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<any>(null);
   const [watchProgress, setWatchProgress] = useState<Record<string, any>>({});
 
-  /* ─── Fetch categories once */
+  // fetch categories once
   useEffect(() => {
     dispatch(
       fetchMovieCategories({
@@ -75,7 +157,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
     );
   }, [dispatch, username, password, serverDomain, serverPort]);
 
-  /* ─── When categories arrive, fetch first category */
+  // open first category once categories arrive
   useEffect(() => {
     if (!loadingCategories && movieCategories.length && !activeCategory) {
       const first = movieCategories[0];
@@ -94,12 +176,15 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
     }
   }, [loadingCategories, movieCategories]);
 
-  // Load watch progress when component mounts
+  // load watch progress for the current list
   useEffect(() => {
     const loadProgress = async () => {
       const progressMap: Record<string, any> = {};
       for (const movie of movieList) {
-        const progress = await storage.getWatchProgress(movie.stream_id.toString(), true);
+        const progress = await storage.getWatchProgress(
+          movie.stream_id.toString(),
+          true,
+        );
         if (progress) {
           progressMap[movie.stream_id] = progress;
         }
@@ -114,7 +199,6 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
       if (categoryId === activeCategory) return;
       setActiveCategory(categoryId);
       setActiveCategoryName(categoryName);
-      setShowCategoryModal(false);
       setSearch('');
       dispatch(
         fetchMoviesInCategory({
@@ -130,617 +214,550 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
     [dispatch, username, password, serverDomain, serverPort, activeCategory],
   );
 
-  /* ─── Derived data */
-  const movies = Array.isArray(movieList) ? movieList : [];
+  const toggleSearch = useCallback(() => {
+    setSearchOpen(open => {
+      const next = !open;
+      if (!next) {
+        setSearch('');
+      } else {
+        setTimeout(() => searchRef.current?.focus(), 60);
+      }
+      return next;
+    });
+  }, []);
 
-  const featuredMovies = useMemo(() => {
-    if (movies.length < 1) return [];
-    return [...movies].sort(() => 0.5 - Math.random()).slice(0, 5);
-  }, [movies]);
-
-  const filteredMovies = movies.filter(m =>
-    m.name?.toLowerCase().includes(search.toLowerCase()),
+  const movies = useMemo(
+    () => (Array.isArray(movieList) ? movieList : []),
+    [movieList],
+  );
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredMovies = useMemo(
+    () =>
+      normalizedSearch
+        ? movies.filter(m => m.name?.toLowerCase().includes(normalizedSearch))
+        : movies,
+    [movies, normalizedSearch],
   );
 
-  /* ─── Helper components */
-  const Poster = ({ uri, style }: { uri?: string; style: any }) => {
-    const icon = uri ? proxyStreamUrl(uri, useProxy) : null;
-    return icon ? (
-      <FastImage
-        style={style}
-        source={{ uri: icon, priority: FastImage.priority.normal }}
-        resizeMode={FastImage.resizeMode.cover}
-      />
-    ) : (
-      <View style={[style, styles.placeholder]}>
-        <FontAwesome5 name="film" size={28} color="#A0ABC0" />
-      </View>
-    );
-  };
+  const renderMovie = useCallback(
+    ({ item }: { item: any }) => {
+      const progress = watchProgress[item.stream_id];
+      const progressPercent =
+        progress && progress.totalDuration
+          ? Math.max(
+              0,
+              Math.min(100, (progress.progress / progress.totalDuration) * 100),
+            )
+          : 0;
 
-  const renderMovie = ({ item }: { item: any }) => {
-    const progress = watchProgress[item.stream_id];
-    const progressPercent = progress ? (progress.progress / progress.totalDuration) * 100 : 0;
-
-    return (
-      <TouchableOpacity
-        style={styles.channelCard}
-        onPress={() => {
-          try {
+      return (
+        <MoviePoster
+          item={item}
+          useProxy={useProxy}
+          progressPercent={progressPercent}
+          onPress={() => {
             if (!item.stream_id) {
               if (__DEV__) console.warn('Movie stream_id is missing');
               Alert.alert('Movie stream_id is missing');
               return;
             }
             setSelectedMovie(item);
-          } catch (error) {
-            if (__DEV__) console.error('Error selecting movie:', error);
-            Alert.alert('Error selecting movie:' + error);
-          }
-        }}
-        activeOpacity={0.7}>
-        <View style={item.stream_icon ? styles.cardGlowingBorder : styles.cardGlowingBorderPlaceholder}>
-          <View style={styles.cardImageContainer}>
-            <Poster uri={item.stream_icon?.trim()} style={styles.cardImage} />
-            <View style={styles.playBadge}>
-              <FontAwesome5 name="play" size={10} color="#fff" />
-            </View>
-            {progress && (
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-              </View>
+          }}
+        />
+      );
+    },
+    [useProxy, watchProgress],
+  );
+
+  const playSelected = () => {
+    if (!selectedMovie?.stream_id) {
+      setSelectedMovie(null);
+      return;
+    }
+    try {
+      const ext =
+        selectedMovie.container_extension?.replace('.', '') || 'mp4';
+      const originalUrl = buildMovieStreamUrl({
+        domain: serverDomain,
+        port: serverPort,
+        username,
+        password,
+        streamId: selectedMovie.stream_id,
+        extension: ext,
+      });
+      const url = proxyStreamUrl(originalUrl, useProxy);
+      const movie = selectedMovie;
+      setSelectedMovie(null);
+      navigation.navigate('VideoPlayer', {
+        streamUrl: url,
+        isLive: false,
+        title: movie.name || 'Unknown Movie',
+        movieId: movie.stream_id.toString(),
+        continueTime: watchProgress[movie.stream_id],
+        thumbnail: movie.stream_icon,
+      });
+    } catch (e) {
+      if (__DEV__) console.error('Error playing movie:', e);
+      setSelectedMovie(null);
+    }
+  };
+
+  const renderHeader = () => (
+    <View style={styles.headerBlock}>
+      <CategoryDropdown
+        label="MOVIES"
+        accent={ACCENT}
+        icon="film"
+        categories={movieCategories as any}
+        activeCategoryId={activeCategory}
+        activeCategoryName={activeCategoryName}
+        onSelect={handleCategorySelect}
+        onSearchToggle={toggleSearch}
+        searchActive={searchOpen}
+        searchPlaceholder="Search categories"
+        onBack={() =>
+          navigation.canGoBack()
+            ? navigation.goBack()
+            : navigation.navigate('Home')
+        }
+      />
+
+      {searchOpen && (
+        <View style={styles.searchBarWrap}>
+          <View style={[styles.searchBar, { borderColor: `${ACCENT}55` }]}>
+            <FontAwesome5 name="search" size={15} color={colors.fgSubtle} />
+            <TextInput
+              ref={searchRef}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search movies by title"
+              placeholderTextColor={colors.fgSubtle}
+              style={styles.searchInput}
+              autoCorrect={false}
+              selectionColor={ACCENT}
+            />
+            {!!search && (
+              <TouchableOpacity
+                onPress={() => {
+                  setSearch('');
+                  searchRef.current?.focus();
+                }}
+                hitSlop={8}
+              >
+                <FontAwesome5 name="times" size={14} color={colors.fgMuted} />
+              </TouchableOpacity>
             )}
           </View>
         </View>
-        <Text style={styles.cardTitle} numberOfLines={1}>
-          {item.name}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+      )}
 
-  /* ─── Loading / error */
+      <View style={styles.metaRow}>
+        <Text style={styles.metaText}>
+          {normalizedSearch
+            ? `${filteredMovies.length} result${
+                filteredMovies.length === 1 ? '' : 's'
+              }`
+            : `${movies.length} titles`}
+        </Text>
+      </View>
+    </View>
+  );
+
+  // ---------- render ---------- //
   if (loadingCategories || !activeCategory) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4A90E2" />
-        <Text style={styles.loadingText}>Loading categories...</Text>
+      <View style={styles.root}>
+        <AmbientGlow accent={ACCENT} />
+        <SafeAreaView style={styles.centerSafe}>
+          <ActivityIndicator size="large" color={ACCENT} />
+          <Text style={styles.loadingText}>Loading categories…</Text>
+        </SafeAreaView>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.center}>
-        <FontAwesome5 name="exclamation-circle" size={40} color="#E53935" />
-        <Text style={styles.error}>{error}</Text>
+      <View style={styles.root}>
+        <AmbientGlow accent={ACCENT} />
+        <SafeAreaView style={styles.centerSafe}>
+          <FontAwesome5
+            name="exclamation-circle"
+            size={36}
+            color={colors.danger}
+          />
+          <Text style={styles.errorText}>{error}</Text>
+        </SafeAreaView>
       </View>
     );
   }
 
-  /* ─── UI */
+  const addedDate = selectedMovie?.added
+    ? new Date(Number(selectedMovie.added) * 1000).toLocaleDateString()
+    : '';
+  const selRating = selectedMovie ? parseFloat(selectedMovie.rating) : NaN;
+
   return (
-    <ImageBackground
-      source={backgroundImage}
-      style={styles.backgroundImage}
-      resizeMode="cover"
-    >
-      <SafeAreaView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerLeft} onPress={() => navigation.goBack()}>
-            <FontAwesome5 name="arrow-left" size={18} color="#fff" />
-            <Text style={styles.headerTitle}> Movies</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Toolbar (Category + Search) */}
-        <Animated.View
-          entering={FadeInDown.duration(300)}
-          style={styles.toolbarContainer}>
-          {/* Active category chip */}
-          <TouchableOpacity
-            style={styles.categoryChip}
-            onPress={() => setShowCategoryModal(true)}
-            activeOpacity={0.75}>
-            <FontAwesome5
-              name="film"
-              size={14}
-              color="#A0ABC0"
-              style={styles.chipIcon}
-            />
-            <Text style={styles.chipText} numberOfLines={1}>
-              {activeCategoryName || 'Select Category'}
-            </Text>
-            <FontAwesome5 name="chevron-down" size={12} color="#A0ABC0" />
-          </TouchableOpacity>
-
-          {/* Search bar */}
-          <View style={styles.searchWrapper}>
-            <FontAwesome5
-              name="search"
-              size={14}
-              color="#A0ABC0"
-              style={styles.searchIcon}
-            />
-            <TextInput
-              ref={searchRef}
-              style={styles.searchInput}
-              placeholder="Search movies..."
-              placeholderTextColor="#A0ABC0"
-              value={search}
-              onChangeText={setSearch}
-              clearButtonMode="while-editing"
-            />
+    <View style={styles.root}>
+      <AmbientGlow accent={ACCENT} />
+      <SafeAreaView style={styles.safe}>
+        {renderHeader()}
+        {loadingMovies ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={ACCENT} />
           </View>
-        </Animated.View>
-
-        <View style={styles.contentContainer}>
-          {/* Featured slider */}
-          {showMoviesSlider && featuredMovies?.length > 0 && (
-            <View style={styles.sliderWrapper}>
-              <Swiper
-                autoplay
-                showsPagination
-                dotColor="rgba(255,255,255,0.4)"
-                activeDotColor="#4A90E2">
-                {featuredMovies?.map(m => (
-                  <TouchableOpacity
-                    key={`${activeCategory}-${m.stream_id}`}
-                    style={styles.sliderSlide}
-                    onPress={() => setSelectedMovie(m)}
-                    activeOpacity={0.9}>
-                    <Poster
-                      uri={m.stream_icon?.trim()}
-                      style={styles.sliderImage}
-                    />
-                    <View style={styles.featuredOverlay}>
-                      <Text style={styles.featuredTitle}>{m.name}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </Swiper>
-            </View>
-          )}
-
-          {/* Movie grid */}
-          {loadingMovies ? (
-            <View style={styles.center}>
-              <ActivityIndicator size="large" color="#4A90E2" />
-            </View>
-          ) : filteredMovies.length === 0 ? (
-            <View style={styles.center}>
-              <FontAwesome5 name="film" size={40} color="#A0ABC0" />
-              <Text style={styles.emptyText}>No movies found</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={filteredMovies}
-              keyExtractor={i => i.stream_id.toString()}
-              renderItem={renderMovie}
-              numColumns={3}
-              columnWrapperStyle={{
-                justifyContent: 'space-between',
-              }}
-              contentContainerStyle={styles.grid}
-              showsVerticalScrollIndicator={false}
-              removeClippedSubviews={true}
-              maxToRenderPerBatch={12}
-              windowSize={5}
-              initialNumToRender={12}
-            />
-          )}
-        </View>
-
-        {/* Category Modal */}
-        <CategoryPickerModal
-          visible={showCategoryModal}
-          categories={movieCategories as any}
-          activeCategory={activeCategory}
-          onSelect={handleCategorySelect}
-          onClose={() => setShowCategoryModal(false)}
-        />
-
-        {/* Detail modal */}
-        <Modal
-          visible={!!selectedMovie}
-          animationType="slide"
-          onRequestClose={() => setSelectedMovie(null)}
-          transparent={true}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContentWrapper, { paddingTop: insets.top }]}>
-              {selectedMovie &&
-                (() => {
-                  const addedDate = selectedMovie.added
-                    ? new Date(
-                      Number(selectedMovie.added) * 1000,
-                    ).toLocaleDateString()
-                    : '';
-                  return (
-                    <View style={styles.modalCard}>
-                      <TouchableOpacity
-                        style={styles.modalClose}
-                        onPress={() => setSelectedMovie(null)}>
-                        <FontAwesome5 name="times" size={18} color="#fff" />
-                      </TouchableOpacity>
-                      <Poster
-                        uri={selectedMovie.stream_icon?.trim()}
-                        style={styles.modalPoster}
-                      />
-
-                      <View style={styles.modalBody}>
-                        <Text style={styles.modalTitle}>{selectedMovie.name}</Text>
-                        <View style={styles.metaRow}>
-                          <FontAwesome5 name="star" size={14} color="#FFD700" />
-                          <Text style={styles.metaText}>
-                            {' '}
-                            {selectedMovie.rating_5based || selectedMovie.rating}/5
-                          </Text>
-                          {addedDate ? (
-                            <>
-                              <Text style={styles.metaDot}>•</Text>
-                              <Text style={styles.metaText}>{addedDate}</Text>
-                            </>
-                          ) : null}
-                        </View>
-                      </View>
-
-                      <TouchableOpacity
-                        style={styles.playButton}
-                        onPress={() => {
-                          try {
-                            if (!selectedMovie.stream_id) {
-                              if (__DEV__) console.warn('Movie stream_id is missing');
-                              return;
-                            }
-                            const ext =
-                              selectedMovie.container_extension?.replace('.', '') ||
-                              'mp4';
-                            const originalUrl = buildMovieStreamUrl({
-                              domain: serverDomain,
-                              port: serverPort,
-                              username,
-                              password,
-                              streamId: selectedMovie.stream_id,
-                              extension: ext,
-                            });
-                            const url = proxyStreamUrl(originalUrl, useProxy);
-                            setSelectedMovie(null);
-                            navigation.navigate('VideoPlayer', {
-                              streamUrl: url,
-                              isLive: false,
-                              title: selectedMovie.name || 'Unknown Movie',
-                              movieId: selectedMovie.stream_id.toString(),
-                              continueTime: watchProgress[selectedMovie.stream_id],
-                              thumbnail: selectedMovie.stream_icon,
-                            });
-                          } catch (error) {
-                            if (__DEV__) console.error('Error playing movie:', error);
-                            setSelectedMovie(null);
-                          }
-                        }}>
-                        <FontAwesome5 name="play" size={16} color="#fff" />
-                        <Text style={styles.playText}>Play Movie</Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })()}
-            </View>
-          </View>
-        </Modal>
+        ) : (
+          <FlatList
+            style={styles.grid}
+            data={filteredMovies}
+            keyExtractor={i => String(i.stream_id)}
+            renderItem={renderMovie}
+            numColumns={COLUMNS}
+            columnWrapperStyle={styles.columnWrapper}
+            contentContainerStyle={styles.gridContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            removeClippedSubviews
+            maxToRenderPerBatch={12}
+            windowSize={5}
+            initialNumToRender={12}
+            ListEmptyComponent={
+              <View style={styles.center}>
+                <FontAwesome5 name="film" size={36} color={colors.fgSubtle} />
+                <Text style={styles.emptyText}>No movies found</Text>
+              </View>
+            }
+          />
+        )}
       </SafeAreaView>
-    </ImageBackground>
+
+      {/* Detail modal */}
+      <Modal
+        visible={!!selectedMovie}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSelectedMovie(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalWrap, { paddingTop: insets.top }]}>
+            {selectedMovie && (
+              <View style={styles.modalCard}>
+                <TouchableOpacity
+                  style={styles.modalClose}
+                  onPress={() => setSelectedMovie(null)}
+                >
+                  <FontAwesome5 name="times" size={16} color={colors.fg} />
+                </TouchableOpacity>
+
+                {selectedMovie.stream_icon ? (
+                  <FastImage
+                    style={styles.modalPoster}
+                    source={{
+                      uri: proxyStreamUrl(
+                        selectedMovie.stream_icon.trim(),
+                        useProxy,
+                      ),
+                      priority: FastImage.priority.high,
+                    }}
+                    resizeMode={FastImage.resizeMode.cover}
+                  />
+                ) : (
+                  <View style={[styles.modalPoster, styles.posterPlaceholder]}>
+                    <FontAwesome5 name="film" size={40} color={colors.fgSubtle} />
+                  </View>
+                )}
+
+                <View style={styles.modalBody}>
+                  <Text style={styles.modalTitle}>{selectedMovie.name}</Text>
+                  <View style={styles.modalMetaRow}>
+                    {!Number.isNaN(selRating) && selRating > 0 && (
+                      <>
+                        <FontAwesome5
+                          name="star"
+                          size={13}
+                          color={colors.warning}
+                          solid
+                        />
+                        <Text style={styles.modalMetaText}>
+                          {' '}
+                          {selRating.toFixed(1)}
+                        </Text>
+                      </>
+                    )}
+                    {!!addedDate && (
+                      <>
+                        {!Number.isNaN(selRating) && selRating > 0 && (
+                          <Text style={styles.modalMetaDot}>·</Text>
+                        )}
+                        <Text style={styles.modalMetaText}>{addedDate}</Text>
+                      </>
+                    )}
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.playButton, { backgroundColor: ACCENT }]}
+                  activeOpacity={0.85}
+                  onPress={playSelected}
+                >
+                  <FontAwesome5 name="play" size={14} color={colors.scene} solid />
+                  <Text style={styles.playText}>Play Movie</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 };
 
 export default MoviesScreen;
 
-/* ─────────────────────────────── Styles */
-const HEADER_HEIGHT = 32;
-
 const styles = StyleSheet.create({
-  backgroundImage: {
+  root: {
     flex: 1,
-    width: '100%',
-    height: '100%',
+    backgroundColor: colors.bg,
   },
-  container: {
+  safe: {
     flex: 1,
-    paddingHorizontal: 0,
-    backgroundColor: 'transparent',
-    paddingTop: HEADER_HEIGHT + 8,
   },
-  contentContainer: {
-    backgroundColor: 'transparent',
+  headerBlock: {
+    zIndex: 20,
+    elevation: 20,
+  },
+  centerSafe: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingTop: 80,
   },
   loadingText: {
-    color: '#E2E8F0',
+    fontFamily: FONT,
+    color: colors.fgMuted,
     fontSize: 14,
     marginTop: 12,
   },
-  error: {
-    color: '#ff4d4f',
+  errorText: {
+    fontFamily: FONT,
+    color: colors.danger,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 12,
   },
   emptyText: {
-    color: '#A0ABC0',
+    fontFamily: FONT,
+    color: colors.fgMuted,
     fontSize: 14,
     marginTop: 12,
   },
 
-  /* Header */
-  header: {
-    top: 0,
-    left: 0,
-    right: 0,
-    height: HEADER_HEIGHT,
-    backgroundColor: 'transparent',
+  // search bar
+  searchBarWrap: {
+    paddingHorizontal: H_PAD,
+    paddingTop: 14,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-
-  /* Toolbar (category chip + search) */
-  toolbarContainer: {
-    backgroundColor: 'transparent',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    paddingTop: 8,
-  },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginBottom: 12,
+    gap: 10,
+    height: 46,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  chipIcon: {
-    marginRight: 8,
-  },
-  chipText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-    marginRight: 8,
-  },
-  searchWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 48,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  searchIcon: {
-    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    color: '#fff',
+    fontFamily: FONT,
+    fontSize: 15,
+    color: colors.fg,
     padding: 0,
   },
 
-  /* Slider */
-  sliderWrapper: {
-    height: 200,
-    marginBottom: 12,
-    marginHorizontal: 12,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+  // meta row
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: H_PAD,
+    paddingTop: 16,
+    paddingBottom: 4,
   },
-  sliderSlide: {
+  metaText: {
+    fontFamily: MONO,
+    fontSize: 12,
+    color: colors.fgSubtle,
+  },
+
+  // grid
+  grid: {
     flex: 1,
+    zIndex: 1,
   },
-  sliderImage: {
+  gridContent: {
+    paddingHorizontal: H_PAD,
+    paddingTop: 10,
+    paddingBottom: 120,
+  },
+  columnWrapper: {
+    gap: GUTTER,
+    marginBottom: GUTTER + 2,
+  },
+  card: {
+    alignItems: 'stretch',
+  },
+  poster: {
     width: '100%',
-    height: '100%',
+    height: POSTER_HEIGHT,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  featuredOverlay: {
+  posterPlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  ratingBadge: {
     position: 'absolute',
-    bottom: 0,
+    top: 7,
+    right: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    backgroundColor: 'rgba(8,11,22,0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
+  ratingText: {
+    fontFamily: MONO,
+    fontSize: 9,
+    fontWeight: '600',
+    color: colors.fg,
+  },
+  scrim: {
+    position: 'absolute',
     left: 0,
     right: 0,
-    padding: 16,
-    paddingBottom: 24,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    bottom: 0,
+    paddingHorizontal: 8,
+    paddingTop: 22,
+    paddingBottom: 8,
   },
-  featuredTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+  posterTitle: {
+    fontFamily: FONT,
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.fg,
+    lineHeight: 15,
   },
-
-  /* Grid */
-  grid: {
-    paddingTop: 4,
-    paddingBottom: 24,
-    paddingHorizontal: 12,
-  },
-  channelCard: {
-    width: CARD_SIZE,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  cardGlowingBorder: {
-    width: CARD_SIZE,
-    height: CARD_HEIGHT,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#4A90E2',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    shadowColor: '#4A90E2',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-    elevation: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  cardGlowingBorderPlaceholder: {
-    width: CARD_SIZE,
-    height: CARD_HEIGHT,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: 'rgba(249, 115, 22, 0.3)',
-    backgroundColor: 'rgba(249, 115, 22, 0.05)',
-    shadowColor: '#F97316',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 12,
-    elevation: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  cardImageContainer: {
-    width: CARD_SIZE - 6,
-    height: CARD_HEIGHT - 6,
-    backgroundColor: '#111',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  cardImage: {
-    width: '100%',
-    height: '100%',
-  },
-  playBadge: {
+  progressTrack: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 3,
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
-  cardTitle: {
-    fontSize: 13,
-    color: '#fff',
-    textAlign: 'center',
-    fontWeight: '500',
-    marginTop: 4,
-  },
-  placeholder: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
+  progressFill: {
     height: '100%',
+    backgroundColor: ACCENT,
+  },
+  cardYear: {
+    fontFamily: MONO,
+    fontSize: 11,
+    color: colors.fgSubtle,
+    marginTop: 6,
+    paddingLeft: 2,
   },
 
-  /* Detail Modal */
+  // detail modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: colors.scrim,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
-  modalContentWrapper: {
+  modalWrap: {
     width: '100%',
     maxWidth: 400,
   },
   modalCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 20,
+    backgroundColor: colors.panel,
+    borderRadius: radii.card,
     overflow: 'hidden',
     width: '100%',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.border,
   },
   modalPoster: {
     width: '100%',
-    height: 300
+    height: 320,
+    backgroundColor: colors.surface,
   },
   modalClose: {
     position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    top: 14,
+    right: 14,
     width: 36,
     height: 36,
     borderRadius: 18,
+    backgroundColor: 'rgba(8,11,22,0.6)',
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
   },
   modalBody: {
-    padding: 20
+    padding: 18,
   },
   modalTitle: {
-    fontSize: 22,
+    fontFamily: FONT,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#fff',
+    color: colors.fg,
     marginBottom: 8,
   },
-  metaRow: {
+  modalMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  metaText: { color: '#A0ABC0', fontSize: 14 },
-  metaDot: { color: '#A0ABC0', marginHorizontal: 6 },
-
+  modalMetaText: {
+    fontFamily: FONT,
+    color: colors.fgMuted,
+    fontSize: 14,
+  },
+  modalMetaDot: {
+    color: colors.fgSubtle,
+    marginHorizontal: 8,
+  },
   playButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4A90E2',
-    paddingVertical: 16,
+    gap: 8,
+    paddingVertical: 15,
   },
   playText: {
-    color: '#fff',
-    marginLeft: 8,
-    fontWeight: 'bold',
-    fontSize: 16
-  },
-
-  progressBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#E53935',
+    fontFamily: FONT,
+    color: colors.scene,
+    fontWeight: '700',
+    fontSize: 15,
   },
 });

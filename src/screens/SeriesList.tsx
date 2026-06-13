@@ -1,4 +1,11 @@
-import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+/* eslint-disable react-hooks/exhaustive-deps */
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+  useCallback,
+} from 'react';
 import {
   View,
   Text,
@@ -8,58 +15,133 @@ import {
   FlatList,
   Dimensions,
   ActivityIndicator,
-  ScrollView,
   SafeAreaView,
-  ImageBackground,
+  Platform,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
-import Swiper from 'react-native-swiper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import LinearGradient from 'react-native-linear-gradient';
 import { useSelector, useDispatch } from 'react-redux';
+
 import { RootState, AppDispatch } from '../store';
 import { fetchSeries, fetchSeriesByCategory } from '../store/slices/iptvSlice';
-import CategoryPickerModal from '../components/CategoryPickerModal';
 import { proxyStreamUrl } from '../utils/proxy';
+import { colors, sectionAccents, radii } from '../theme/colors';
+import AmbientGlow from '../components/mirror/AmbientGlow';
+import CategoryDropdown from '../components/mirror/CategoryDropdown';
 
-const backgroundImage = require('../assets/background-image-mobile.png');
+const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
+const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 
+const ACCENT = sectionAccents.series;
 const { width } = Dimensions.get('window');
-const CARD_SIZE = (width - 56) / 3;
-const CARD_HEIGHT = CARD_SIZE * 1.5; // 2:3 aspect ratio
+const H_PAD = 20;
+const GUTTER = 12;
+const COLUMNS = 3;
+const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
+const POSTER_HEIGHT = ITEM_WIDTH * 1.5; // 2:3 portrait
+
+// ─────────────────────────────────────────────────────────────
+// Series poster card — portrait 2:3, scrim title, rating badge
+// ─────────────────────────────────────────────────────────────
+const SeriesPoster = React.memo(
+  ({
+    item,
+    onPress,
+    useProxy,
+  }: {
+    item: any;
+    onPress: () => void;
+    useProxy: boolean;
+  }) => {
+    const raw = item.cover?.trim();
+    const uri = raw ? proxyStreamUrl(raw, useProxy) : null;
+    const ratingRaw = parseFloat(item.rating ?? item.rating_5based);
+    const rating = !Number.isNaN(ratingRaw) && ratingRaw > 0 ? ratingRaw : null;
+    const yearSrc = item.year || item.releaseDate || item.release_date;
+    const yearMatch = yearSrc ? String(yearSrc).match(/\d{4}/) : null;
+    const year = yearMatch ? yearMatch[0] : null;
+
+    return (
+      <TouchableOpacity
+        style={[styles.card, { width: ITEM_WIDTH }]}
+        onPress={onPress}
+        activeOpacity={0.85}
+      >
+        <View style={styles.poster}>
+          {uri ? (
+            <FastImage
+              style={StyleSheet.absoluteFill}
+              source={{ uri, priority: FastImage.priority.normal }}
+              resizeMode={FastImage.resizeMode.cover}
+            />
+          ) : (
+            <View style={styles.posterPlaceholder}>
+              <FontAwesome5 name="tv" size={26} color={colors.fgSubtle} />
+            </View>
+          )}
+
+          {rating != null && (
+            <View style={styles.ratingBadge}>
+              <FontAwesome5 name="star" size={9} color={colors.warning} solid />
+              <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+            </View>
+          )}
+
+          <LinearGradient
+            colors={['transparent', 'rgba(6,8,16,0.55)', 'rgba(6,8,16,0.92)']}
+            style={styles.scrim}
+            pointerEvents="none"
+          >
+            <Text style={styles.posterTitle} numberOfLines={2}>
+              {item.name}
+            </Text>
+          </LinearGradient>
+        </View>
+
+        {!!year && (
+          <Text style={styles.cardYear} numberOfLines={1}>
+            {year}
+          </Text>
+        )}
+      </TouchableOpacity>
+    );
+  },
+);
 
 const SeriesHomeScreen: React.FC<any> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
   const searchRef = useRef<TextInput>(null);
 
-  /* Redux state ---------------------------------------------------- */
-  const { username, password, serverDomain, serverPort, showSeriesSlider, useProxy } = useSelector(
-    (s: RootState) => s.user,
-  );
+  const { username, password, serverDomain, serverPort, useProxy } =
+    useSelector((s: RootState) => s.user);
   const {
     seriesCategories,
     seriesList,
     loadingCategories,
-    loadingSeries,
+    loading,
     error,
   } = useSelector((s: RootState) => s.iptv);
 
-  /* Local state ---------------------------------------------------- */
   const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeCategoryName, setActiveCategoryName] = useState<string>('');
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
-  /* Fetch categories on mount -------------------------------------- */
+  // fetch categories once
   useEffect(() => {
     dispatch(
-      fetchSeries({ username, password, domain: serverDomain, port: serverPort, useProxy }),
+      fetchSeries({
+        username,
+        password,
+        domain: serverDomain,
+        port: serverPort,
+        useProxy,
+      }),
     );
   }, [dispatch, username, password, serverDomain, serverPort, useProxy]);
 
-  /* When categories arrive fetch first cat ------------------------- */
+  // open first category once categories arrive
   useEffect(() => {
     if (!loadingCategories && seriesCategories.length && !activeCategory) {
       const first = seriesCategories[0];
@@ -67,522 +149,353 @@ const SeriesHomeScreen: React.FC<any> = ({ navigation }) => {
     }
   }, [loadingCategories, seriesCategories]);
 
-  const changeCategory = useCallback((categoryId: string, categoryName: string) => {
-    if (categoryId === activeCategory) return;
-    setActiveCategory(categoryId);
-    setActiveCategoryName(categoryName);
-    setShowCategoryModal(false);
-    setSearch('');
-    dispatch(
-      fetchSeriesByCategory({
-        username,
-        password,
-        domain: serverDomain,
-        port: serverPort,
-        categoryId,
-        useProxy,
-      }),
-    );
-  }, [dispatch, username, password, serverDomain, serverPort, activeCategory, useProxy]);
+  const changeCategory = useCallback(
+    (categoryId: string, categoryName: string) => {
+      if (categoryId === activeCategory) return;
+      setActiveCategory(categoryId);
+      setActiveCategoryName(categoryName);
+      setSearch('');
+      dispatch(
+        fetchSeriesByCategory({
+          username,
+          password,
+          domain: serverDomain,
+          port: serverPort,
+          categoryId,
+          useProxy,
+        }),
+      );
+    },
+    [dispatch, username, password, serverDomain, serverPort, activeCategory, useProxy],
+  );
 
-  /* Derived lists -------------------------------------------------- */
-  const safeSeriesList = Array.isArray(seriesList) ? seriesList : [];
+  const toggleSearch = useCallback(() => {
+    setSearchOpen(open => {
+      const next = !open;
+      if (!next) {
+        setSearch('');
+      } else {
+        setTimeout(() => searchRef.current?.focus(), 60);
+      }
+      return next;
+    });
+  }, []);
+
+  const seriesItems = useMemo(
+    () => (Array.isArray(seriesList) ? seriesList : []),
+    [seriesList],
+  );
+  const normalizedSearch = search.trim().toLowerCase();
   const filtered = useMemo(
     () =>
-      safeSeriesList.filter(s =>
-        s.name?.toLowerCase().includes(search.toLowerCase()),
-      ),
-    [safeSeriesList, search],
+      normalizedSearch
+        ? seriesItems.filter(s =>
+            s.name?.toLowerCase().includes(normalizedSearch),
+          )
+        : seriesItems,
+    [seriesItems, normalizedSearch],
   );
 
-  const trending = filtered.filter(item => item.backdrop_path?.[0]).slice(0, 5);
-  const recentlyAdded = [...filtered].sort(
-    (a, b) => Number(b.added) - Number(a.added),
-  );
-  const mostWatched = [...filtered].sort(
-    (a, b) => (b.rating_5based || 0) - (a.rating_5based || 0),
-  );
-
-  /* Card component ------------------------------------------------- */
-  const PosterCard = ({ item }: { item: any }) => {
-    const icon = item.cover ? proxyStreamUrl(item.cover, useProxy) : null;
-
-    return (
-      <TouchableOpacity
-        style={styles.channelCard}
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => (
+      <SeriesPoster
+        item={item}
+        useProxy={useProxy}
         onPress={() =>
           navigation.navigate('SeriesDetail', {
             seriesId: item.series_id,
             seriesName: item.name,
-            baseInfo: item, // pass whole object
+            baseInfo: item,
           })
         }
-        activeOpacity={0.7}>
-        <View style={icon ? styles.cardGlowingBorder : styles.cardGlowingBorderPlaceholder}>
-          <View style={styles.cardImageContainer}>
-            {icon ? (
-              <FastImage
-                style={styles.cardImage}
-                source={{ uri: icon, priority: FastImage.priority.normal }}
-                resizeMode={FastImage.resizeMode.cover}
-              />
-            ) : (
-              <FontAwesome5 name="film" size={28} color="#A0ABC0" />
+      />
+    ),
+    [navigation, useProxy],
+  );
+
+  const renderHeader = () => (
+    <View style={styles.headerBlock}>
+      <CategoryDropdown
+        label="SERIES"
+        accent={ACCENT}
+        icon="tv"
+        categories={seriesCategories as any}
+        activeCategoryId={activeCategory}
+        activeCategoryName={activeCategoryName}
+        onSelect={changeCategory}
+        onSearchToggle={toggleSearch}
+        searchActive={searchOpen}
+        searchPlaceholder="Search categories"
+        onBack={() =>
+          navigation.canGoBack()
+            ? navigation.goBack()
+            : navigation.navigate('Home')
+        }
+      />
+
+      {searchOpen && (
+        <View style={styles.searchBarWrap}>
+          <View style={[styles.searchBar, { borderColor: `${ACCENT}55` }]}>
+            <FontAwesome5 name="search" size={15} color={colors.fgSubtle} />
+            <TextInput
+              ref={searchRef}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search series by title"
+              placeholderTextColor={colors.fgSubtle}
+              style={styles.searchInput}
+              autoCorrect={false}
+              selectionColor={ACCENT}
+            />
+            {!!search && (
+              <TouchableOpacity
+                onPress={() => {
+                  setSearch('');
+                  searchRef.current?.focus();
+                }}
+                hitSlop={8}
+              >
+                <FontAwesome5 name="times" size={14} color={colors.fgMuted} />
+              </TouchableOpacity>
             )}
-            <View style={styles.ratingBadge}>
-              <FontAwesome5 name="star" size={10} color="#FFD700" />
-              <Text style={styles.ratingText}>
-                {item.rating_5based || item.rating || "0.0"}
-              </Text>
-            </View>
           </View>
         </View>
-        <Text style={styles.cardTitle} numberOfLines={1}>
-          {item.name}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+      )}
 
-  /* UI ------------------------------------------------------------- */
+      <View style={styles.metaRow}>
+        <Text style={styles.metaText}>
+          {normalizedSearch
+            ? `${filtered.length} result${filtered.length === 1 ? '' : 's'}`
+            : `${seriesItems.length} titles`}
+        </Text>
+      </View>
+    </View>
+  );
+
+  // ---------- render ---------- //
   if (loadingCategories || !activeCategory) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4A90E2" />
-        <Text style={styles.loadingText}>Loading categories...</Text>
+      <View style={styles.root}>
+        <AmbientGlow accent={ACCENT} />
+        <SafeAreaView style={styles.centerSafe}>
+          <ActivityIndicator size="large" color={ACCENT} />
+          <Text style={styles.loadingText}>Loading categories…</Text>
+        </SafeAreaView>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.center}>
-        <FontAwesome5 name="exclamation-circle" size={40} color="#E53935" />
-        <Text style={styles.error}>{error}</Text>
+      <View style={styles.root}>
+        <AmbientGlow accent={ACCENT} />
+        <SafeAreaView style={styles.centerSafe}>
+          <FontAwesome5
+            name="exclamation-circle"
+            size={36}
+            color={colors.danger}
+          />
+          <Text style={styles.errorText}>{error}</Text>
+        </SafeAreaView>
       </View>
     );
   }
 
   return (
-    <ImageBackground
-      source={backgroundImage}
-      style={styles.backgroundImage}
-      resizeMode="cover"
-    >
-      <SafeAreaView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerLeft} onPress={() => navigation.goBack()}>
-            <FontAwesome5 name="arrow-left" size={18} color="#fff" />
-            <Text style={styles.headerTitle}> Series</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Toolbar (Category + Search) */}
-        <Animated.View
-          entering={FadeInDown.duration(300)}
-          style={styles.toolbarContainer}>
-          {/* Active category chip */}
-          <TouchableOpacity
-            style={styles.categoryChip}
-            onPress={() => setShowCategoryModal(true)}
-            activeOpacity={0.75}>
-            <FontAwesome5
-              name="tv"
-              size={14}
-              color="#A0ABC0"
-              style={styles.chipIcon}
-            />
-            <Text style={styles.chipText} numberOfLines={1}>
-              {activeCategoryName || 'Select Category'}
-            </Text>
-            <FontAwesome5 name="chevron-down" size={12} color="#A0ABC0" />
-          </TouchableOpacity>
-
-          {/* Search bar */}
-          <View style={styles.searchWrapper}>
-            <FontAwesome5
-              name="search"
-              size={14}
-              color="#A0ABC0"
-              style={styles.searchIcon}
-            />
-            <TextInput
-              ref={searchRef}
-              style={styles.searchInput}
-              placeholder="Search series..."
-              placeholderTextColor="#A0ABC0"
-              value={search}
-              onChangeText={setSearch}
-              clearButtonMode="while-editing"
-            />
+    <View style={styles.root}>
+      <AmbientGlow accent={ACCENT} />
+      <SafeAreaView style={styles.safe}>
+        {renderHeader()}
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={ACCENT} />
           </View>
-        </Animated.View>
-
-        <View style={styles.contentContainer}>
-          <ScrollView contentContainerStyle={{ paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
-            {loadingSeries ? (
-              <View style={[styles.center, { marginTop: 40 }]}>
-                <ActivityIndicator size="large" color="#4A90E2" />
-              </View>
-            ) : filtered.length === 0 ? (
-              <View style={[styles.center, { marginTop: 80 }]}>
-                <FontAwesome5 name="tv" size={40} color="#A0ABC0" />
+        ) : (
+          <FlatList
+            style={styles.grid}
+            data={filtered}
+            keyExtractor={i => String(i.series_id)}
+            renderItem={renderItem}
+            numColumns={COLUMNS}
+            columnWrapperStyle={styles.columnWrapper}
+            contentContainerStyle={styles.gridContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            removeClippedSubviews
+            maxToRenderPerBatch={12}
+            windowSize={5}
+            initialNumToRender={12}
+            ListEmptyComponent={
+              <View style={styles.center}>
+                <FontAwesome5 name="tv" size={36} color={colors.fgSubtle} />
                 <Text style={styles.emptyText}>No series found</Text>
               </View>
-            ) : (
-              <>
-                {/* ───── Trending slider ───── */}
-                {showSeriesSlider && trending.length > 0 && (
-                  <View style={styles.sliderWrapper}>
-                    <Swiper
-                      autoplay
-                      showsPagination
-                      dotColor="rgba(255,255,255,0.4)"
-                      activeDotColor="#4A90E2">
-                      {trending.map(s => {
-                        const bgUri = s.backdrop_path?.[0]
-                          ? proxyStreamUrl(s.backdrop_path[0], useProxy)
-                          : null;
-                        return (
-                          <TouchableOpacity
-                            key={s.series_id.toString()}
-                            style={styles.sliderSlide}
-                            onPress={() =>
-                              navigation.navigate('SeriesDetail', {
-                                seriesId: s.series_id,
-                                seriesName: s.name,
-                                baseInfo: s,
-                              })
-                            }>
-                            {bgUri && (
-                              <FastImage
-                                style={styles.sliderImage}
-                                source={{ uri: bgUri }}
-                                resizeMode={FastImage.resizeMode.cover}
-                              />
-                            )}
-                            <View style={styles.trendOverlay} />
-                            <View style={styles.trendMeta}>
-                              <Text style={styles.trendTitle}>{s.name}</Text>
-                              <View style={styles.trendRow}>
-                                <FontAwesome5 name="star" size={12} color="#FFD700" />
-                                <Text style={styles.trendRating}>
-                                  {s.rating_5based || s.rating}
-                                </Text>
-                              </View>
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </Swiper>
-                  </View>
-                )}
-
-                {/* ───── Recently Added grid ───── */}
-                {recentlyAdded.length > 0 && (
-                  <FlatList
-                    scrollEnabled={false}
-                    data={recentlyAdded}
-                    keyExtractor={i => i.series_id.toString()}
-                    renderItem={({ item }) => <PosterCard item={item} />}
-                    numColumns={3}
-                    columnWrapperStyle={{
-                      justifyContent: 'space-between',
-                    }}
-                    contentContainerStyle={styles.grid}
-                    initialNumToRender={12}
-                    maxToRenderPerBatch={12}
-                  />
-                )}
-
-                {/* ───── Most Watched grid ───── */}
-                {mostWatched.length > 0 && (
-                  <>
-                    <Text style={styles.sectionTitle}>Most Watched</Text>
-                    <FlatList
-                      scrollEnabled={false}
-                      data={mostWatched}
-                      keyExtractor={i => i.series_id.toString()}
-                      renderItem={({ item }) => <PosterCard item={item} />}
-                      numColumns={3}
-                      columnWrapperStyle={{
-                        justifyContent: 'space-between',
-                      }}
-                      contentContainerStyle={styles.grid}
-                      initialNumToRender={6}
-                      maxToRenderPerBatch={6}
-                    />
-                  </>
-                )}
-              </>
-            )}
-          </ScrollView>
-        </View>
-
-        {/* Category Modal */}
-        <CategoryPickerModal
-          visible={showCategoryModal}
-          categories={seriesCategories as any}
-          activeCategory={activeCategory}
-          onSelect={changeCategory}
-          onClose={() => setShowCategoryModal(false)}
-        />
+            }
+          />
+        )}
       </SafeAreaView>
-    </ImageBackground>
+    </View>
   );
 };
 
 export default SeriesHomeScreen;
 
-/* ───────────────────────────── Styles */
-const HEADER_HEIGHT = 32;
-
 const styles = StyleSheet.create({
-  backgroundImage: {
+  root: {
     flex: 1,
-    width: '100%',
-    height: '100%',
+    backgroundColor: colors.bg,
   },
-  container: {
+  safe: {
     flex: 1,
-    paddingHorizontal: 0,
-    backgroundColor: 'transparent',
-    paddingTop: HEADER_HEIGHT + 8,
   },
-  contentContainer: {
-    backgroundColor: 'transparent',
+  headerBlock: {
+    zIndex: 20,
+    elevation: 20,
+  },
+  centerSafe: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingTop: 80,
   },
   loadingText: {
-    color: '#E2E8F0',
+    fontFamily: FONT,
+    color: colors.fgMuted,
     fontSize: 14,
     marginTop: 12,
   },
-  error: {
-    color: '#ff4d4f',
+  errorText: {
+    fontFamily: FONT,
+    color: colors.danger,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 12,
   },
   emptyText: {
-    color: '#A0ABC0',
+    fontFamily: FONT,
+    color: colors.fgMuted,
     fontSize: 14,
     marginTop: 12,
   },
 
-  /* Header */
-  header: {
-    top: 0,
-    left: 0,
-    right: 0,
-    height: HEADER_HEIGHT,
-    backgroundColor: 'transparent',
+  // search bar
+  searchBarWrap: {
+    paddingHorizontal: H_PAD,
+    paddingTop: 14,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-
-  /* Toolbar (category chip + search) */
-  toolbarContainer: {
-    backgroundColor: 'transparent',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    paddingTop: 8,
-  },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginBottom: 12,
+    gap: 10,
+    height: 46,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  chipIcon: {
-    marginRight: 8,
-  },
-  chipText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-    marginRight: 8,
-  },
-  searchWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 48,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  searchIcon: {
-    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    color: '#fff',
+    fontFamily: FONT,
+    fontSize: 15,
+    color: colors.fg,
     padding: 0,
   },
 
-  /* Slider */
-  sliderWrapper: {
-    height: 200,
-    marginBottom: 20,
-    marginHorizontal: 12,
-    marginTop: 4,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  sliderSlide: {
-    flex: 1,
-  },
-  sliderImage: {
-    width: '100%',
-    height: '100%',
-  },
-  trendOverlay: {
-    position: 'absolute',
-    inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  trendMeta: {
-    position: 'absolute',
-    bottom: 24,
-    left: 16,
-    right: 16
-  },
-  trendTitle: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '700'
-  },
-  trendRow: {
+  // meta row
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4
+    justifyContent: 'space-between',
+    paddingHorizontal: H_PAD,
+    paddingTop: 16,
+    paddingBottom: 4,
   },
-  trendRating: {
-    color: '#fff',
-    marginLeft: 4,
-    fontSize: 14,
-    fontWeight: '500'
-  },
-
-  /* Section title */
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginLeft: 16,
-    marginTop: 16,
-    marginBottom: 12,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+  metaText: {
+    fontFamily: MONO,
+    fontSize: 12,
+    color: colors.fgSubtle,
   },
 
-  /* Cards Grid */
+  // grid
   grid: {
-    paddingHorizontal: 12,
-    paddingBottom: 8,
+    flex: 1,
+    zIndex: 1,
   },
-  channelCard: {
-    width: CARD_SIZE,
-    marginBottom: 20,
-    alignItems: 'center',
+  gridContent: {
+    paddingHorizontal: H_PAD,
+    paddingTop: 10,
+    paddingBottom: 120,
   },
-  cardGlowingBorder: {
-    width: CARD_SIZE,
-    height: CARD_HEIGHT,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#4A90E2',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    shadowColor: '#4A90E2',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-    elevation: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
+  columnWrapper: {
+    gap: GUTTER,
+    marginBottom: GUTTER + 2,
   },
-  cardGlowingBorderPlaceholder: {
-    width: CARD_SIZE,
-    height: CARD_HEIGHT,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: 'rgba(249, 115, 22, 0.3)',
-    backgroundColor: 'rgba(249, 115, 22, 0.05)',
-    shadowColor: '#F97316',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 12,
-    elevation: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
+  card: {
+    alignItems: 'stretch',
   },
-  cardImageContainer: {
-    width: CARD_SIZE - 6,
-    height: CARD_HEIGHT - 6,
-    backgroundColor: '#111',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  cardImage: {
+  poster: {
     width: '100%',
-    height: '100%',
+    height: POSTER_HEIGHT,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  posterPlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
   },
   ratingBadge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    top: 7,
+    right: 7,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 3,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    backgroundColor: 'rgba(8,11,22,0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
   },
   ratingText: {
-    color: '#fff',
-    fontSize: 10,
-    marginLeft: 4,
-    fontWeight: 'bold'
+    fontFamily: MONO,
+    fontSize: 9,
+    fontWeight: '600',
+    color: colors.fg,
   },
-  cardTitle: {
-    fontSize: 13,
-    color: '#fff',
-    textAlign: 'center',
-    fontWeight: '500',
-    marginTop: 4,
+  scrim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 8,
+    paddingTop: 22,
+    paddingBottom: 8,
+  },
+  posterTitle: {
+    fontFamily: FONT,
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.fg,
+    lineHeight: 15,
+  },
+  cardYear: {
+    fontFamily: MONO,
+    fontSize: 11,
+    color: colors.fgSubtle,
+    marginTop: 6,
+    paddingLeft: 2,
   },
 });
