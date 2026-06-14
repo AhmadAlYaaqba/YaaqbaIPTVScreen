@@ -1,12 +1,21 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_PREFIX = '@tmdb_cache:';
+const DETAIL_INDEX_KEY = `${STORAGE_PREFIX}detail:index`;
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_CONCURRENCY = 4;
+const MAX_SESSION_ENTRIES = 50;
+const MAX_PERSISTED_DETAILS = 5;
 
 interface CacheEntry<T> {
   value: T;
   expiresAt: number;
+  touchedAt: number;
+}
+
+interface DetailIndexItem {
+  key: string;
+  touchedAt: number;
 }
 
 function createLimiter(maxConcurrency: number) {
@@ -45,6 +54,88 @@ class TmdbCache {
   private inFlight = new Map<string, Promise<unknown>>();
   readonly limit = createLimiter(MAX_CONCURRENCY);
 
+  private storageKey(key: string): string {
+    return `${STORAGE_PREFIX}${key}`;
+  }
+
+  private canPersist(key: string): boolean {
+    return key.startsWith('details:movie:') || key.startsWith('details:series:');
+  }
+
+  private remember(key: string, entry: CacheEntry<unknown>) {
+    this.memory.delete(key);
+    this.memory.set(key, entry);
+    this.pruneMemory();
+  }
+
+  private pruneMemory() {
+    while (this.memory.size > MAX_SESSION_ENTRIES) {
+      const oldestKey = this.memory.keys().next().value;
+      if (!oldestKey) {
+        return;
+      }
+      this.memory.delete(oldestKey);
+    }
+  }
+
+  private async readDetailIndex(): Promise<DetailIndexItem[]> {
+    try {
+      const raw = await AsyncStorage.getItem(DETAIL_INDEX_KEY);
+      if (!raw) {
+        return [];
+      }
+      const parsed = JSON.parse(raw) as DetailIndexItem[];
+      return Array.isArray(parsed)
+        ? parsed.filter(item => item?.key && item?.touchedAt)
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private async persistDetailEntry<T>(
+    key: string,
+    entry: CacheEntry<T>,
+  ): Promise<void> {
+    try {
+      await AsyncStorage.setItem(this.storageKey(key), JSON.stringify(entry));
+
+      const index = await this.readDetailIndex();
+      const nextIndex = [
+        { key, touchedAt: entry.touchedAt },
+        ...index.filter(item => item.key !== key),
+      ]
+        .sort((a, b) => b.touchedAt - a.touchedAt)
+        .slice(0, MAX_PERSISTED_DETAILS);
+
+      const evicted = index.filter(
+        item => !nextIndex.some(kept => kept.key === item.key),
+      );
+
+      await Promise.all([
+        AsyncStorage.setItem(DETAIL_INDEX_KEY, JSON.stringify(nextIndex)),
+        ...evicted.map(item => AsyncStorage.removeItem(this.storageKey(item.key))),
+      ]);
+    } catch {
+      // Non-fatal: memory cache still works for this session.
+    }
+  }
+
+  private async removePersistedDetail(key: string): Promise<void> {
+    try {
+      const index = await this.readDetailIndex();
+      await Promise.all([
+        AsyncStorage.removeItem(this.storageKey(key)),
+        AsyncStorage.setItem(
+          DETAIL_INDEX_KEY,
+          JSON.stringify(index.filter(item => item.key !== key)),
+        ),
+      ]);
+    } catch {
+      // Ignore storage cleanup failures.
+    }
+  }
+
   getSync<T>(key: string): T | undefined {
     const entry = this.memory.get(key);
     if (!entry) {
@@ -54,6 +145,7 @@ class TmdbCache {
       this.memory.delete(key);
       return undefined;
     }
+    this.remember(key, { ...entry, touchedAt: Date.now() });
     return entry.value as T;
   }
 
@@ -62,18 +154,23 @@ class TmdbCache {
     if (memoryHit !== undefined) {
       return memoryHit;
     }
+    if (!this.canPersist(key)) {
+      return undefined;
+    }
 
     try {
-      const raw = await AsyncStorage.getItem(`${STORAGE_PREFIX}${key}`);
+      const raw = await AsyncStorage.getItem(this.storageKey(key));
       if (!raw) {
         return undefined;
       }
       const entry = JSON.parse(raw) as CacheEntry<T>;
       if (Date.now() > entry.expiresAt) {
-        await AsyncStorage.removeItem(`${STORAGE_PREFIX}${key}`);
+        await this.removePersistedDetail(key);
         return undefined;
       }
-      this.memory.set(key, entry as CacheEntry<unknown>);
+      const touchedEntry = { ...entry, touchedAt: Date.now() };
+      this.remember(key, touchedEntry as CacheEntry<unknown>);
+      await this.persistDetailEntry(key, touchedEntry);
       return entry.value;
     } catch {
       return undefined;
@@ -84,15 +181,11 @@ class TmdbCache {
     const entry: CacheEntry<T> = {
       value,
       expiresAt: Date.now() + ttlMs,
+      touchedAt: Date.now(),
     };
-    this.memory.set(key, entry as CacheEntry<unknown>);
-    try {
-      await AsyncStorage.setItem(
-        `${STORAGE_PREFIX}${key}`,
-        JSON.stringify(entry),
-      );
-    } catch {
-      // Non-fatal: memory cache still works for this session.
+    this.remember(key, entry as CacheEntry<unknown>);
+    if (this.canPersist(key)) {
+      await this.persistDetailEntry(key, entry);
     }
   }
 

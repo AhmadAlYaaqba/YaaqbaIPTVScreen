@@ -30,6 +30,7 @@ import { colors, sectionAccents, radii } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 import CategoryDropdown from '../components/mirror/CategoryDropdown';
 import { useTmdbMatch } from '../hooks/useTmdbMatch';
+import { getTenPointRating } from '../utils/rating';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
@@ -73,10 +74,10 @@ const SeriesPoster = React.memo(
 
     const posterUri = xtreamUri || tmdbMedia?.poster || null;
 
-    const ratingRaw = parseFloat(item.rating ?? item.rating_5based);
-    const xtreamRating =
-      !Number.isNaN(ratingRaw) && ratingRaw > 0 ? ratingRaw : null;
-    const rating = xtreamRating ?? tmdbMedia?.rating ?? null;
+    const rating =
+      getTenPointRating(item.rating, item.rating_5based) ??
+      tmdbMedia?.rating ??
+      null;
 
     const year =
       yearMatch?.[0] ||
@@ -103,6 +104,12 @@ const SeriesPoster = React.memo(
             </View>
           )}
 
+          {!!year && (
+            <View style={styles.yearBadge}>
+              <Text style={styles.yearText}>{year}</Text>
+            </View>
+          )}
+
           {rating != null && (
             <View style={styles.ratingBadge}>
               <FontAwesome5 name="star" size={9} color={colors.warning} solid />
@@ -115,17 +122,11 @@ const SeriesPoster = React.memo(
             style={styles.scrim}
             pointerEvents="none"
           >
-            <Text style={styles.posterTitle} numberOfLines={2}>
+            <Text style={styles.posterTitle} numberOfLines={3}>
               {item.name}
             </Text>
           </LinearGradient>
         </View>
-
-        {!!year && (
-          <Text style={styles.cardYear} numberOfLines={1}>
-            {year}
-          </Text>
-        )}
       </TouchableOpacity>
     );
   },
@@ -477,6 +478,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.surface,
   },
+  yearBadge: {
+    position: 'absolute',
+    top: 7,
+    left: 7,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    backgroundColor: 'rgba(8,11,22,0.62)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
+  yearText: {
+    fontFamily: MONO,
+    fontSize: 9,
+    fontWeight: '600',
+    color: colors.fg,
+  },
   ratingBadge: {
     position: 'absolute',
     top: 7,
@@ -503,21 +521,15 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     paddingHorizontal: 8,
-    paddingTop: 22,
-    paddingBottom: 8,
+    paddingTop: 30,
+    paddingBottom: 10,
+    minHeight: 64,
   },
   posterTitle: {
     fontFamily: FONT,
     fontSize: 12,
     fontWeight: '600',
     color: colors.fg,
-    lineHeight: 15,
-  },
-  cardYear: {
-    fontFamily: MONO,
-    fontSize: 11,
-    color: colors.fgSubtle,
-    marginTop: 6,
-    paddingLeft: 2,
+    lineHeight: 16,
   },
 });

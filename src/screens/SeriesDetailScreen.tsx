@@ -24,10 +24,14 @@ import { fetchSeriesInfo } from '../store/slices/iptvSlice';
 import { storage } from '../utils/storage';
 import { proxyStreamUrl } from '../utils/proxy';
 import { buildSeriesStreamUrl } from '../utils/xtream';
-import { useTmdbDetails, useTmdbMatch } from '../hooks/useTmdbMatch';
-import { getSeasonEpisodes } from '../services/tmdb';
-import { SeasonEpisode, CastMember } from '../types/media';
+import {
+  useTmdbDetails,
+  useTmdbMatch,
+  useTmdbSeasonEpisodes,
+} from '../hooks/useTmdbMatch';
+import { CastMember } from '../types/media';
 import { colors, sectionAccents, radii } from '../theme/colors';
+import { getTenPointRating } from '../utils/rating';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
@@ -95,7 +99,6 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [seasonOpen, setSeasonOpen] = useState(false);
-  const [seasonEpisodes, setSeasonEpisodes] = useState<SeasonEpisode[]>([]);
 
   const xtreamYear = baseInfo?.releaseDate
     ? String(baseInfo.releaseDate).substring(0, 4)
@@ -123,45 +126,41 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         useProxy,
       }),
     );
-  }, [seriesId, username, password, serverDomain, serverPort, useProxy]);
+  }, [
+    dispatch,
+    navigation,
+    seriesId,
+    seriesName,
+    username,
+    password,
+    serverDomain,
+    serverPort,
+    useProxy,
+  ]);
 
   const info = selectedSeriesInfo?.info ?? baseInfo ?? ({} as any);
-  const episodes =
-    selectedSeriesInfo?.episodes ?? ({} as Record<string, any[]>);
-  const seasons = Object.keys(episodes);
+  const episodes = useMemo(
+    () => selectedSeriesInfo?.episodes ?? ({} as Record<string, any[]>),
+    [selectedSeriesInfo?.episodes],
+  );
+  const seasons = useMemo(() => Object.keys(episodes), [episodes]);
   const multiSeason = seasons.length > 1;
 
   useEffect(() => {
     if (seasons.length && !selectedSeason) setSelectedSeason(seasons[0]);
-  }, [seasons]);
+  }, [seasons, selectedSeason]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadSeasonEpisodes = async () => {
-      if (!tmdbMatch?.id || !selectedSeason) {
-        setSeasonEpisodes([]);
-        return;
-      }
-
-      const seasonNumber = parseInt(selectedSeason, 10);
-      if (Number.isNaN(seasonNumber)) {
-        setSeasonEpisodes([]);
-        return;
-      }
-
-      const episodes = await getSeasonEpisodes(tmdbMatch.id, seasonNumber);
-      if (!cancelled) {
-        setSeasonEpisodes(episodes ?? []);
-      }
-    };
-
-    loadSeasonEpisodes();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tmdbMatch?.id, selectedSeason]);
+  const selectedSeasonNumber = selectedSeason
+    ? parseInt(selectedSeason, 10)
+    : null;
+  const { episodes: seasonEpisodes } = useTmdbSeasonEpisodes({
+    tvId: tmdbMatch?.id,
+    season:
+      selectedSeasonNumber != null && !Number.isNaN(selectedSeasonNumber)
+        ? selectedSeasonNumber
+        : null,
+    enabled: Boolean(tmdbMatch?.id),
+  });
 
   const currentEpisodes = useMemo(
     () => (selectedSeason ? episodes[selectedSeason] || [] : []),
@@ -206,11 +205,8 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     tmdbMatch?.poster ||
     null;
 
-  const xtreamRatingRaw = parseFloat(info.rating_5based || info.rating);
   const ratingValue =
-    (!Number.isNaN(xtreamRatingRaw) && xtreamRatingRaw > 0
-      ? xtreamRatingRaw
-      : null) ??
+    getTenPointRating(info.rating, info.rating_5based) ??
     tmdbDetails?.rating ??
     tmdbMatch?.rating ??
     null;
@@ -522,7 +518,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                     <View style={styles.seasonPanel}>
                       <ScrollView
                         showsVerticalScrollIndicator={false}
-                        style={{ maxHeight: 260 }}
+                        style={styles.seasonScroll}
                       >
                         {seasons.map(num => {
                           const on = num === selectedSeason;
@@ -943,6 +939,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 30,
     elevation: 24,
+  },
+  seasonScroll: {
+    maxHeight: 260,
   },
   seasonRow: {
     flexDirection: 'row',

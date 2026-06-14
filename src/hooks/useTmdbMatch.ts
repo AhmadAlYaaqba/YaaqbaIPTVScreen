@@ -1,17 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
-import { MediaDetails, MediaItem, MediaType } from '../types/media';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import {
+  MediaDetails,
+  MediaItem,
+  MediaType,
+  SeasonEpisode,
+} from '../types/media';
 import {
   buildDetailsCacheKey,
+  buildSeasonCacheKey,
   buildSearchCacheKey,
   tmdbCache,
 } from '../services/tmdb/tmdbCache';
 import {
   getMovieDetails,
+  getSeasonEpisodes,
   getTvDetails,
   isTmdbEnabled,
   searchMovie,
   searchTv,
 } from '../services/tmdb';
+import { TMDB_QUERY_STALE_TIME_MS } from '../services/queryClient';
 import { normalizeTitle } from '../utils/titleNormalize';
 
 interface UseTmdbMatchOptions {
@@ -37,6 +46,17 @@ interface UseTmdbDetailsResult {
   loading: boolean;
 }
 
+interface UseTmdbSeasonEpisodesOptions {
+  tvId?: string | null;
+  season?: number | null;
+  enabled?: boolean;
+}
+
+interface UseTmdbSeasonEpisodesResult {
+  episodes: SeasonEpisode[];
+  loading: boolean;
+}
+
 function getSearchCacheKey(
   type: Extract<MediaType, 'movie' | 'series'>,
   title: string,
@@ -52,9 +72,6 @@ export function useTmdbMatch({
   type,
   enabled = true,
 }: UseTmdbMatchOptions): UseTmdbMatchResult {
-  const [media, setMedia] = useState<MediaItem | null>(null);
-  const [loading, setLoading] = useState(false);
-
   const cacheKey = useMemo(() => {
     if (!title?.trim()) {
       return null;
@@ -62,54 +79,22 @@ export function useTmdbMatch({
     return getSearchCacheKey(type, title, year);
   }, [title, year, type]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const query = useQuery({
+    queryKey: ['tmdb', 'match', cacheKey],
+    queryFn: () =>
+      type === 'movie'
+        ? searchMovie(title ?? '', year)
+        : searchTv(title ?? '', year),
+    enabled: Boolean(enabled && isTmdbEnabled() && title?.trim() && cacheKey),
+    staleTime: TMDB_QUERY_STALE_TIME_MS,
+    initialData: () =>
+      cacheKey ? tmdbCache.getSync<MediaItem | null>(cacheKey) : undefined,
+  });
 
-    if (!enabled || !isTmdbEnabled() || !title?.trim() || !cacheKey) {
-      setMedia(null);
-      setLoading(false);
-      return;
-    }
-
-    const syncHit = tmdbCache.getSync<MediaItem | null>(cacheKey);
-    if (syncHit !== undefined) {
-      setMedia(syncHit);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-
-    const fetchMatch = async () => {
-      const cached = await tmdbCache.get<MediaItem | null>(cacheKey);
-      if (cancelled) {
-        return;
-      }
-      if (cached !== undefined) {
-        setMedia(cached);
-        setLoading(false);
-        return;
-      }
-
-      const result =
-        type === 'movie'
-          ? await searchMovie(title, year)
-          : await searchTv(title, year);
-
-      if (!cancelled) {
-        setMedia(result);
-        setLoading(false);
-      }
-    };
-
-    fetchMatch();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [cacheKey, enabled, title, type, year]);
-
-  return { media, loading };
+  return {
+    media: query.data ?? null,
+    loading: query.isFetching && query.data === undefined,
+  };
 }
 
 export function useTmdbDetails({
@@ -117,9 +102,6 @@ export function useTmdbDetails({
   type,
   enabled = true,
 }: UseTmdbDetailsOptions): UseTmdbDetailsResult {
-  const [details, setDetails] = useState<MediaDetails | null>(null);
-  const [loading, setLoading] = useState(false);
-
   const cacheKey = useMemo(() => {
     if (!id) {
       return null;
@@ -127,50 +109,45 @@ export function useTmdbDetails({
     return buildDetailsCacheKey(type, id);
   }, [id, type]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const query = useQuery({
+    queryKey: ['tmdb', 'details', cacheKey],
+    queryFn: () =>
+      type === 'movie' ? getMovieDetails(id ?? '') : getTvDetails(id ?? ''),
+    enabled: Boolean(enabled && isTmdbEnabled() && id && cacheKey),
+    staleTime: TMDB_QUERY_STALE_TIME_MS,
+    initialData: () =>
+      cacheKey ? tmdbCache.getSync<MediaDetails | null>(cacheKey) : undefined,
+  });
 
-    if (!enabled || !isTmdbEnabled() || !id || !cacheKey) {
-      setDetails(null);
-      setLoading(false);
-      return;
+  return {
+    details: query.data ?? null,
+    loading: query.isFetching && query.data === undefined,
+  };
+}
+
+export function useTmdbSeasonEpisodes({
+  tvId,
+  season,
+  enabled = true,
+}: UseTmdbSeasonEpisodesOptions): UseTmdbSeasonEpisodesResult {
+  const cacheKey = useMemo(() => {
+    if (!tvId || !season) {
+      return null;
     }
+    return buildSeasonCacheKey(tvId, season);
+  }, [tvId, season]);
 
-    const syncHit = tmdbCache.getSync<MediaDetails | null>(cacheKey);
-    if (syncHit !== undefined) {
-      setDetails(syncHit);
-      setLoading(false);
-      return;
-    }
+  const query = useQuery({
+    queryKey: ['tmdb', 'season', cacheKey],
+    queryFn: () => getSeasonEpisodes(tvId ?? '', season ?? 0),
+    enabled: Boolean(enabled && isTmdbEnabled() && tvId && season && cacheKey),
+    staleTime: TMDB_QUERY_STALE_TIME_MS,
+    initialData: () =>
+      cacheKey ? tmdbCache.getSync<SeasonEpisode[] | null>(cacheKey) : undefined,
+  });
 
-    setLoading(true);
-
-    const fetchDetails = async () => {
-      const cached = await tmdbCache.get<MediaDetails | null>(cacheKey);
-      if (cancelled) {
-        return;
-      }
-      if (cached !== undefined) {
-        setDetails(cached);
-        setLoading(false);
-        return;
-      }
-
-      const result =
-        type === 'movie' ? await getMovieDetails(id) : await getTvDetails(id);
-
-      if (!cancelled) {
-        setDetails(result);
-        setLoading(false);
-      }
-    };
-
-    fetchDetails();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [cacheKey, enabled, id, type]);
-
-  return { details, loading };
+  return {
+    episodes: query.data ?? [],
+    loading: query.isFetching && query.data === undefined,
+  };
 }
