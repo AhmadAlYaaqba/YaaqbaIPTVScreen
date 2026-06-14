@@ -1,5 +1,4 @@
-// src/screens/SettingsScreen.tsx
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,24 +8,91 @@ import {
   TouchableOpacity,
   Alert,
   SafeAreaView,
-  ImageBackground,
+  Platform,
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import * as Keychain from 'react-native-keychain';
-import { RootState, AppDispatch } from '../store';
-import { setUseVlcPlayer, setUserCredentials, clearUserCredentials } from '../store/slices/userSlice';
+import LinearGradient from 'react-native-linear-gradient';
+import Svg, {
+  Defs,
+  Mask,
+  Path,
+  Pattern,
+  RadialGradient as SvgRadialGradient,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 
-const backgroundImage = require('../assets/background-image-mobile.png');
+import { RootState, AppDispatch } from '../store';
+import {
+  clearUserCredentials,
+  setUseVlcPlayer,
+} from '../store/slices/userSlice';
+import { colors, gradients, radii } from '../theme/colors';
+import AmbientGlow from '../components/mirror/AmbientGlow';
+
+const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
+const SWITCH_TRACK = {
+  false: 'rgba(255,255,255,0.14)',
+  true: colors.indigo,
+};
+const GRADIENT_START = { x: 0, y: 0 };
+const GRADIENT_END = { x: 1, y: 1 };
+
+type StoredPreference = {
+  useVLC?: boolean;
+  useProxy?: boolean;
+};
+
+function GridBg() {
+  return (
+    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Defs>
+        <Pattern
+          id="settings-grid"
+          width={32}
+          height={32}
+          patternUnits="userSpaceOnUse"
+        >
+          <Path
+            d="M 32 0 L 0 0 0 32"
+            fill="none"
+            stroke="rgba(255,255,255,0.04)"
+            strokeWidth={1}
+          />
+        </Pattern>
+        <SvgRadialGradient id="settings-grid-fade" cx="50%" cy="18%" r="62%">
+          <Stop offset="28%" stopColor="#fff" stopOpacity={1} />
+          <Stop offset="78%" stopColor="#fff" stopOpacity={0} />
+        </SvgRadialGradient>
+        <Mask id="settings-grid-mask">
+          <Rect
+            x="0"
+            y="0"
+            width="100%"
+            height="100%"
+            fill="url(#settings-grid-fade)"
+          />
+        </Mask>
+      </Defs>
+      <Rect
+        x="0"
+        y="0"
+        width="100%"
+        height="100%"
+        fill="url(#settings-grid)"
+        mask="url(#settings-grid-mask)"
+      />
+    </Svg>
+  );
+}
 
 const SettingsScreen: React.FC<any> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { useVLC, useProxy, showMoviesSlider, showSeriesSlider } = useSelector((state: RootState) => state.user);
+  const { useVLC, useProxy } = useSelector((state: RootState) => state.user);
 
-  const handleTogglePlayer = async (value: boolean) => {
-    dispatch(setUseVlcPlayer({ useVLC: value }));
-
-    // Persist to Keychain
+  const persistPreference = useCallback(async (next: StoredPreference) => {
     try {
       const creds = await Keychain.getGenericPassword({
         service: 'my-iptv-credentials',
@@ -35,76 +101,32 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
         const parsed = JSON.parse(creds.password);
         await Keychain.setGenericPassword(
           'xtream-creds',
-          JSON.stringify({ ...parsed, useVLC: value }),
+          JSON.stringify({ ...parsed, ...next }),
           { service: 'my-iptv-credentials' },
         );
       }
     } catch (error) {
-      if (__DEV__) console.error('Error saving player preference:', error);
+      if (__DEV__) console.error('Error saving settings preference:', error);
     }
-  };
+  }, []);
 
-  const handleToggleProxy = async (value: boolean) => {
-    dispatch(setUseVlcPlayer({ useProxy: value }));
+  const handleTogglePlayer = useCallback(
+    async (value: boolean) => {
+      dispatch(setUseVlcPlayer({ useVLC: value }));
+      await persistPreference({ useVLC: value });
+    },
+    [dispatch, persistPreference],
+  );
 
-    try {
-      const creds = await Keychain.getGenericPassword({
-        service: 'my-iptv-credentials',
-      });
-      if (creds) {
-        const parsed = JSON.parse(creds.password);
-        await Keychain.setGenericPassword(
-          'xtream-creds',
-          JSON.stringify({ ...parsed, useProxy: value }),
-          { service: 'my-iptv-credentials' },
-        );
-      }
-    } catch (error) {
-      if (__DEV__) console.error('Error saving proxy preference:', error);
-    }
-  };
+  const handleToggleProxy = useCallback(
+    async (value: boolean) => {
+      dispatch(setUseVlcPlayer({ useProxy: value }));
+      await persistPreference({ useProxy: value });
+    },
+    [dispatch, persistPreference],
+  );
 
-  const handleToggleMoviesSlider = async (value: boolean) => {
-    dispatch(setUserCredentials({ showMoviesSlider: value }));
-
-    try {
-      const creds = await Keychain.getGenericPassword({
-        service: 'my-iptv-credentials',
-      });
-      if (creds) {
-        const parsed = JSON.parse(creds.password);
-        await Keychain.setGenericPassword(
-          'xtream-creds',
-          JSON.stringify({ ...parsed, showMoviesSlider: value }),
-          { service: 'my-iptv-credentials' },
-        );
-      }
-    } catch (error) {
-      if (__DEV__) console.error('Error saving movies slider preference:', error);
-    }
-  };
-
-  const handleToggleSeriesSlider = async (value: boolean) => {
-    dispatch(setUserCredentials({ showSeriesSlider: value }));
-
-    try {
-      const creds = await Keychain.getGenericPassword({
-        service: 'my-iptv-credentials',
-      });
-      if (creds) {
-        const parsed = JSON.parse(creds.password);
-        await Keychain.setGenericPassword(
-          'xtream-creds',
-          JSON.stringify({ ...parsed, showSeriesSlider: value }),
-          { service: 'my-iptv-credentials' },
-        );
-      }
-    } catch (error) {
-      if (__DEV__) console.error('Error saving series slider preference:', error);
-    }
-  };
-
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -128,248 +150,309 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
         },
       ],
     );
-  };
+  }, [dispatch, navigation]);
 
   return (
-    <ImageBackground
-      source={backgroundImage}
-      style={styles.backgroundImage}
-      resizeMode="cover"
-    >
-      <SafeAreaView style={styles.container}>
+    <View style={styles.root}>
+      <AmbientGlow />
+      <GridBg />
+      <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <FontAwesome5 name="arrow-left" size={18} color="#fff" />
+          <TouchableOpacity
+            style={styles.backBtn}
+            activeOpacity={0.75}
+            onPress={() =>
+              navigation.canGoBack()
+                ? navigation.goBack()
+                : navigation.navigate('Home')
+            }
+          >
+            <FontAwesome5 name="chevron-left" size={17} color={colors.fg} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Settings</Text>
-          <View style={{ width: 18 }} />
+          <View style={styles.headerCopy}>
+            <Text style={styles.eyebrow}>SETTINGS</Text>
+            <Text style={styles.headerTitle}>Playback setup</Text>
+          </View>
+          <View style={styles.headerSpacer} />
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Account Section */}
-          {/* <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Account</Text>
-            <View style={styles.card}>
-              <View style={styles.row}>
-                <FontAwesome5 name="user" size={16} color="#4A90E2" />
-                <Text style={styles.rowLabel}>Username</Text>
-                <Text style={styles.rowValue}>{username || 'Not logged in'}</Text>
-              </View>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.heroCard}>
+            <LinearGradient
+              colors={['rgba(139,123,255,0.12)', 'rgba(14,20,40,0.34)']}
+              start={GRADIENT_START}
+              end={GRADIENT_END}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+            <View style={styles.heroIcon}>
+              <LinearGradient
+                colors={gradients.triad as unknown as string[]}
+                start={GRADIENT_START}
+                end={GRADIENT_END}
+                style={StyleSheet.absoluteFill}
+              />
+              <FontAwesome5 name="sliders-h" size={18} color={colors.fg} />
             </View>
-          </View> */}
-
-          {/* App Preferences Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>App Preferences</Text>
-            <View style={styles.card}>
-              <View style={styles.row}>
-                <FontAwesome5 name="film" size={16} color="#4A90E2" />
-                <View style={styles.rowContent}>
-                  <Text style={styles.rowLabel}>Show Featured Movies</Text>
-                  <Text style={styles.rowHint}>
-                    Display the auto-playing slider on the Movies screen
-                  </Text>
-                </View>
-                <Switch
-                  value={showMoviesSlider}
-                  onValueChange={handleToggleMoviesSlider}
-                  trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#4A90E2' }}
-                  thumbColor={showMoviesSlider ? '#fff' : '#A0ABC0'}
-                />
-              </View>
-              <View style={[styles.row, { marginTop: 16 }]}>
-                <FontAwesome5 name="tv" size={16} color="#4A90E2" />
-                <View style={styles.rowContent}>
-                  <Text style={styles.rowLabel}>Show Featured Series</Text>
-                  <Text style={styles.rowHint}>
-                    Display the auto-playing slider on the Series screen
-                  </Text>
-                </View>
-                <Switch
-                  value={showSeriesSlider}
-                  onValueChange={handleToggleSeriesSlider}
-                  trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#4A90E2' }}
-                  thumbColor={showSeriesSlider ? '#fff' : '#A0ABC0'}
-                />
-              </View>
+            <View style={styles.heroCopy}>
+              <Text style={styles.heroTitle}>Stream controls</Text>
+              <Text style={styles.heroText}>
+                Tune playback compatibility and connection routing for this
+                device.
+              </Text>
             </View>
           </View>
 
-          {/* Player Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Video Player</Text>
-            <View style={styles.card}>
+            <Text style={styles.sectionTitle}>VIDEO PLAYER</Text>
+            <View style={styles.settingCard}>
               <View style={styles.row}>
-                <FontAwesome5 name="play-circle" size={16} color="#4A90E2" />
+                <View style={styles.playerIconTile}>
+                  <FontAwesome5
+                    name="play-circle"
+                    size={17}
+                    color={colors.indigo}
+                  />
+                </View>
                 <View style={styles.rowContent}>
                   <Text style={styles.rowLabel}>Use VLC Player</Text>
                   <Text style={styles.rowHint}>
-                    VLC may provide better compatibility for some streams
+                    Better compatibility for streams that fail in the default
+                    player.
                   </Text>
                 </View>
                 <Switch
                   value={useVLC}
                   onValueChange={handleTogglePlayer}
-                  trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#4A90E2' }}
-                  thumbColor={useVLC ? '#fff' : '#A0ABC0'}
+                  trackColor={SWITCH_TRACK}
+                  thumbColor={useVLC ? colors.fg : colors.fgSubtle}
+                  ios_backgroundColor="rgba(255,255,255,0.14)"
                 />
               </View>
             </View>
-            <Text style={styles.disclaimer}>
-              Note: If you experience playback issues, try switching players.
-            </Text>
           </View>
 
-          {/* Network Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Network</Text>
-            <View style={styles.card}>
+            <Text style={styles.sectionTitle}>PROXY</Text>
+            <View style={styles.settingCard}>
               <View style={styles.row}>
-                <FontAwesome5 name="shield-alt" size={16} color="#4CAF50" />
+                <View style={styles.proxyIconTile}>
+                  <FontAwesome5 name="shield-alt" size={16} color={colors.cyan} />
+                </View>
                 <View style={styles.rowContent}>
                   <Text style={styles.rowLabel}>Use HTTP Proxy</Text>
                   <Text style={styles.rowHint}>
-                    Route all traffic through HTTPS proxy. Disable if you experience connection issues.
+                    Route API and stream traffic through the configured proxy.
                   </Text>
                 </View>
                 <Switch
                   value={useProxy}
                   onValueChange={handleToggleProxy}
-                  trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#4CAF50' }}
-                  thumbColor={useProxy ? '#fff' : '#A0ABC0'}
+                  trackColor={SWITCH_TRACK}
+                  thumbColor={useProxy ? colors.fg : colors.fgSubtle}
+                  ios_backgroundColor="rgba(255,255,255,0.14)"
                 />
               </View>
             </View>
           </View>
 
-          {/* Actions Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Actions</Text>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <FontAwesome5 name="sign-out-alt" size={16} color="#fff" />
+          <View style={styles.actionSection}>
+            <TouchableOpacity
+              style={styles.logoutButton}
+              activeOpacity={0.82}
+              onPress={handleLogout}
+            >
+              <FontAwesome5
+                name="sign-out-alt"
+                size={16}
+                color={colors.danger}
+              />
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
           </View>
-
-          {/* App Info */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>ScreenIPTV v1.0.0</Text>
-            <Text style={styles.footerText}>© 2025 ScreenIPTV</Text>
-          </View>
         </ScrollView>
       </SafeAreaView>
-    </ImageBackground>
+    </View>
   );
 };
 
 export default SettingsScreen;
 
-const HEADER_HEIGHT = 32;
-
 const styles = StyleSheet.create({
-  backgroundImage: {
+  root: {
     flex: 1,
-    width: '100%',
-    height: '100%',
+    backgroundColor: colors.bg,
   },
-  container: {
+  safe: {
     flex: 1,
-    backgroundColor: 'transparent',
-    paddingTop: HEADER_HEIGHT + 8,
   },
   header: {
-    top: 0,
-    left: 0,
-    right: 0,
-    height: HEADER_HEIGHT,
-    backgroundColor: 'transparent',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCopy: {
+    alignItems: 'center',
+  },
+  eyebrow: {
+    fontFamily: FONT,
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 1.8,
+    color: colors.indigo,
   },
   headerTitle: {
-    color: '#fff',
+    fontFamily: FONT,
+    color: colors.fg,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  headerSpacer: {
+    width: 44,
+    height: 44,
   },
   content: {
     flex: 1,
   },
+  scrollContent: {
+    paddingTop: 20,
+    paddingBottom: 120,
+  },
+  heroCard: {
+    marginHorizontal: 20,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.panel,
+    padding: 18,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  heroIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  heroCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  heroTitle: {
+    fontFamily: FONT,
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.fg,
+  },
+  heroText: {
+    fontFamily: FONT,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.fgMuted,
+    marginTop: 4,
+  },
   section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
+    marginTop: 22,
+    paddingHorizontal: 20,
   },
   sectionTitle: {
+    fontFamily: FONT,
     fontSize: 13,
     fontWeight: '700',
-    color: '#A0ABC0',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: colors.fgSubtle,
+    marginBottom: 10,
+    letterSpacing: 1.3,
   },
-  card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 16,
+  settingCard: {
+    backgroundColor: colors.panel,
+    borderRadius: radii.card,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: colors.border,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+  },
+  playerIconTile: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: 'rgba(139,123,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(139,123,255,0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  proxyIconTile: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: 'rgba(34,211,238,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(34,211,238,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   rowContent: {
     flex: 1,
-    marginLeft: 12,
+    minWidth: 0,
   },
   rowLabel: {
-    flex: 1,
+    fontFamily: FONT,
     fontSize: 16,
-    color: '#fff',
-    marginLeft: 12,
-    fontWeight: '500',
-  },
-  rowValue: {
-    fontSize: 14,
-    color: '#A0ABC0',
+    color: colors.fg,
+    fontWeight: '700',
   },
   rowHint: {
+    fontFamily: FONT,
     fontSize: 12,
-    color: '#A0ABC0',
+    lineHeight: 17,
+    color: colors.fgMuted,
     marginTop: 4,
   },
-  disclaimer: {
-    fontSize: 12,
-    color: '#A0ABC0',
-    marginTop: 8,
-    fontStyle: 'italic',
-    paddingHorizontal: 4,
+  actionSection: {
+    marginTop: 30,
+    paddingHorizontal: 20,
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(229, 57, 53, 0.2)', // translucent red
-    borderRadius: 12,
+    backgroundColor: 'rgba(239,68,68,0.09)',
+    borderRadius: radii.lg,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(229, 57, 53, 0.5)',
+    borderColor: 'rgba(239,68,68,0.34)',
+    gap: 8,
   },
   logoutText: {
-    color: '#F87171', // lighter red text for dark mode
+    fontFamily: FONT,
+    color: colors.danger,
     fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  footer: {
-    alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 40,
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#A0ABC0',
-    marginTop: 4,
+    fontWeight: '700',
   },
 });

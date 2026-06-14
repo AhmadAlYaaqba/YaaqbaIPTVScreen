@@ -8,8 +8,6 @@ interface UserState {
   serverPort: string;
   useVLC: boolean;
   useProxy: boolean;
-  showMoviesSlider: boolean;
-  showSeriesSlider: boolean;
   // Potentially more fields:
   // token?: string;
   // isLoggedIn?: boolean;
@@ -22,8 +20,6 @@ const initialState: UserState = {
   serverPort: '',
   useVLC: true,
   useProxy: true,
-  showMoviesSlider: true,
-  showSeriesSlider: true,
 };
 
 export const userSlice = createSlice({
@@ -37,7 +33,7 @@ export const userSlice = createSlice({
         ...action.payload,
       };
     },
-    clearUserCredentials: state => {
+    clearUserCredentials: () => {
       return initialState;
     },
     setUseVlcPlayer: (state, action: PayloadAction<Partial<UserState>>) => {
