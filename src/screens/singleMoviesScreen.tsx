@@ -19,6 +19,7 @@ import {
   Alert,
   SafeAreaView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
 import LinearGradient from 'react-native-linear-gradient';
@@ -37,6 +38,7 @@ import { buildMovieStreamUrl } from '../utils/xtream';
 import { colors, sectionAccents, radii } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 import CategoryDropdown from '../components/mirror/CategoryDropdown';
+import { useTmdbDetails, useTmdbMatch } from '../hooks/useTmdbMatch';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
@@ -64,12 +66,33 @@ const MoviePoster = React.memo(
     useProxy: boolean;
     progressPercent: number;
   }) => {
-    const raw = item.stream_icon?.trim();
-    const uri = raw ? proxyStreamUrl(raw, useProxy) : null;
-    const ratingRaw = parseFloat(item.rating);
-    const rating = !Number.isNaN(ratingRaw) && ratingRaw > 0 ? ratingRaw : null;
-    const year =
+    const xtreamYear =
       item.year && /^\d{4}$/.test(String(item.year)) ? String(item.year) : null;
+
+    const raw = item.stream_icon?.trim();
+    const xtreamUri = raw ? proxyStreamUrl(raw, useProxy) : null;
+
+    // Only hit TMDB for items that lack Xtream artwork — avoids flooding
+    // TMDB with one search per visible row when the provider already has art.
+    const { media: tmdbMedia } = useTmdbMatch({
+      title: item.name,
+      year: xtreamYear ? parseInt(xtreamYear, 10) : undefined,
+      type: 'movie',
+      enabled: !xtreamUri,
+    });
+
+    const posterUri = xtreamUri || tmdbMedia?.poster || null;
+
+    const ratingRaw = parseFloat(item.rating);
+    const xtreamRating =
+      !Number.isNaN(ratingRaw) && ratingRaw > 0 ? ratingRaw : null;
+    const rating = xtreamRating ?? tmdbMedia?.rating ?? null;
+
+    const year =
+      xtreamYear ||
+      (tmdbMedia?.releaseDate
+        ? tmdbMedia.releaseDate.substring(0, 4)
+        : null);
 
     return (
       <TouchableOpacity
@@ -78,10 +101,10 @@ const MoviePoster = React.memo(
         activeOpacity={0.85}
       >
         <View style={styles.poster}>
-          {uri ? (
+          {posterUri ? (
             <FastImage
               style={StyleSheet.absoluteFill}
-              source={{ uri, priority: FastImage.priority.normal }}
+              source={{ uri: posterUri, priority: FastImage.priority.normal }}
               resizeMode={FastImage.resizeMode.cover}
             />
           ) : (
@@ -363,6 +386,53 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
     </View>
   );
 
+  const addedDate = selectedMovie?.added
+    ? new Date(Number(selectedMovie.added) * 1000).toLocaleDateString()
+    : '';
+  const selRating = selectedMovie ? parseFloat(selectedMovie.rating) : NaN;
+
+  const selectedYear =
+    selectedMovie?.year && /^\d{4}$/.test(String(selectedMovie.year))
+      ? parseInt(String(selectedMovie.year), 10)
+      : undefined;
+  const { media: selectedTmdbMatch } = useTmdbMatch({
+    title: selectedMovie?.name,
+    year: selectedYear,
+    type: 'movie',
+    enabled: Boolean(selectedMovie),
+  });
+  const { details: selectedTmdbDetails } = useTmdbDetails({
+    id: selectedTmdbMatch?.id,
+    type: 'movie',
+    enabled: Boolean(selectedTmdbMatch?.id),
+  });
+
+  const modalPosterUri =
+    (selectedMovie?.stream_icon
+      ? proxyStreamUrl(selectedMovie.stream_icon.trim(), useProxy)
+      : null) ||
+    selectedTmdbDetails?.poster ||
+    selectedTmdbMatch?.poster ||
+    null;
+  const modalBackdropUri =
+    selectedTmdbDetails?.backdrop || selectedTmdbMatch?.backdrop || null;
+  const modalRating =
+    (!Number.isNaN(selRating) && selRating > 0 ? selRating : null) ??
+    selectedTmdbDetails?.rating ??
+    selectedTmdbMatch?.rating ??
+    null;
+  const modalOverview =
+    selectedTmdbDetails?.overview || selectedTmdbMatch?.overview || null;
+  const modalGenres = selectedTmdbDetails?.genres ?? [];
+  const modalCast = selectedTmdbDetails?.cast ?? [];
+  const modalReleaseYear =
+    selectedYear ||
+    (selectedTmdbDetails?.releaseDate
+      ? selectedTmdbDetails.releaseDate.substring(0, 4)
+      : selectedTmdbMatch?.releaseDate
+        ? selectedTmdbMatch.releaseDate.substring(0, 4)
+        : null);
+
   // ---------- render ---------- //
   if (loadingCategories || !activeCategory) {
     return (
@@ -391,11 +461,6 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
       </View>
     );
   }
-
-  const addedDate = selectedMovie?.added
-    ? new Date(Number(selectedMovie.added) * 1000).toLocaleDateString()
-    : '';
-  const selRating = selectedMovie ? parseFloat(selectedMovie.rating) : NaN;
 
   return (
     <View style={styles.root}>
@@ -449,14 +514,20 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
                   <FontAwesome5 name="times" size={16} color={colors.fg} />
                 </TouchableOpacity>
 
-                {selectedMovie.stream_icon ? (
+                {modalBackdropUri ? (
                   <FastImage
                     style={styles.modalPoster}
                     source={{
-                      uri: proxyStreamUrl(
-                        selectedMovie.stream_icon.trim(),
-                        useProxy,
-                      ),
+                      uri: modalBackdropUri,
+                      priority: FastImage.priority.high,
+                    }}
+                    resizeMode={FastImage.resizeMode.cover}
+                  />
+                ) : modalPosterUri ? (
+                  <FastImage
+                    style={styles.modalPoster}
+                    source={{
+                      uri: modalPosterUri,
                       priority: FastImage.priority.high,
                     }}
                     resizeMode={FastImage.resizeMode.cover}
@@ -470,7 +541,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
                 <View style={styles.modalBody}>
                   <Text style={styles.modalTitle}>{selectedMovie.name}</Text>
                   <View style={styles.modalMetaRow}>
-                    {!Number.isNaN(selRating) && selRating > 0 && (
+                    {modalRating != null && (
                       <>
                         <FontAwesome5
                           name="star"
@@ -480,19 +551,76 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
                         />
                         <Text style={styles.modalMetaText}>
                           {' '}
-                          {selRating.toFixed(1)}
+                          {modalRating.toFixed(1)}
+                        </Text>
+                      </>
+                    )}
+                    {!!modalReleaseYear && (
+                      <>
+                        {modalRating != null && (
+                          <Text style={styles.modalMetaDot}>·</Text>
+                        )}
+                        <Text style={styles.modalMetaText}>
+                          {modalReleaseYear}
                         </Text>
                       </>
                     )}
                     {!!addedDate && (
                       <>
-                        {!Number.isNaN(selRating) && selRating > 0 && (
+                        {(modalRating != null || !!modalReleaseYear) && (
                           <Text style={styles.modalMetaDot}>·</Text>
                         )}
                         <Text style={styles.modalMetaText}>{addedDate}</Text>
                       </>
                     )}
                   </View>
+
+                  {modalGenres.length > 0 && (
+                    <View style={styles.genreRow}>
+                      {modalGenres.map(genre => (
+                        <View key={genre} style={styles.genreChip}>
+                          <Text style={styles.genreText}>{genre}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {!!modalOverview && (
+                    <Text style={styles.modalOverview}>{modalOverview}</Text>
+                  )}
+
+                  {modalCast.length > 0 && (
+                    <View style={styles.castSection}>
+                      <Text style={styles.castHeader}>Cast</Text>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.castRow}
+                      >
+                        {modalCast.map(member => (
+                          <View key={member.id} style={styles.castChip}>
+                            {member.profile ? (
+                              <FastImage
+                                source={{ uri: member.profile }}
+                                style={styles.castAvatar}
+                              />
+                            ) : (
+                              <View style={styles.castAvatarPlaceholder}>
+                                <FontAwesome5
+                                  name="user"
+                                  size={14}
+                                  color={colors.fgSubtle}
+                                />
+                              </View>
+                            )}
+                            <Text style={styles.castName} numberOfLines={1}>
+                              {member.name}
+                            </Text>
+                          </View>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
                 </View>
 
                 <TouchableOpacity
@@ -746,6 +874,73 @@ const styles = StyleSheet.create({
   modalMetaDot: {
     color: colors.fgSubtle,
     marginHorizontal: 8,
+  },
+  modalOverview: {
+    fontFamily: FONT,
+    color: colors.fgMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 12,
+  },
+  genreRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  genreChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  genreText: {
+    fontFamily: FONT,
+    fontSize: 11,
+    color: colors.fgMuted,
+  },
+  castSection: {
+    marginTop: 16,
+  },
+  castHeader: {
+    fontFamily: FONT,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.fg,
+    marginBottom: 8,
+  },
+  castRow: {
+    gap: 10,
+    paddingRight: 8,
+  },
+  castChip: {
+    width: 72,
+    alignItems: 'center',
+  },
+  castAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+  },
+  castAvatarPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  castName: {
+    fontFamily: FONT,
+    fontSize: 10,
+    color: colors.fgMuted,
+    marginTop: 6,
+    textAlign: 'center',
   },
   playButton: {
     flexDirection: 'row',

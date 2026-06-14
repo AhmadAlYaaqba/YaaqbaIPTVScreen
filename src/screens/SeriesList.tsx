@@ -29,6 +29,7 @@ import { proxyStreamUrl } from '../utils/proxy';
 import { colors, sectionAccents, radii } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 import CategoryDropdown from '../components/mirror/CategoryDropdown';
+import { useTmdbMatch } from '../hooks/useTmdbMatch';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
@@ -54,13 +55,34 @@ const SeriesPoster = React.memo(
     onPress: () => void;
     useProxy: boolean;
   }) => {
-    const raw = item.cover?.trim();
-    const uri = raw ? proxyStreamUrl(raw, useProxy) : null;
-    const ratingRaw = parseFloat(item.rating ?? item.rating_5based);
-    const rating = !Number.isNaN(ratingRaw) && ratingRaw > 0 ? ratingRaw : null;
     const yearSrc = item.year || item.releaseDate || item.release_date;
     const yearMatch = yearSrc ? String(yearSrc).match(/\d{4}/) : null;
-    const year = yearMatch ? yearMatch[0] : null;
+    const xtreamYear = yearMatch ? parseInt(yearMatch[0], 10) : undefined;
+
+    const raw = item.cover?.trim();
+    const xtreamUri = raw ? proxyStreamUrl(raw, useProxy) : null;
+
+    // Only hit TMDB for items that lack Xtream artwork — avoids flooding
+    // TMDB with one search per visible row when the provider already has art.
+    const { media: tmdbMedia } = useTmdbMatch({
+      title: item.name,
+      year: xtreamYear,
+      type: 'series',
+      enabled: !xtreamUri,
+    });
+
+    const posterUri = xtreamUri || tmdbMedia?.poster || null;
+
+    const ratingRaw = parseFloat(item.rating ?? item.rating_5based);
+    const xtreamRating =
+      !Number.isNaN(ratingRaw) && ratingRaw > 0 ? ratingRaw : null;
+    const rating = xtreamRating ?? tmdbMedia?.rating ?? null;
+
+    const year =
+      yearMatch?.[0] ||
+      (tmdbMedia?.releaseDate
+        ? tmdbMedia.releaseDate.substring(0, 4)
+        : null);
 
     return (
       <TouchableOpacity
@@ -69,10 +91,10 @@ const SeriesPoster = React.memo(
         activeOpacity={0.85}
       >
         <View style={styles.poster}>
-          {uri ? (
+          {posterUri ? (
             <FastImage
               style={StyleSheet.absoluteFill}
-              source={{ uri, priority: FastImage.priority.normal }}
+              source={{ uri: posterUri, priority: FastImage.priority.normal }}
               resizeMode={FastImage.resizeMode.cover}
             />
           ) : (

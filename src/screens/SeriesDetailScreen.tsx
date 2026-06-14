@@ -24,6 +24,9 @@ import { fetchSeriesInfo } from '../store/slices/iptvSlice';
 import { storage } from '../utils/storage';
 import { proxyStreamUrl } from '../utils/proxy';
 import { buildSeriesStreamUrl } from '../utils/xtream';
+import { useTmdbDetails, useTmdbMatch } from '../hooks/useTmdbMatch';
+import { getSeasonEpisodes } from '../services/tmdb';
+import { SeasonEpisode, CastMember } from '../types/media';
 import { colors, sectionAccents, radii } from '../theme/colors';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
@@ -92,6 +95,21 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [seasonOpen, setSeasonOpen] = useState(false);
+  const [seasonEpisodes, setSeasonEpisodes] = useState<SeasonEpisode[]>([]);
+
+  const xtreamYear = baseInfo?.releaseDate
+    ? String(baseInfo.releaseDate).substring(0, 4)
+    : undefined;
+  const { media: tmdbMatch } = useTmdbMatch({
+    title: seriesName,
+    year: xtreamYear ? parseInt(xtreamYear, 10) : undefined,
+    type: 'series',
+  });
+  const { details: tmdbDetails } = useTmdbDetails({
+    id: tmdbMatch?.id,
+    type: 'series',
+    enabled: Boolean(tmdbMatch?.id),
+  });
 
   useEffect(() => {
     navigation.setOptions({ title: seriesName });
@@ -116,6 +134,34 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   useEffect(() => {
     if (seasons.length && !selectedSeason) setSelectedSeason(seasons[0]);
   }, [seasons]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSeasonEpisodes = async () => {
+      if (!tmdbMatch?.id || !selectedSeason) {
+        setSeasonEpisodes([]);
+        return;
+      }
+
+      const seasonNumber = parseInt(selectedSeason, 10);
+      if (Number.isNaN(seasonNumber)) {
+        setSeasonEpisodes([]);
+        return;
+      }
+
+      const episodes = await getSeasonEpisodes(tmdbMatch.id, seasonNumber);
+      if (!cancelled) {
+        setSeasonEpisodes(episodes ?? []);
+      }
+    };
+
+    loadSeasonEpisodes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tmdbMatch?.id, selectedSeason]);
 
   const currentEpisodes = useMemo(
     () => (selectedSeason ? episodes[selectedSeason] || [] : []),
@@ -147,23 +193,87 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   );
 
   /* Data helpers */
-  const heroImg = info.backdrop_path?.[0] || info.cover;
-  const ratingRaw = parseFloat(info.rating_5based || info.rating);
+  const xtreamHeroImg = info.backdrop_path?.[0] || info.cover;
+  const heroImg =
+    (xtreamHeroImg ? proxyStreamUrl(xtreamHeroImg, useProxy) : null) ||
+    tmdbDetails?.backdrop ||
+    tmdbMatch?.backdrop ||
+    null;
+
+  const posterImg =
+    (info.cover ? proxyStreamUrl(info.cover, useProxy) : null) ||
+    tmdbDetails?.poster ||
+    tmdbMatch?.poster ||
+    null;
+
+  const xtreamRatingRaw = parseFloat(info.rating_5based || info.rating);
+  const ratingValue =
+    (!Number.isNaN(xtreamRatingRaw) && xtreamRatingRaw > 0
+      ? xtreamRatingRaw
+      : null) ??
+    tmdbDetails?.rating ??
+    tmdbMatch?.rating ??
+    null;
   const rating =
-    !Number.isNaN(ratingRaw) && ratingRaw > 0 ? ratingRaw.toFixed(1) : null;
-  const year = info.releaseDate?.substring(0, 4) || info.year || '';
-  const genres: string[] = info.genre
+    ratingValue != null ? ratingValue.toFixed(1) : null;
+
+  const year =
+    info.releaseDate?.substring(0, 4) ||
+    info.year ||
+    tmdbDetails?.releaseDate?.substring(0, 4) ||
+    tmdbMatch?.releaseDate?.substring(0, 4) ||
+    '';
+
+  const plot =
+    info.plot || tmdbDetails?.overview || tmdbMatch?.overview || '';
+
+  const xtreamGenres: string[] = info.genre
     ? String(info.genre)
         .split(/[,/|]/)
         .map((g: string) => g.trim())
         .filter(Boolean)
     : [];
-  const castArr: string[] = info.cast
+  const genres =
+    xtreamGenres.length > 0 ? xtreamGenres : tmdbDetails?.genres ?? [];
+
+  const xtreamCastArr: string[] = info.cast
     ? String(info.cast)
         .split(',')
         .map((n: string) => n.trim())
         .filter(Boolean)
     : [];
+  const castMembers: CastMember[] =
+    tmdbDetails?.cast?.length
+      ? tmdbDetails.cast
+      : xtreamCastArr.map((name, index) => ({
+          id: String(index),
+          name,
+        }));
+
+  const getEpisodeStill = (ep: any, index: number): string | null => {
+    const episodeNumber = ep.episode_num ?? ep.episode ?? index + 1;
+    const tmdbEpisode = seasonEpisodes.find(
+      item => item.episodeNumber === Number(episodeNumber),
+    );
+    if (tmdbEpisode?.still) {
+      return tmdbEpisode.still;
+    }
+    if (ep.info?.movie_image) {
+      return proxyStreamUrl(ep.info.movie_image, useProxy);
+    }
+    if (heroImg) {
+      return heroImg;
+    }
+    return null;
+  };
+
+  const getEpisodeSynopsis = (ep: any, index: number): string => {
+    const episodeNumber = ep.episode_num ?? ep.episode ?? index + 1;
+    const tmdbEpisode = seasonEpisodes.find(
+      item => item.episodeNumber === Number(episodeNumber),
+    );
+    return ep.info?.plot || tmdbEpisode?.overview || '';
+  };
 
   const playEpisode = (ep: any, index: number) => {
     if (!ep) return;
@@ -223,7 +333,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         <View style={styles.hero}>
           {heroImg ? (
             <FastImage
-              source={{ uri: proxyStreamUrl(heroImg, useProxy) }}
+              source={{ uri: heroImg }}
               style={StyleSheet.absoluteFill}
               resizeMode={FastImage.resizeMode.cover}
             />
@@ -251,9 +361,9 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           {/* poster + title */}
           <View style={styles.heroBottom}>
             <View style={styles.poster}>
-              {info.cover ? (
+              {posterImg ? (
                 <FastImage
-                  source={{ uri: proxyStreamUrl(info.cover, useProxy) }}
+                  source={{ uri: posterImg }}
                   style={StyleSheet.absoluteFill}
                   resizeMode={FastImage.resizeMode.cover}
                 />
@@ -326,13 +436,13 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         </View>
 
         {/* ── Description ── */}
-        {!!info.plot && (
+        {!!plot && (
           <View style={styles.descBlock}>
             <Text
               style={styles.descText}
               numberOfLines={expanded ? undefined : 3}
             >
-              {info.plot}
+              {plot}
             </Text>
             <TouchableOpacity
               activeOpacity={0.7}
@@ -346,7 +456,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         )}
 
         {/* ── Cast ── */}
-        {castArr.length > 0 && (
+        {castMembers.length > 0 && (
           <View style={styles.castBlock}>
             <Text style={styles.sectionEyebrow}>CAST</Text>
             <ScrollView
@@ -354,13 +464,23 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.castScroll}
             >
-              {castArr.map((name, i) => (
-                <View key={`${name}-${i}`} style={styles.castItem}>
+              {castMembers.map(member => (
+                <View key={member.id} style={styles.castItem}>
                   <View style={styles.castAvatar}>
-                    <Text style={styles.castInitials}>{initials(name)}</Text>
+                    {member.profile ? (
+                      <FastImage
+                        source={{ uri: member.profile }}
+                        style={StyleSheet.absoluteFill}
+                        resizeMode={FastImage.resizeMode.cover}
+                      />
+                    ) : (
+                      <Text style={styles.castInitials}>
+                        {initials(member.name)}
+                      </Text>
+                    )}
                   </View>
                   <Text style={styles.castName} numberOfLines={2}>
-                    {name}
+                    {member.name}
                   </Text>
                 </View>
               ))}
@@ -452,8 +572,8 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                 p && p.totalDuration
                   ? Math.max(0, Math.min(100, (p.progress / p.totalDuration) * 100))
                   : 0;
-              const epImg = ep.info?.movie_image || heroImg;
-              const synopsis = ep.info?.plot;
+              const epImg = getEpisodeStill(ep, index);
+              const synopsis = getEpisodeSynopsis(ep, index);
               const rawDuration = ep.info?.duration;
               // Hide null/0/"00:00:00" durations — only show if it has a non-zero digit
               const duration =
@@ -472,7 +592,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   <View style={styles.epThumb}>
                     {epImg ? (
                       <FastImage
-                        source={{ uri: proxyStreamUrl(epImg, useProxy) }}
+                        source={{ uri: epImg }}
                         style={StyleSheet.absoluteFill}
                         resizeMode={FastImage.resizeMode.cover}
                       />
@@ -738,6 +858,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   castInitials: {
     fontFamily: MONO,
