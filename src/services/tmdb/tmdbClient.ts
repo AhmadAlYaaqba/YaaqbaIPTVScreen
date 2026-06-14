@@ -1,15 +1,15 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import {
-  TMDB_API_KEY,
   TMDB_BASE_URL,
   TMDB_IMAGE_BASE_URL,
 } from '@env';
+import { getStoredTmdbApiKey } from './tmdbSettings';
 
 const DEFAULT_BASE_URL = 'https://api.themoviedb.org/3';
 const DEFAULT_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
 
-export function isTmdbEnabled(): boolean {
-  return Boolean(TMDB_API_KEY?.trim());
+export async function isTmdbEnabled(): Promise<boolean> {
+  return Boolean((await getStoredTmdbApiKey())?.trim());
 }
 
 export function getTmdbImageBaseUrl(): string {
@@ -36,22 +36,26 @@ function getRetryAfterMs(error: AxiosError): number {
 }
 
 let clientInstance: AxiosInstance | null = null;
+let clientApiKey: string | null = null;
 
-export function getTmdbClient(): AxiosInstance | null {
-  if (!isTmdbEnabled()) {
+export async function getTmdbClient(): Promise<AxiosInstance | null> {
+  const apiKey = await getStoredTmdbApiKey();
+
+  if (!apiKey) {
     return null;
   }
 
-  if (!clientInstance) {
-    clientInstance = axios.create({
+  if (!clientInstance || clientApiKey !== apiKey) {
+    const instance = axios.create({
       baseURL: getTmdbBaseUrl(),
       timeout: 10000,
       params: {
-        api_key: TMDB_API_KEY,
+        api_key: apiKey,
       },
     });
+    clientApiKey = apiKey;
 
-    clientInstance.interceptors.response.use(
+    instance.interceptors.response.use(
       response => response,
       async error => {
         const axiosError = error as AxiosError;
@@ -66,7 +70,7 @@ export function getTmdbClient(): AxiosInstance | null {
         ) {
           config._retry = true;
           await sleep(getRetryAfterMs(axiosError));
-          return clientInstance!.request(config);
+          return instance.request(config);
         }
 
         if (__DEV__) {
@@ -80,6 +84,8 @@ export function getTmdbClient(): AxiosInstance | null {
         return Promise.reject(error);
       },
     );
+
+    clientInstance = instance;
   }
 
   return clientInstance;
@@ -89,7 +95,7 @@ export async function tmdbGet<T>(
   path: string,
   params?: Record<string, string | number | boolean | undefined>,
 ): Promise<T | null> {
-  const client = getTmdbClient();
+  const client = await getTmdbClient();
   if (!client) {
     return null;
   }

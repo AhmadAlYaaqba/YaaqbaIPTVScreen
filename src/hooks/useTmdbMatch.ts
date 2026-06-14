@@ -16,7 +16,6 @@ import {
   getMovieDetails,
   getSeasonEpisodes,
   getTvDetails,
-  isTmdbEnabled,
   searchMovie,
   searchTv,
 } from '../services/tmdb';
@@ -85,7 +84,7 @@ export function useTmdbMatch({
       type === 'movie'
         ? searchMovie(title ?? '', year)
         : searchTv(title ?? '', year),
-    enabled: Boolean(enabled && isTmdbEnabled() && title?.trim() && cacheKey),
+    enabled: Boolean(enabled && title?.trim() && cacheKey),
     staleTime: TMDB_QUERY_STALE_TIME_MS,
     initialData: () =>
       cacheKey ? tmdbCache.getSync<MediaItem | null>(cacheKey) : undefined,
@@ -113,7 +112,7 @@ export function useTmdbDetails({
     queryKey: ['tmdb', 'details', cacheKey],
     queryFn: () =>
       type === 'movie' ? getMovieDetails(id ?? '') : getTvDetails(id ?? ''),
-    enabled: Boolean(enabled && isTmdbEnabled() && id && cacheKey),
+    enabled: Boolean(enabled && id && cacheKey),
     staleTime: TMDB_QUERY_STALE_TIME_MS,
     initialData: () =>
       cacheKey ? tmdbCache.getSync<MediaDetails | null>(cacheKey) : undefined,
@@ -140,7 +139,7 @@ export function useTmdbSeasonEpisodes({
   const query = useQuery({
     queryKey: ['tmdb', 'season', cacheKey],
     queryFn: () => getSeasonEpisodes(tvId ?? '', season ?? 0),
-    enabled: Boolean(enabled && isTmdbEnabled() && tvId && season && cacheKey),
+    enabled: Boolean(enabled && tvId && season && cacheKey),
     staleTime: TMDB_QUERY_STALE_TIME_MS,
     initialData: () =>
       cacheKey ? tmdbCache.getSync<SeasonEpisode[] | null>(cacheKey) : undefined,

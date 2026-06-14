@@ -193,7 +193,7 @@ async function searchByType(
   query: string,
   year?: number,
 ): Promise<MediaItem | null> {
-  if (!isTmdbEnabled() || !query.trim()) {
+  if (!(await isTmdbEnabled()) || !query.trim()) {
     return null;
   }
 
@@ -244,7 +244,7 @@ export async function searchTv(
 }
 
 export async function getMovieDetails(id: string): Promise<MediaDetails | null> {
-  if (!isTmdbEnabled() || !id) {
+  if (!(await isTmdbEnabled()) || !id) {
     return null;
   }
 
@@ -258,7 +258,7 @@ export async function getMovieDetails(id: string): Promise<MediaDetails | null> 
 }
 
 export async function getTvDetails(id: string): Promise<MediaDetails | null> {
-  if (!isTmdbEnabled() || !id) {
+  if (!(await isTmdbEnabled()) || !id) {
     return null;
   }
 
@@ -275,7 +275,7 @@ export async function getSeasonEpisodes(
   tvId: string,
   season: number,
 ): Promise<SeasonEpisode[] | null> {
-  if (!isTmdbEnabled() || !tvId || !season) {
+  if (!(await isTmdbEnabled()) || !tvId || !season) {
     return null;
   }
 
@@ -291,7 +291,7 @@ export async function getSeasonEpisodes(
 export async function getTrending(
   mediaType: 'movie' | 'tv' = 'movie',
 ): Promise<MediaItem[]> {
-  if (!isTmdbEnabled()) {
+  if (!(await isTmdbEnabled())) {
     return [];
   }
 
@@ -314,7 +314,7 @@ export async function getTrending(
 }
 
 export async function getPopularMovies(): Promise<MediaItem[]> {
-  if (!isTmdbEnabled()) {
+  if (!(await isTmdbEnabled())) {
     return [];
   }
 
@@ -332,7 +332,7 @@ export async function getPopularMovies(): Promise<MediaItem[]> {
 }
 
 export async function getPopularTv(): Promise<MediaItem[]> {
-  if (!isTmdbEnabled()) {
+  if (!(await isTmdbEnabled())) {
     return [];
   }
 

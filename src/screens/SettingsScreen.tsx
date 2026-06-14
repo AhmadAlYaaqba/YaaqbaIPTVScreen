@@ -1,16 +1,19 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   View,
   Text,
   StyleSheet,
   Switch,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   Alert,
   SafeAreaView,
   Platform,
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
+import { useQueryClient } from '@tanstack/react-query';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import * as Keychain from 'react-native-keychain';
 import LinearGradient from 'react-native-linear-gradient';
@@ -31,6 +34,12 @@ import {
 } from '../store/slices/userSlice';
 import { colors, gradients, radii } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
+import TmdbLogo from '../components/TmdbLogo';
+import {
+  clearStoredTmdbApiKey,
+  getStoredTmdbApiKey,
+  saveStoredTmdbApiKey,
+} from '../services/tmdb/tmdbSettings';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const SWITCH_TRACK = {
@@ -90,7 +99,39 @@ function GridBg() {
 
 const SettingsScreen: React.FC<any> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
+  const queryClient = useQueryClient();
   const { useVLC, useProxy } = useSelector((state: RootState) => state.user);
+  const [tmdbApiKey, setTmdbApiKey] = useState('');
+  const [savedTmdbApiKey, setSavedTmdbApiKey] = useState<string | null>(null);
+  const [showTmdbApiKey, setShowTmdbApiKey] = useState(false);
+  const [isLoadingTmdbKey, setIsLoadingTmdbKey] = useState(true);
+  const [isSavingTmdbKey, setIsSavingTmdbKey] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    getStoredTmdbApiKey()
+      .then(apiKey => {
+        if (!mounted) {
+          return;
+        }
+        setSavedTmdbApiKey(apiKey);
+        setTmdbApiKey(apiKey ?? '');
+      })
+      .finally(() => {
+        if (mounted) {
+          setIsLoadingTmdbKey(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const hasTmdbApiKeyChanges = tmdbApiKey.trim() !== (savedTmdbApiKey ?? '');
+  const canSaveTmdbApiKey =
+    hasTmdbApiKeyChanges && !isLoadingTmdbKey && !isSavingTmdbKey;
 
   const persistPreference = useCallback(async (next: StoredPreference) => {
     try {
@@ -125,6 +166,62 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
     },
     [dispatch, persistPreference],
   );
+
+  const handleSaveTmdbApiKey = useCallback(async () => {
+    if (!tmdbApiKey.trim()) {
+      Alert.alert(
+        'TMDB API key',
+        'Enter your TMDB API key, or use Clear to remove the saved key.',
+      );
+      return;
+    }
+
+    try {
+      setIsSavingTmdbKey(true);
+      const savedKey = await saveStoredTmdbApiKey(tmdbApiKey);
+      setSavedTmdbApiKey(savedKey);
+      setTmdbApiKey(savedKey ?? '');
+      await queryClient.invalidateQueries({ queryKey: ['tmdb'] });
+      Alert.alert('TMDB API key saved', 'TMDB metadata is enabled on this device.');
+    } catch (error) {
+      if (__DEV__) console.error('Error saving TMDB API key:', error);
+      Alert.alert('Could not save key', 'Please try again.');
+    } finally {
+      setIsSavingTmdbKey(false);
+    }
+  }, [queryClient, tmdbApiKey]);
+
+  const handleClearTmdbApiKey = useCallback(() => {
+    if (!savedTmdbApiKey && !tmdbApiKey.trim()) {
+      return;
+    }
+
+    Alert.alert(
+      'Clear TMDB API key',
+      'TMDB artwork and metadata will stop loading until a new key is saved.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsSavingTmdbKey(true);
+              await clearStoredTmdbApiKey();
+              setSavedTmdbApiKey(null);
+              setTmdbApiKey('');
+              await queryClient.invalidateQueries({ queryKey: ['tmdb'] });
+            } catch (error) {
+              if (__DEV__) console.error('Error clearing TMDB API key:', error);
+              Alert.alert('Could not clear key', 'Please try again.');
+            } finally {
+              setIsSavingTmdbKey(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [queryClient, savedTmdbApiKey, tmdbApiKey]);
 
   const handleLogout = useCallback(async () => {
     Alert.alert(
@@ -256,6 +353,88 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
                   thumbColor={useProxy ? colors.fg : colors.fgSubtle}
                   ios_backgroundColor="rgba(255,255,255,0.14)"
                 />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>TMDB METADATA</Text>
+            <View style={styles.settingCard}>
+              <View style={styles.tmdbHeader}>
+                <View style={styles.tmdbIconTile}>
+                  <FontAwesome5 name="film" size={16} color={colors.cyan} />
+                </View>
+                <View style={styles.rowContent}>
+                  <Text style={styles.rowLabel}>TMDB API key</Text>
+                  <Text style={styles.rowHint}>
+                    Save your own key securely on this device for posters, cast,
+                    ratings, and episode artwork.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.tmdbInputRow}>
+                <TextInput
+                  value={tmdbApiKey}
+                  onChangeText={setTmdbApiKey}
+                  editable={!isLoadingTmdbKey && !isSavingTmdbKey}
+                  placeholder="Paste your TMDB API key"
+                  placeholderTextColor={colors.fgSubtle}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  spellCheck={false}
+                  secureTextEntry={!showTmdbApiKey}
+                  style={styles.tmdbInput}
+                />
+                <TouchableOpacity
+                  style={styles.tmdbVisibilityButton}
+                  activeOpacity={0.75}
+                  onPress={() => setShowTmdbApiKey(value => !value)}
+                >
+                  <FontAwesome5
+                    name={showTmdbApiKey ? 'eye-slash' : 'eye'}
+                    size={14}
+                    color={colors.fgMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.tmdbActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.tmdbSaveButton,
+                    !canSaveTmdbApiKey && styles.tmdbSaveButtonDisabled,
+                  ]}
+                  activeOpacity={0.82}
+                  disabled={!canSaveTmdbApiKey}
+                  onPress={handleSaveTmdbApiKey}
+                >
+                  {isSavingTmdbKey ? (
+                    <ActivityIndicator size="small" color={colors.fg} />
+                  ) : (
+                    <FontAwesome5 name="lock" size={13} color={colors.fg} />
+                  )}
+                  <Text style={styles.tmdbSaveText}>Save key</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.tmdbClearButton}
+                  activeOpacity={0.75}
+                  disabled={isLoadingTmdbKey || isSavingTmdbKey}
+                  onPress={handleClearTmdbApiKey}
+                >
+                  <Text style={styles.tmdbClearText}>Clear</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.tmdbAttribution}>
+                <View style={styles.tmdbLogoWrap}>
+                  <TmdbLogo />
+                </View>
+                <Text style={styles.tmdbAttributionText}>
+                  This product uses the TMDB API but is not endorsed or
+                  certified by TMDB.
+                </Text>
               </View>
             </View>
           </View>
@@ -417,6 +596,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  tmdbHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  tmdbIconTile: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: 'rgba(34,211,238,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(34,211,238,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   rowContent: {
     flex: 1,
     minWidth: 0,
@@ -433,6 +627,86 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     color: colors.fgMuted,
     marginTop: 4,
+  },
+  tmdbInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    borderRadius: radii.lg,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    overflow: 'hidden',
+  },
+  tmdbInput: {
+    flex: 1,
+    minHeight: 48,
+    paddingHorizontal: 14,
+    fontFamily: FONT,
+    fontSize: 14,
+    color: colors.fg,
+  },
+  tmdbVisibilityButton: {
+    width: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tmdbActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+  },
+  tmdbSaveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: 16,
+    borderRadius: radii.lg,
+    backgroundColor: colors.indigo,
+    gap: 8,
+  },
+  tmdbSaveButtonDisabled: {
+    opacity: 0.45,
+  },
+  tmdbSaveText: {
+    fontFamily: FONT,
+    color: colors.fg,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  tmdbClearButton: {
+    minHeight: 44,
+    paddingHorizontal: 16,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tmdbClearText: {
+    fontFamily: FONT,
+    color: colors.fgMuted,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  tmdbAttribution: {
+    marginTop: 18,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: 8,
+  },
+  tmdbLogoWrap: {
+    alignSelf: 'flex-start',
+  },
+  tmdbAttributionText: {
+    fontFamily: FONT,
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.fgSubtle,
   },
   actionSection: {
     marginTop: 30,
