@@ -21,6 +21,7 @@ export interface VLCPlyrPlayerRef {
     seek: (timeSeconds: number) => void;
     play: () => void;
     pause: () => void;
+    stop: () => void;
 }
 
 const VLCPlyrPlayer = forwardRef<VLCPlyrPlayerRef, VLCPlyrPlayerProps>(
@@ -41,7 +42,21 @@ const VLCPlyrPlayer = forwardRef<VLCPlyrPlayerRef, VLCPlyrPlayerProps>(
                 if (__DEV__) console.log('[VLCPlyr] ref.pause() called');
                 vlcRef.current?.pause();
             },
+            stop: () => {
+                if (__DEV__) console.log('[VLCPlyr] ref.stop() called');
+                vlcRef.current?.stop();
+            },
         }));
+
+        // Stop playback when the player unmounts (e.g. navigating back).
+        // Relying on the native view's deallocation alone is unreliable, so
+        // explicitly stop the media player while the ref is still attached.
+        useEffect(() => {
+            return () => {
+                if (__DEV__) console.log('[VLCPlyr] component UNMOUNTING, calling stop()');
+                vlcRef.current?.stop();
+            };
+        }, []);
 
         // Sync local playback state with the declarative isPaused prop.
         useEffect(() => {

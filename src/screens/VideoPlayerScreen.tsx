@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import Orientation from 'react-native-orientation-locker';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RouteProp } from '@react-navigation/native';
+import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../../RootNavigator';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
@@ -171,6 +171,21 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
 
 
 
+
+  // --- Stop playback when the screen loses focus ---
+  // Pressing back blurs the screen immediately (before the exit animation and
+  // before unmount), while the native player view is still alive to receive the
+  // command. This is more reliable than relying on unmount alone.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        if (__DEV__) console.log('[VideoPlayerScreen] blur — stopping player');
+        // VLC needs an explicit stop; the native (ExoPlayer) view already stops
+        // itself via playInBackground={false} + the isPaused prop.
+        vlcPlyrRef.current?.stop();
+      };
+    }, []),
+  );
 
   // --- Progress saving (for VOD) ---
   const progressSaveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
