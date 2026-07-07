@@ -68,6 +68,12 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     return match?.[1] || '';
   });
 
+  useEffect(() => {
+    if (__DEV__ && currentStreamUrl) {
+      console.log('[Player] playing →', currentStreamUrl);
+    }
+  }, [currentStreamUrl]);
+
   // Controls visibility
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);

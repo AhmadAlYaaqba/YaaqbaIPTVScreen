@@ -1,7 +1,7 @@
 // store/slices/iptvSlice.ts
 import {createSlice, createAsyncThunk, PayloadAction} from '@reduxjs/toolkit';
 import axios from 'axios';
-import {proxyApiUrl} from '../../utils/proxy';
+import {proxyApiUrl, unwrapProxyUrl} from '../../utils/proxy';
 import {
   buildPlayerApiUrl,
   XTREAM_REQUEST_HEADERS,
@@ -109,6 +109,10 @@ async function fetchXtreamData({
   context,
   requestUrl,
 }: XtreamRequestMeta) {
+  if (__DEV__) {
+    console.log(`[Xtream] ${context} → ${unwrapProxyUrl(requestUrl)}`);
+    console.log(`[Xtream] ${context} (request) → ${requestUrl}`);
+  }
   try {
     const response = await axios.get(requestUrl, xtreamRequestConfig);
     return response.data;
@@ -393,7 +397,20 @@ export const fetchSeriesInfo = createAsyncThunk(
 const iptvSlice = createSlice({
   name: 'iptv',
   initialState,
-  reducers: {},
+  reducers: {
+    // Clear all fetched content so a playlist switch can't render stale lists
+    // (whose stream_ids belong to the previous server) against new credentials.
+    resetIptv: state => {
+      state.liveCategories = [];
+      state.liveChannels = [];
+      state.movieCategories = [];
+      state.movieList = [];
+      state.seriesCategories = [];
+      state.seriesList = [];
+      state.selectedSeriesInfo = null;
+      state.error = null;
+    },
+  },
   extraReducers: builder => {
     // ============== FETCH LIVE CATEGORIES ==============
     builder
@@ -544,5 +561,7 @@ const iptvSlice = createSlice({
       });
   },
 });
+
+export const { resetIptv } = iptvSlice.actions;
 
 export default iptvSlice.reducer;

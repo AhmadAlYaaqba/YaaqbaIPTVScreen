@@ -13,9 +13,9 @@ import {
   Platform,
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
+import { useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import * as Keychain from 'react-native-keychain';
 import LinearGradient from 'react-native-linear-gradient';
 import Svg, {
   Defs,
@@ -40,6 +40,16 @@ import {
   getStoredTmdbApiKey,
   saveStoredTmdbApiKey,
 } from '../services/tmdb/tmdbSettings';
+import {
+  Playlist,
+  clearActivePlaylist,
+  getPlaylistStore,
+  removePlaylist,
+  setGlobalUseVLC,
+  updateActivePlaylist,
+} from '../services/playlists/playlistStore';
+import { usePlaylists } from '../services/playlists/usePlaylists';
+import { storage } from '../utils/storage';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const SWITCH_TRACK = {
@@ -48,11 +58,6 @@ const SWITCH_TRACK = {
 };
 const GRADIENT_START = { x: 0, y: 0 };
 const GRADIENT_END = { x: 1, y: 1 };
-
-type StoredPreference = {
-  useVLC?: boolean;
-  useProxy?: boolean;
-};
 
 function GridBg() {
   return (
@@ -100,7 +105,10 @@ function GridBg() {
 const SettingsScreen: React.FC<any> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
+  const { enterPlaylist } = usePlaylists();
   const { useVLC, useProxy } = useSelector((state: RootState) => state.user);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [tmdbApiKey, setTmdbApiKey] = useState('');
   const [savedTmdbApiKey, setSavedTmdbApiKey] = useState<string | null>(null);
   const [showTmdbApiKey, setShowTmdbApiKey] = useState(false);
@@ -129,42 +137,88 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
     };
   }, []);
 
+  const loadPlaylists = useCallback(async () => {
+    const store = await getPlaylistStore();
+    setPlaylists(store.playlists);
+    setActiveId(store.activeId);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadPlaylists();
+    }, [loadPlaylists]),
+  );
+
   const hasTmdbApiKeyChanges = tmdbApiKey.trim() !== (savedTmdbApiKey ?? '');
   const canSaveTmdbApiKey =
     hasTmdbApiKeyChanges && !isLoadingTmdbKey && !isSavingTmdbKey;
 
-  const persistPreference = useCallback(async (next: StoredPreference) => {
-    try {
-      const creds = await Keychain.getGenericPassword({
-        service: 'my-iptv-credentials',
-      });
-      if (creds) {
-        const parsed = JSON.parse(creds.password);
-        await Keychain.setGenericPassword(
-          'xtream-creds',
-          JSON.stringify({ ...parsed, ...next }),
-          { service: 'my-iptv-credentials' },
-        );
-      }
-    } catch (error) {
-      if (__DEV__) console.error('Error saving settings preference:', error);
-    }
-  }, []);
-
+  // useVLC is a device-wide preference; useProxy is per-playlist (applied to
+  // the active playlist). Both mirror into the Redux user slice for runtime use.
   const handleTogglePlayer = useCallback(
     async (value: boolean) => {
       dispatch(setUseVlcPlayer({ useVLC: value }));
-      await persistPreference({ useVLC: value });
+      try {
+        await setGlobalUseVLC(value);
+      } catch (error) {
+        if (__DEV__) console.error('Error saving VLC preference:', error);
+      }
     },
-    [dispatch, persistPreference],
+    [dispatch],
   );
 
   const handleToggleProxy = useCallback(
     async (value: boolean) => {
       dispatch(setUseVlcPlayer({ useProxy: value }));
-      await persistPreference({ useProxy: value });
+      try {
+        await updateActivePlaylist({ useProxy: value });
+      } catch (error) {
+        if (__DEV__) console.error('Error saving proxy preference:', error);
+      }
     },
-    [dispatch, persistPreference],
+    [dispatch],
+  );
+
+  const handleSwitchPlaylist = useCallback(
+    async (playlist: Playlist) => {
+      if (playlist.id === activeId) {
+        return;
+      }
+      await enterPlaylist(playlist, navigation);
+    },
+    [activeId, enterPlaylist, navigation],
+  );
+
+  const handleAddPlaylist = useCallback(() => {
+    navigation.navigate('Login', { initialTab: 'xtream', mode: 'add' });
+  }, [navigation]);
+
+  const handleDeletePlaylist = useCallback(
+    (playlist: Playlist) => {
+      if (playlist.id === activeId) {
+        Alert.alert(
+          'Playlist in use',
+          'Switch to another playlist before deleting this one.',
+        );
+        return;
+      }
+      Alert.alert(
+        'Delete playlist',
+        `Remove "${playlist.name}"? Its saved watch history will also be cleared.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              await removePlaylist(playlist.id);
+              await loadPlaylists();
+            },
+          },
+        ],
+      );
+    },
+    [activeId, loadPlaylists],
   );
 
   const handleSaveTmdbApiKey = useCallback(async () => {
@@ -234,7 +288,10 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await Keychain.resetGenericPassword({ service: 'my-iptv-credentials' });
+              // Sign out of the active session but keep saved playlists so the
+              // user can resume them from the login screen.
+              await clearActivePlaylist();
+              storage.setActivePlaylistId(null);
               dispatch(clearUserCredentials());
               navigation.reset({
                 index: 0,
@@ -301,6 +358,88 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
                 Tune playback compatibility and connection routing for this
                 device.
               </Text>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.playlistSectionHeader}>
+              <Text style={styles.sectionTitle}>PLAYLISTS</Text>
+              <TouchableOpacity
+                style={styles.addPlaylistBtn}
+                activeOpacity={0.8}
+                onPress={handleAddPlaylist}
+              >
+                <FontAwesome5 name="plus" size={11} color={colors.indigo} />
+                <Text style={styles.addPlaylistText}>Add Xtream</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.settingCard}>
+              {playlists.length === 0 ? (
+                <Text style={styles.rowHint}>No playlists yet.</Text>
+              ) : (
+                playlists.map((pl, index) => {
+                  const isActive = pl.id === activeId;
+                  return (
+                    <View
+                      key={pl.id}
+                      style={[
+                        styles.playlistRow,
+                        index < playlists.length - 1 && styles.playlistRowDivider,
+                      ]}
+                    >
+                      <TouchableOpacity
+                        style={styles.playlistMain}
+                        activeOpacity={0.8}
+                        onPress={() => handleSwitchPlaylist(pl)}
+                      >
+                        <View
+                          style={[
+                            styles.playlistIconTile,
+                            isActive && styles.playlistIconTileActive,
+                          ]}
+                        >
+                          <FontAwesome5
+                            name={pl.kind === 'activation' ? 'key' : 'server'}
+                            size={14}
+                            color={isActive ? colors.indigo : colors.fgMuted}
+                          />
+                        </View>
+                        <View style={styles.rowContent}>
+                          <Text style={styles.rowLabel} numberOfLines={1}>
+                            {pl.name}
+                          </Text>
+                          <Text style={styles.rowHint}>
+                            {isActive
+                              ? 'Active'
+                              : pl.kind === 'activation'
+                                ? 'Activation code'
+                                : 'Xtream server'}
+                          </Text>
+                        </View>
+                        {isActive ? (
+                          <FontAwesome5
+                            name="check-circle"
+                            size={18}
+                            color={colors.indigo}
+                            solid
+                          />
+                        ) : null}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.playlistDeleteBtn}
+                        activeOpacity={0.7}
+                        onPress={() => handleDeletePlaylist(pl)}
+                      >
+                        <FontAwesome5
+                          name="trash-alt"
+                          size={14}
+                          color={colors.fgSubtle}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })
+              )}
             </View>
           </View>
 
@@ -570,6 +709,67 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  playlistSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  addPlaylistBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(139,123,255,0.28)',
+    backgroundColor: 'rgba(139,123,255,0.1)',
+  },
+  addPlaylistText: {
+    fontFamily: FONT,
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.indigo,
+  },
+  playlistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+  },
+  playlistRowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  playlistMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minWidth: 0,
+  },
+  playlistIconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playlistIconTileActive: {
+    backgroundColor: 'rgba(139,123,255,0.12)',
+    borderColor: 'rgba(139,123,255,0.28)',
+  },
+  playlistDeleteBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   row: {
     flexDirection: 'row',

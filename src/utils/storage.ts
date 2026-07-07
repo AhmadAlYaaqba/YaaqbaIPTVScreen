@@ -50,11 +50,27 @@ const STORAGE_KEYS = {
   LATEST_WATCHED: '@latest_watched',
 };
 
+// Watch history is namespaced per active playlist so that different Xtream
+// servers (which reuse the same numeric stream_ids) never share progress or
+// continue-watching entries. Set on bootstrap and on every playlist switch.
+let activePlaylistId: string | null = null;
+
+const setActivePlaylistId = (id: string | null) => {
+  activePlaylistId = id;
+};
+
+// Resolve a base key to its playlist-scoped variant. Falls back to the bare
+// key when no playlist is active (e.g. pre-migration) so old data still reads.
+const scopedKey = (baseKey: string) =>
+  activePlaylistId ? `${baseKey}:${activePlaylistId}` : baseKey;
+
 export const storage = {
+  setActivePlaylistId,
+
   // Save watch progress
   saveWatchProgress: async (progress: WatchProgress, isMovie: boolean) => {
     try {
-      const key = isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS;
+      const key = scopedKey(isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS);
       const existing = await AsyncStorage.getItem(key);
       const progressMap = existing ? JSON.parse(existing) : {};
       
@@ -71,7 +87,7 @@ export const storage = {
   // Get watch progress for content
   getWatchProgress: async (contentId: string, isMovie: boolean, seriesId?: string, episodeId?: string): Promise<WatchProgress | null> => {
     try {
-      const key = isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS;
+      const key = scopedKey(isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS);
       const existing = await AsyncStorage.getItem(key);
       if (!existing) return null;
       
@@ -88,7 +104,7 @@ export const storage = {
   // Save to recently watched
   saveRecentlyWatched: async (item: RecentlyWatched) => {
     try {
-      const existing = await AsyncStorage.getItem(STORAGE_KEYS.RECENTLY_WATCHED);
+      const existing = await AsyncStorage.getItem(scopedKey(STORAGE_KEYS.RECENTLY_WATCHED));
       const recent = existing ? JSON.parse(existing) : [];
       
       // Remove if already exists
@@ -100,7 +116,7 @@ export const storage = {
       // Keep only last 20 items
       const trimmed = filtered.slice(0, 30);
       
-      await AsyncStorage.setItem(STORAGE_KEYS.RECENTLY_WATCHED, JSON.stringify(trimmed));
+      await AsyncStorage.setItem(scopedKey(STORAGE_KEYS.RECENTLY_WATCHED), JSON.stringify(trimmed));
     } catch (error) {
       console.error('Error saving recently watched:', error);
     }
@@ -109,7 +125,7 @@ export const storage = {
   // Get recently watched items
   getRecentlyWatched: async (): Promise<RecentlyWatched[]> => {
     try {
-      const existing = await AsyncStorage.getItem(STORAGE_KEYS.RECENTLY_WATCHED);
+      const existing = await AsyncStorage.getItem(scopedKey(STORAGE_KEYS.RECENTLY_WATCHED));
       return existing ? JSON.parse(existing) : [];
     } catch (error) {
       console.error('Error getting recently watched:', error);
@@ -120,7 +136,7 @@ export const storage = {
   // Clear watch progress for content
   clearWatchProgress: async (contentId: string, isMovie: boolean, seriesId?: string, episodeId?: string) => {
     try {
-      const key = isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS;
+      const key = scopedKey(isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS);
       const existing = await AsyncStorage.getItem(key);
       if (!existing) return;
       
@@ -138,7 +154,7 @@ export const storage = {
   // Get all progress for a type
   getAllProgress: async (isMovie: boolean): Promise<Record<string, WatchProgress>> => {
     try {
-      const key = isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS;
+      const key = scopedKey(isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS);
       const existing = await AsyncStorage.getItem(key);
       return existing ? JSON.parse(existing) : {};
     } catch (error) {
@@ -150,7 +166,7 @@ export const storage = {
   // Save to latest watched (only keeps latest episode per series)
   saveLatestWatched: async (item: LatestWatched) => {
     try {
-      const existing = await AsyncStorage.getItem(STORAGE_KEYS.LATEST_WATCHED);
+      const existing = await AsyncStorage.getItem(scopedKey(STORAGE_KEYS.LATEST_WATCHED));
       const latest = existing ? JSON.parse(existing) : [];
       
       // Remove if already exists (to avoid duplicates)
@@ -168,7 +184,7 @@ export const storage = {
       // Keep only last 10 items
       const trimmed = filtered.slice(0, 10);
       
-      await AsyncStorage.setItem(STORAGE_KEYS.LATEST_WATCHED, JSON.stringify(trimmed));
+      await AsyncStorage.setItem(scopedKey(STORAGE_KEYS.LATEST_WATCHED), JSON.stringify(trimmed));
     } catch (error) {
       console.error('Error saving latest watched:', error);
     }
@@ -177,7 +193,7 @@ export const storage = {
   // Get latest watched items
   getLatestWatched: async (): Promise<LatestWatched[]> => {
     try {
-      const existing = await AsyncStorage.getItem(STORAGE_KEYS.LATEST_WATCHED);
+      const existing = await AsyncStorage.getItem(scopedKey(STORAGE_KEYS.LATEST_WATCHED));
       const mappedItems = existing ? JSON.parse(existing) : [];
       
       // Fetch progress for each item

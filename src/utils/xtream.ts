@@ -182,6 +182,34 @@ export function buildSeriesStreamUrl({
   return `${origin}${pathname}`;
 }
 
+/**
+ * Split a user-entered Xtream "Server URL" into a domain + port pair. The port
+ * is required because content screens guard on a non-empty serverPort before
+ * fetching. When the URL omits a port we default by scheme (https → 443, else
+ * 80). The returned domain keeps its scheme/host so the builders above accept
+ * it; applying the (matching) port is idempotent.
+ */
+export function parseServerUrl(input: string): { domain: string; port: string } {
+  const domain = `${input ?? ''}`.trim().replace(/\/+$/, '');
+  const isHttps = /^https:\/\//i.test(domain);
+
+  // Strip scheme, then take the host[:port] segment before any path.
+  const withoutScheme = domain.replace(ABSOLUTE_URL_PATTERN, '');
+  const hostSegment = withoutScheme.split('/')[0];
+
+  let port = isHttps ? '443' : '80';
+  if (hostSegment.startsWith('[')) {
+    // IPv6 literal, e.g. [::1]:8080
+    const match = hostSegment.match(/^\[[^\]]+\]:(\d+)$/);
+    if (match) port = match[1];
+  } else {
+    const match = hostSegment.match(/:(\d+)$/);
+    if (match) port = match[1];
+  }
+
+  return { domain, port };
+}
+
 export const XTREAM_REQUEST_HEADERS = {
   Accept: 'application/json, text/plain, */*',
   'Accept-Encoding': 'identity',

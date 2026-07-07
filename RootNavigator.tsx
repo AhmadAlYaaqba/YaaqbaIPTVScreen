@@ -1,12 +1,11 @@
 // App.tsx
 import React, { useEffect } from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import * as Keychain from 'react-native-keychain';
 
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from './src/store';
 
-import LoginScreen from './src/screens/LoginScreen3';
+import LoginScreen from './src/screens/LoginScreen4';
 import HomeScreen from './src/screens/HomeScreen';
 import LiveScreen from './src/screens/LiveScreen';
 import MoviesScreen from './src/screens/MoviesScreen';
@@ -22,10 +21,15 @@ import SeriesDetailScreen from './src/screens/SeriesDetailScreen';
 import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
 import TabNavigator from "./src/screens/TabNavigator";
 
-import { setUserCredentials } from './src/store/slices/userSlice';
+import { applyPlaylistToSession } from './src/services/playlists/usePlaylists';
+import {
+  getPlaylistStore,
+  getActivePlaylist,
+  migrateLegacyCredentials,
+} from './src/services/playlists/playlistStore';
 
 export type RootStackParamList = {
-  Login: undefined;
+  Login: { initialTab?: 'activation' | 'xtream'; mode?: 'add' } | undefined;
   Main: undefined;
   Home: undefined;
   Live: undefined;
@@ -61,34 +65,24 @@ const RootNavigator = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
-    const restoreCredentials = async () => {
+    const restoreSession = async () => {
       try {
-        // Attempt to load credentials from Keychain
-        const creds = await Keychain.getGenericPassword({
-          service: 'my-iptv-credentials',
-        });
-        if (creds) {
-          const parsed = JSON.parse(creds.password);
-          // Migrate vlcUseProxy -> useProxy for backward compatibility
-          if (parsed.vlcUseProxy !== undefined && parsed.useProxy === undefined) {
-            parsed.useProxy = parsed.vlcUseProxy;
-            delete parsed.vlcUseProxy;
-          }
-          dispatch(
-            setUserCredentials({
-              ...parsed,
-            }),
-          );
-        } else {
-          // No credentials found
-          if (__DEV__) console.log('No saved credentials in Keychain');
+        // One-time migration of the pre-multi-playlist single-blob credentials.
+        await migrateLegacyCredentials();
+
+        const active = await getActivePlaylist();
+        if (active) {
+          const store = await getPlaylistStore();
+          applyPlaylistToSession(active, store.useVLC, dispatch);
+        } else if (__DEV__) {
+          console.log('No active playlist to restore');
         }
       } catch (error) {
-        if (__DEV__) console.log('Keychain error: ', error);
+        if (__DEV__) console.log('Session restore error: ', error);
       }
     };
 
-    restoreCredentials();
+    restoreSession();
   }, [dispatch]);
 
   return (
