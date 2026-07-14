@@ -30,8 +30,13 @@ import Svg, {
 import { RootState, AppDispatch } from '../store';
 import {
   clearUserCredentials,
-  setUseVlcPlayer,
+  setUserPreferences,
 } from '../store/slices/userSlice';
+import {
+  PlayerEngine,
+  PLAYER_ENGINES,
+  PLAYER_ENGINE_LABELS,
+} from '../types/player';
 import { colors, gradients, radii } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 import TmdbLogo from '../components/TmdbLogo';
@@ -45,7 +50,7 @@ import {
   clearActivePlaylist,
   getPlaylistStore,
   removePlaylist,
-  setGlobalUseVLC,
+  setGlobalPlayerEngine,
   updateActivePlaylist,
 } from '../services/playlists/playlistStore';
 import { usePlaylists } from '../services/playlists/usePlaylists';
@@ -58,6 +63,17 @@ const SWITCH_TRACK = {
 };
 const GRADIENT_START = { x: 0, y: 0 };
 const GRADIENT_END = { x: 1, y: 1 };
+
+const ENGINE_ICONS: Record<PlayerEngine, string> = {
+  vlc: 'play-circle',
+  native: 'mobile-alt',
+  'expo-video': 'bolt',
+};
+const ENGINE_HINTS: Record<PlayerEngine, string> = {
+  vlc: 'Best compatibility for live TV and unusual stream formats.',
+  native: 'System player (ExoPlayer / AVPlayer). Best for HLS and MP4.',
+  'expo-video': 'Alternative system player. Try it if others stutter.',
+};
 
 function GridBg() {
   return (
@@ -106,7 +122,7 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
   const { enterPlaylist } = usePlaylists();
-  const { useVLC, useProxy } = useSelector((state: RootState) => state.user);
+  const { playerEngine, useProxy } = useSelector((state: RootState) => state.user);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [tmdbApiKey, setTmdbApiKey] = useState('');
@@ -153,15 +169,15 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
   const canSaveTmdbApiKey =
     hasTmdbApiKeyChanges && !isLoadingTmdbKey && !isSavingTmdbKey;
 
-  // useVLC is a device-wide preference; useProxy is per-playlist (applied to
-  // the active playlist). Both mirror into the Redux user slice for runtime use.
-  const handleTogglePlayer = useCallback(
-    async (value: boolean) => {
-      dispatch(setUseVlcPlayer({ useVLC: value }));
+  // playerEngine is a device-wide preference; useProxy is per-playlist (applied
+  // to the active playlist). Both mirror into the Redux user slice for runtime use.
+  const handleSelectEngine = useCallback(
+    async (engine: PlayerEngine) => {
+      dispatch(setUserPreferences({ playerEngine: engine }));
       try {
-        await setGlobalUseVLC(value);
+        await setGlobalPlayerEngine(engine);
       } catch (error) {
-        if (__DEV__) console.error('Error saving VLC preference:', error);
+        if (__DEV__) console.error('Error saving player preference:', error);
       }
     },
     [dispatch],
@@ -169,7 +185,7 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
 
   const handleToggleProxy = useCallback(
     async (value: boolean) => {
-      dispatch(setUseVlcPlayer({ useProxy: value }));
+      dispatch(setUserPreferences({ useProxy: value }));
       try {
         await updateActivePlaylist({ useProxy: value });
       } catch (error) {
@@ -446,29 +462,48 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>VIDEO PLAYER</Text>
             <View style={styles.settingCard}>
-              <View style={styles.row}>
-                <View style={styles.playerIconTile}>
-                  <FontAwesome5
-                    name="play-circle"
-                    size={17}
-                    color={colors.indigo}
-                  />
-                </View>
-                <View style={styles.rowContent}>
-                  <Text style={styles.rowLabel}>Use VLC Player</Text>
-                  <Text style={styles.rowHint}>
-                    Better compatibility for streams that fail in the default
-                    player.
-                  </Text>
-                </View>
-                <Switch
-                  value={useVLC}
-                  onValueChange={handleTogglePlayer}
-                  trackColor={SWITCH_TRACK}
-                  thumbColor={useVLC ? colors.fg : colors.fgSubtle}
-                  ios_backgroundColor="rgba(255,255,255,0.14)"
-                />
-              </View>
+              {PLAYER_ENGINES.map((engine, index) => {
+                const isSelected = engine === playerEngine;
+                return (
+                  <TouchableOpacity
+                    key={engine}
+                    style={[
+                      styles.playlistRow,
+                      index < PLAYER_ENGINES.length - 1 &&
+                        styles.playlistRowDivider,
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => handleSelectEngine(engine)}
+                  >
+                    <View
+                      style={[
+                        styles.playlistIconTile,
+                        isSelected && styles.playlistIconTileActive,
+                      ]}
+                    >
+                      <FontAwesome5
+                        name={ENGINE_ICONS[engine]}
+                        size={15}
+                        color={isSelected ? colors.indigo : colors.fgMuted}
+                      />
+                    </View>
+                    <View style={styles.rowContent}>
+                      <Text style={styles.rowLabel}>
+                        {PLAYER_ENGINE_LABELS[engine]}
+                      </Text>
+                      <Text style={styles.rowHint}>{ENGINE_HINTS[engine]}</Text>
+                    </View>
+                    {isSelected ? (
+                      <FontAwesome5
+                        name="check-circle"
+                        size={18}
+                        color={colors.indigo}
+                        solid
+                      />
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 

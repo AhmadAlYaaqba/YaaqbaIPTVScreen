@@ -1,4 +1,9 @@
 import * as Keychain from 'react-native-keychain';
+import {
+  PlayerEngine,
+  DEFAULT_PLAYER_ENGINE,
+  isPlayerEngine,
+} from '../../types/player';
 
 export type PlaylistKind = 'activation' | 'xtream';
 
@@ -16,6 +21,12 @@ export interface Playlist {
 export interface PlaylistStoreShape {
   playlists: Playlist[];
   activeId: string | null;
+  /** Selected player engine (device-wide, like useVLC before it). */
+  playerEngine: PlayerEngine;
+  /**
+   * Legacy boolean kept in the persisted shape purely so a rollback to an
+   * older build still reads a sane value. Derived from playerEngine on write.
+   */
   useVLC: boolean;
 }
 
@@ -26,7 +37,8 @@ const LEGACY_SERVICE = 'my-iptv-credentials';
 const EMPTY_STORE: PlaylistStoreShape = {
   playlists: [],
   activeId: null,
-  useVLC: true,
+  playerEngine: DEFAULT_PLAYER_ENGINE,
+  useVLC: DEFAULT_PLAYER_ENGINE === 'vlc',
 };
 
 let cachedStore: PlaylistStoreShape | undefined;
@@ -50,10 +62,20 @@ function normalizeStore(raw: any): PlaylistStoreShape {
       : playlists.length > 0
         ? playlists[0].id
         : null;
+  // Migration: stores written before the multi-engine update only carry the
+  // useVLC boolean — map true → 'vlc' (its successor engine), false → 'native'.
+  const playerEngine: PlayerEngine = isPlayerEngine(raw.playerEngine)
+    ? raw.playerEngine
+    : typeof raw.useVLC === 'boolean'
+      ? raw.useVLC
+        ? 'vlc'
+        : 'native'
+      : DEFAULT_PLAYER_ENGINE;
   return {
     playlists,
     activeId,
-    useVLC: typeof raw.useVLC === 'boolean' ? raw.useVLC : true,
+    playerEngine,
+    useVLC: playerEngine === 'vlc',
   };
 }
 
@@ -176,9 +198,11 @@ export async function clearActivePlaylist(): Promise<PlaylistStoreShape> {
   return writeStore({ ...store, activeId: null });
 }
 
-export async function setGlobalUseVLC(useVLC: boolean): Promise<void> {
+export async function setGlobalPlayerEngine(
+  playerEngine: PlayerEngine,
+): Promise<void> {
   const store = await readStore();
-  await writeStore({ ...store, useVLC });
+  await writeStore({ ...store, playerEngine, useVLC: playerEngine === 'vlc' });
 }
 
 /** Persist a per-playlist preference change (e.g. useProxy) for the active playlist. */
@@ -235,10 +259,17 @@ export async function migrateLegacyCredentials(): Promise<Playlist | null> {
       useProxy,
     };
 
+    const playerEngine: PlayerEngine =
+      typeof parsed.useVLC === 'boolean'
+        ? parsed.useVLC
+          ? 'vlc'
+          : 'native'
+        : store.playerEngine;
     await writeStore({
       playlists: [playlist],
       activeId: playlist.id,
-      useVLC: typeof parsed.useVLC === 'boolean' ? parsed.useVLC : store.useVLC,
+      playerEngine,
+      useVLC: playerEngine === 'vlc',
     });
     return playlist;
   } catch (error) {

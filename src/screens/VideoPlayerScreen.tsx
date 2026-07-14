@@ -15,10 +15,12 @@ import { unwrapProxyUrl, proxyStreamUrl } from '../utils/proxy';
 import { buildSeriesStreamUrl } from '../utils/xtream';
 
 // Components
-import NativeVideoPlayer, { NativeVideoPlayerRef } from '../components/NativeVideoPlayer';
-import VLCPlyrPlayer, { VLCPlyrPlayerRef } from '../components/VLCPlyrPlayer';
+import NativeVideoPlayer from '../components/NativeVideoPlayer';
+import LibVlcPlayer from '../components/LibVlcPlayer';
+import ExpoVideoPlayer from '../components/ExpoVideoPlayer';
 import PlayerControls from '../components/PlayerControls';
 import ChannelSwitcher from '../components/ChannelSwitcher';
+import type { PlayerHandle } from '../types/player';
 // import DevStreamDebugOverlay from '../components/DevStreamDebugOverlay';
 
 
@@ -54,7 +56,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     thumbnail = '',
   } = route.params;
 
-  const { useVLC, useProxy, username, password, serverDomain, serverPort } = useSelector(
+  const { playerEngine, useProxy, username, password, serverDomain, serverPort } = useSelector(
     (state: RootState) => state.user,
   );
   // Get channels for current category from Redux
@@ -95,9 +97,8 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     maxRetries: 10,
   });
 
-  // Player refs
-  const nativePlayerRef = useRef<NativeVideoPlayerRef>(null);
-  const vlcPlyrRef = useRef<VLCPlyrPlayerRef>(null);
+  // Single polymorphic ref — every engine wrapper satisfies PlayerHandle.
+  const playerRef = useRef<PlayerHandle>(null);
 
   // --- Controls auto-hide logic ---
   const resetControlsTimeout = useCallback(() => {
@@ -124,14 +125,10 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   // --- Seek ---
   const handleSeek = useCallback(
     (time: number) => {
-      if (useVLC) {
-        vlcPlyrRef.current?.seek(time);
-      } else {
-        nativePlayerRef.current?.seek(time);
-      }
+      playerRef.current?.seek(time);
       resetControlsTimeout();
     },
-    [useVLC, resetControlsTimeout],
+    [resetControlsTimeout],
   );
 
   // Gesture hook (brightness, seek)
@@ -186,9 +183,10 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     useCallback(() => {
       return () => {
         if (__DEV__) console.log('[VideoPlayerScreen] blur — stopping player');
-        // VLC needs an explicit stop; the native (ExoPlayer) view already stops
-        // itself via playInBackground={false} + the isPaused prop.
-        vlcPlyrRef.current?.stop();
+        // VLC engines need an explicit stop; the native (ExoPlayer/AVPlayer)
+        // players stop themselves and expose stop as a pause. Optional in the
+        // PlayerHandle contract, hence the ?. on the method itself.
+        playerRef.current?.stop?.();
       };
     }, []),
   );
@@ -338,54 +336,70 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     navigation.goBack();
   }, [navigation]);
 
-  const activeRequestUrl = useVLC
-    ? (useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl))
-    : player.currentSource?.uri || currentStreamUrl;
+  // VLC and expo-video take the raw stream URL; the native player consumes the
+  // useVideoPlayer fallback-source chain (proxied HLS → TS → direct HLS).
+  const rawStreamUrl = useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl);
+  const isNativeEngine = playerEngine === 'native';
 
-  const activeSourceLabel = useVLC
-    ? `VLCPlyr${useProxy ? ' (proxied)' : ' (direct)'}`
-    : player.currentSource?.label;
+  const activeRequestUrl = isNativeEngine
+    ? player.currentSource?.uri || currentStreamUrl
+    : rawStreamUrl;
 
-  const activePlayerName = useVLC ? 'VLCPlyr' : 'NativeVideo';
+  const activeSourceLabel = isNativeEngine
+    ? player.currentSource?.label
+    : `${playerEngine}${useProxy ? ' (proxied)' : ' (direct)'}`;
+
+  const activePlayerName = {
+    native: 'NativeVideo',
+    vlc: 'ExpoLibVLC',
+    'expo-video': 'ExpoVideo',
+  }[playerEngine];
 
   // --- Render ---
   if (__DEV__) {
-    console.log('[VideoPlayerScreen] render, useVLC:', useVLC, 'url:', useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl));
+    console.log('[VideoPlayerScreen] render, engine:', playerEngine, 'url:', activeRequestUrl);
   }
+
+  // Shared per-engine props; the key forces a clean remount on engine change,
+  // reconnect (playerKey) and channel switch (streamId).
+  const playerKey = `${playerEngine}-${player.playerKey}-${currentStreamId}`;
+  const sharedPlayerProps = {
+    isLive,
+    isPaused: player.isPaused,
+    onLoad: player.onLoad,
+    onError: player.onError,
+    onProgress: player.onProgress,
+    onBuffer: player.onBuffer,
+    continueTime: continueTime?.progress,
+  };
 
   return (
     <View style={styles.container}>
       {/* Video player */}
-      {useVLC ? (
-        // VLC player — raw surface, uses shared PlayerControls
-        <VLCPlyrPlayer
-          key={`vlcplyr-${player.playerKey}-${currentStreamId}`}
-          ref={vlcPlyrRef}
-          uri={useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl)}
-          isLive={isLive}
-          isPaused={player.isPaused}
-          onLoad={player.onLoad}
-          onError={player.onError}
-          onProgress={player.onProgress}
-          onBuffer={player.onBuffer}
-          continueTime={continueTime?.progress}
+      {playerEngine === 'vlc' ? (
+        <LibVlcPlayer
+          key={playerKey}
+          ref={playerRef}
+          uri={rawStreamUrl}
+          {...sharedPlayerProps}
+        />
+      ) : playerEngine === 'expo-video' ? (
+        <ExpoVideoPlayer
+          key={playerKey}
+          ref={playerRef}
+          uri={rawStreamUrl}
+          {...sharedPlayerProps}
         />
       ) : (
-        // ExoPlayer (native)
+        // ExoPlayer / AVPlayer (react-native-video)
         player.currentSource && (
           <NativeVideoPlayer
-            key={`native-${player.playerKey}-${currentStreamId}`}
-            ref={nativePlayerRef}
+            key={playerKey}
+            ref={playerRef}
             uri={player.currentSource.uri}
             type={player.currentSource.type}
-            isLive={isLive}
-            isPaused={player.isPaused}
             bufferConfig={player.bufferConfig}
-            onLoad={player.onLoad}
-            onError={player.onError}
-            onProgress={player.onProgress}
-            onBuffer={player.onBuffer}
-            continueTime={continueTime?.progress}
+            {...sharedPlayerProps}
           />
         )
       )}

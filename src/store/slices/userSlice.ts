@@ -1,12 +1,13 @@
 // src/store/slices/userSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { PlayerEngine, DEFAULT_PLAYER_ENGINE } from '../../types/player';
 
 interface UserState {
   username: string;
   password: string;
   serverDomain: string;
   serverPort: string;
-  useVLC: boolean;
+  playerEngine: PlayerEngine;
   useProxy: boolean;
   // Potentially more fields:
   // token?: string;
@@ -18,7 +19,7 @@ const initialState: UserState = {
   password: '',
   serverDomain: '',
   serverPort: '',
-  useVLC: true,
+  playerEngine: DEFAULT_PLAYER_ENGINE,
   useProxy: true,
 };
 
@@ -36,7 +37,7 @@ export const userSlice = createSlice({
     clearUserCredentials: () => {
       return initialState;
     },
-    setUseVlcPlayer: (state, action: PayloadAction<Partial<UserState>>) => {
+    setUserPreferences: (state, action: PayloadAction<Partial<UserState>>) => {
       return {
         ...state,
         ...action.payload,
@@ -45,6 +46,6 @@ export const userSlice = createSlice({
   },
 });
 
-export const { setUserCredentials, clearUserCredentials, setUseVlcPlayer } = userSlice.actions;
+export const { setUserCredentials, clearUserCredentials, setUserPreferences } = userSlice.actions;
 
 export default userSlice.reducer;

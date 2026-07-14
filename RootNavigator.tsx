@@ -73,7 +73,7 @@ const RootNavigator = () => {
         const active = await getActivePlaylist();
         if (active) {
           const store = await getPlaylistStore();
-          applyPlaylistToSession(active, store.useVLC, dispatch);
+          applyPlaylistToSession(active, store.playerEngine, dispatch);
         } else if (__DEV__) {
           console.log('No active playlist to restore');
         }

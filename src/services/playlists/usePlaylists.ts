@@ -11,6 +11,7 @@ import {
   getPlaylistStore,
   setActivePlaylist,
 } from './playlistStore';
+import { PlayerEngine } from '../../types/player';
 
 type Nav = {
   reset: (state: { index: number; routes: { name: string }[] }) => void;
@@ -22,7 +23,7 @@ type Nav = {
  */
 export function applyPlaylistToSession(
   playlist: Playlist,
-  useVLC: boolean,
+  playerEngine: PlayerEngine,
   dispatch: AppDispatch,
 ) {
   storage.setActivePlaylistId(playlist.id);
@@ -39,7 +40,7 @@ export function applyPlaylistToSession(
       serverDomain: playlist.serverDomain,
       serverPort,
       useProxy: playlist.useProxy,
-      useVLC,
+      playerEngine,
     }),
   );
 }
@@ -56,7 +57,7 @@ export function usePlaylists() {
     async (playlist: Playlist, navigation: Nav) => {
       const store = await getPlaylistStore();
       await setActivePlaylist(playlist.id);
-      applyPlaylistToSession(playlist, store.useVLC, dispatch);
+      applyPlaylistToSession(playlist, store.playerEngine, dispatch);
       dispatch(resetIptv());
       navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     },
