@@ -6,3 +6,4 @@
 // react-native-orientation-locker: exposes the ObjC `Orientation` class so the
 // Swift AppDelegate can report the currently locked interface orientation.
 #import "Orientation.h"
+#import <Expo/Expo.h>
