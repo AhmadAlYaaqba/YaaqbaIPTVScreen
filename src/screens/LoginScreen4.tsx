@@ -10,9 +10,9 @@ import {
   ScrollView,
   Alert,
   Switch,
-  SafeAreaView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import axios from 'axios';
 import DeviceInfo from 'react-native-device-info';

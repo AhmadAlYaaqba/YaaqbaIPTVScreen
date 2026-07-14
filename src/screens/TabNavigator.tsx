@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import HomeScreenBrand from './HomeScreenBrand';
 import LiveTVScreen from './LiveTVScreen';
@@ -49,8 +50,14 @@ function getIcon(name: string, color: string, size: number) {
 }
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
+  // Float above the system gesture/nav bar. Fall back to the platform default
+  // on devices that report no bottom inset (e.g. Android hardware buttons).
+  const bottomOffset =
+    insets.bottom > 0 ? insets.bottom + 6 : Platform.OS === 'ios' ? 30 : 18;
+
   return (
-    <View style={styles.tabBarOuter}>
+    <View style={[styles.tabBarOuter, { bottom: bottomOffset }]}>
       <BlurView
         style={StyleSheet.absoluteFill}
         blurType="dark"
@@ -111,7 +118,7 @@ export default function TabNavigator() {
 const styles = StyleSheet.create({
   tabBarOuter: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 30 : 18,
+    // `bottom` is set dynamically from safe-area insets in CustomTabBar.
     left: 25,
     right: 25,
     height: 68,
