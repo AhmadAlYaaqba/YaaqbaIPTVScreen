@@ -37,7 +37,7 @@ class AppDelegate: ExpoAppDelegate {
   // asks the app delegate for the supported set whenever orientation changes,
   // so lockToLandscape()/lockToPortrait() from JS only take effect once this
   // returns the locker's current mask.
-  func application(
+  override func application(
     _ application: UIApplication,
     supportedInterfaceOrientationsFor window: UIWindow?
   ) -> UIInterfaceOrientationMask {
