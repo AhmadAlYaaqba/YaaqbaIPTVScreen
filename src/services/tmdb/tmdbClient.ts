@@ -1,9 +1,11 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
-import {
-  TMDB_BASE_URL,
-  TMDB_IMAGE_BASE_URL,
-} from '@env';
 import { getStoredTmdbApiKey } from './tmdbSettings';
+
+// Inlined at bundle time by babel-preset-expo from .env (EXPO_PUBLIC_ prefix).
+// react-native-dotenv was removed: its Babel transform broke
+// react-native-worklets shared-value serialization (reanimated #9023).
+const TMDB_BASE_URL = process.env.EXPO_PUBLIC_TMDB_BASE_URL;
+const TMDB_IMAGE_BASE_URL = process.env.EXPO_PUBLIC_TMDB_IMAGE_BASE_URL;
 
 const DEFAULT_BASE_URL = 'https://api.themoviedb.org/3';
 const DEFAULT_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';

@@ -1,18 +1,11 @@
 module.exports = {
   presets: ['babel-preset-expo'],
   plugins: [
-    [
-      'module:react-native-dotenv',
-      {
-        moduleName: '@env',
-        path: '.env',
-        safe: false,
-        allowUndefined: true,
-      },
-    ],
-    // NOTE: no manual react-native-reanimated/plugin here — babel-preset-expo
-    // auto-applies react-native-worklets/plugin (which reanimated 4's plugin
-    // aliases); listing it again double-workletizes and crashes at runtime
-    // ("undefined is not a function" in withTiming/useAnimatedStyle).
+    // NOTE: no react-native-dotenv here — its Babel transform perturbs Metro
+    // module resolution and breaks react-native-worklets shared-value
+    // serialization (see reanimated discussion #9023). TMDB env vars are
+    // inlined by babel-preset-expo via EXPO_PUBLIC_* variables instead.
+    // NOTE: no manual react-native-reanimated/plugin either — babel-preset-expo
+    // auto-applies react-native-worklets/plugin.
   ],
 };
