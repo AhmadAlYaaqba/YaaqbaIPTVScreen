@@ -120,7 +120,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
   const { enterPlaylist } = usePlaylists();
 
   const [tab, setTab] = useState<TabKey>(initialTab);
-  const [useProxy, setUseProxy] = useState(true);
+  const [useProxy, setUseProxy] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedPlaylists, setSavedPlaylists] = useState<Playlist[]>([]);

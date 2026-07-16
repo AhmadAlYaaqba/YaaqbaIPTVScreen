@@ -2,11 +2,17 @@
 // Player engine selection shared by Redux state, Keychain persistence and the
 // player screen. Extensible: add new engines (e.g. 'mpv') to PLAYER_ENGINES.
 
+import { Platform } from 'react-native';
+
 export const PLAYER_ENGINES = ['vlc', 'native', 'expo-video'] as const;
 
 export type PlayerEngine = (typeof PLAYER_ENGINES)[number];
 
-export const DEFAULT_PLAYER_ENGINE: PlayerEngine = 'vlc';
+// Default when the user hasn't picked an engine: VLC on iOS, Standard on Android.
+export const DEFAULT_PLAYER_ENGINE: PlayerEngine = Platform.select({
+  ios: 'vlc' as PlayerEngine,
+  default: 'native' as PlayerEngine,
+});
 
 export function isPlayerEngine(value: unknown): value is PlayerEngine {
   return (

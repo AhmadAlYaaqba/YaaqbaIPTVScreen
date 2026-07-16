@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   TextInput,
   FlatList,
   Platform,
-  LayoutChangeEvent,
+  Modal,
 } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
@@ -54,7 +54,8 @@ export default function CategoryDropdown({
 }: CategoryDropdownProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [headerHeight, setHeaderHeight] = useState(56);
+  const [panelTop, setPanelTop] = useState(0);
+  const headerRef = useRef<View>(null);
 
   useEffect(() => {
     if (!open) setQuery('');
@@ -76,8 +77,15 @@ export default function CategoryDropdown({
     [normalized, safeCategories],
   );
 
-  const onHeaderLayout = (e: LayoutChangeEvent) => {
-    setHeaderHeight(e.nativeEvent.layout.height);
+  const toggleOpen = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    headerRef.current?.measureInWindow((_x, y, _w, h) => {
+      setPanelTop(y + h + 2);
+      setOpen(true);
+    });
   };
 
   const handleSelect = (c: DropdownCategory) => {
@@ -88,7 +96,7 @@ export default function CategoryDropdown({
   return (
     <View style={styles.root}>
       {/* header row */}
-      <View style={styles.headerRow} onLayout={onHeaderLayout}>
+      <View ref={headerRef} style={styles.headerRow} collapsable={false}>
         {onBack && (
           <TouchableOpacity
             activeOpacity={0.7}
@@ -100,7 +108,7 @@ export default function CategoryDropdown({
         )}
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => setOpen(o => !o)}
+          onPress={toggleOpen}
           style={[
             styles.trigger,
             open && {
@@ -155,70 +163,68 @@ export default function CategoryDropdown({
         )}
       </View>
 
-      {/* overlay */}
-      {open && (
-        <>
-          <Pressable
-            style={[styles.scrim, { top: headerHeight }]}
-            onPress={() => setOpen(false)}
-          />
-          <View style={[styles.panel, { top: headerHeight + 2 }]}>
-            <View
-              style={[styles.panelSearch, { borderColor: `${accent}55` }]}
-            >
-              <FontAwesome5 name="search" size={14} color={colors.fgSubtle} />
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder={searchPlaceholder}
-                placeholderTextColor={colors.fgSubtle}
-                style={styles.panelSearchInput}
-                autoCorrect={false}
-                autoCapitalize="none"
-                selectionColor={accent}
-              />
-            </View>
-
-            <FlatList
-              data={filtered}
-              keyExtractor={item => String(item.category_id)}
-              keyboardShouldPersistTaps="always"
-              showsVerticalScrollIndicator={false}
-              style={styles.panelList}
-              contentContainerStyle={styles.panelListContent}
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>No categories found</Text>
-              }
-              renderItem={({ item }) => {
-                const active = item.category_id === activeCategoryId;
-                return (
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => handleSelect(item)}
-                    style={[
-                      styles.row,
-                      active && { backgroundColor: `${accent}1f` },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.rowText,
-                        active && styles.rowTextActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {item.category_name}
-                    </Text>
-                    {active && (
-                      <FontAwesome5 name="check" size={13} color={accent} />
-                    )}
-                  </TouchableOpacity>
-                );
-              }}
+      {/* overlay — rendered in a Modal so touches/scrolls on the panel
+          don't fall through to the list behind it (Android drops touches
+          on children that overflow their parent's bounds) */}
+      <Modal
+        visible={open}
+        transparent
+        animationType="none"
+        statusBarTranslucent
+        onRequestClose={() => setOpen(false)}
+      >
+        <Pressable style={styles.scrim} onPress={() => setOpen(false)} />
+        <View style={[styles.panel, { top: panelTop }]}>
+          <View style={[styles.panelSearch, { borderColor: `${accent}55` }]}>
+            <FontAwesome5 name="search" size={14} color={colors.fgSubtle} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={searchPlaceholder}
+              placeholderTextColor={colors.fgSubtle}
+              style={styles.panelSearchInput}
+              autoCorrect={false}
+              autoCapitalize="none"
+              selectionColor={accent}
             />
           </View>
-        </>
-      )}
+
+          <FlatList
+            data={filtered}
+            keyExtractor={item => String(item.category_id)}
+            keyboardShouldPersistTaps="always"
+            showsVerticalScrollIndicator={false}
+            style={styles.panelList}
+            contentContainerStyle={styles.panelListContent}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No categories found</Text>
+            }
+            renderItem={({ item }) => {
+              const active = item.category_id === activeCategoryId;
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => handleSelect(item)}
+                  style={[
+                    styles.row,
+                    active && { backgroundColor: `${accent}1f` },
+                  ]}
+                >
+                  <Text
+                    style={[styles.rowText, active && styles.rowTextActive]}
+                    numberOfLines={1}
+                  >
+                    {item.category_name}
+                  </Text>
+                  {active && (
+                    <FontAwesome5 name="check" size={13} color={accent} />
+                  )}
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -304,11 +310,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scrim: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 2000,
-    zIndex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
   panel: {
     position: 'absolute',
