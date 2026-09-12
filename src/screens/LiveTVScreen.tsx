@@ -33,7 +33,6 @@ import type {
   XtreamSession,
 } from '../services/xtream/xtreamService';
 import { proxyStreamUrl } from '../utils/proxy';
-import { buildLiveStreamUrl } from '../utils/xtream';
 import { colors, sectionAccents, radii } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 import CategoryDropdown from '../components/mirror/CategoryDropdown';
@@ -66,6 +65,7 @@ const ChannelCard = React.memo(
     streamId,
     name,
     rawIcon,
+    extension,
     channelNumber,
     onPressChannel,
     useProxy,
@@ -73,19 +73,21 @@ const ChannelCard = React.memo(
     streamId: number;
     name: string;
     rawIcon?: string;
+    extension?: string;
     channelNumber?: number;
     onPressChannel: (
       streamId: number,
       name: string,
       rawIcon?: string,
+      extension?: string,
     ) => void;
     useProxy: boolean;
   }) => {
     const icon = rawIcon ? proxyStreamUrl(rawIcon, useProxy) : null;
     const number = channelNumber != null ? String(channelNumber) : '';
     const handlePress = useCallback(
-      () => onPressChannel(streamId, name, rawIcon),
-      [name, onPressChannel, rawIcon, streamId],
+      () => onPressChannel(streamId, name, rawIcon, extension),
+      [extension, name, onPressChannel, rawIcon, streamId],
     );
 
     return (
@@ -201,36 +203,27 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
   }, []);
 
   const handleChannelPress = useCallback(
-    (streamId: number, name: string, rawIcon?: string) => {
+    (
+      streamId: number,
+      name: string,
+      rawIcon?: string,
+      extension?: string,
+    ) => {
       const icon = rawIcon ? proxyStreamUrl(rawIcon, useProxy) : null;
-      const originalStreamUrl = buildLiveStreamUrl({
-        domain: serverDomain,
-        port: serverPort,
-        username,
-        password,
-        streamId,
-      });
-      const streamUrl = proxyStreamUrl(originalStreamUrl, useProxy);
 
       navigation.navigate('VideoPlayer', {
-        streamUrl,
-        streamId: String(streamId),
-        containerExtension: 'm3u8',
-        channelName: name,
-        isLive: true,
-        thumbnail: icon ?? undefined,
-        categoryId: activeCategory ?? undefined,
+        request: {
+          kind: 'live',
+          streamId: String(streamId),
+          extension: extension?.replace(/^\./, '') || 'm3u8',
+          title: name,
+          channelName: name,
+          thumbnail: icon ?? undefined,
+          categoryId: activeCategory ?? undefined,
+        },
       });
     },
-    [
-      navigation,
-      serverDomain,
-      serverPort,
-      username,
-      password,
-      useProxy,
-      activeCategory,
-    ],
+    [activeCategory, navigation, useProxy],
   );
 
   const renderChannelCard = useCallback(
@@ -239,6 +232,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
         streamId={item.stream_id}
         name={item.name}
         rawIcon={item.stream_icon || item.icon}
+        extension={item.container_extension}
         channelNumber={item.num}
         useProxy={useProxy}
         onPressChannel={handleChannelPress}

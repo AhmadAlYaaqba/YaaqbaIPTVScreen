@@ -26,7 +26,6 @@ import {
 import type { XtreamSession } from '../services/xtream/xtreamService';
 import { storage } from '../utils/storage';
 import { proxyStreamUrl } from '../utils/proxy';
-import { buildSeriesStreamUrl } from '../utils/xtream';
 import {
   useTmdbDetails,
   useTmdbMatch,
@@ -285,28 +284,25 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const playEpisode = (ep: any, index: number) => {
     if (!ep) return;
-    const originalUrl = buildSeriesStreamUrl({
-      domain: serverDomain,
-      port: serverPort,
-      username,
-      password,
-      streamId: ep.id,
-      extension: ep.container_extension || 'mp4',
-    });
-    const url = proxyStreamUrl(originalUrl, useProxy);
+    const savedProgress = watchProgress[ep.id];
 
     navigation.navigate('VideoPlayer', {
-      streamUrl: url,
-      streamId: String(ep.id),
-      containerExtension: ep.container_extension || 'mp4',
-      isLive: false,
-      title: ep.title,
-      seriesId: seriesId,
-      episodeId: ep.id,
-      episodeList: currentEpisodes,
-      currentEpisodeIndex: index,
-      continueTime: watchProgress[ep.id] || 0,
-      thumbnail: info.backdrop_path?.[0] || info.cover,
+      request: {
+        kind: 'episode',
+        streamId: String(ep.id),
+        extension: ep.container_extension || 'mp4',
+        title: ep.title || 'Episode',
+        seriesId,
+        episodeList: currentEpisodes,
+        currentEpisodeIndex: index,
+        resume: savedProgress
+          ? {
+              progress: savedProgress.progress,
+              totalDuration: savedProgress.totalDuration,
+            }
+          : undefined,
+        thumbnail: info.backdrop_path?.[0] || info.cover,
+      },
     });
   };
 

@@ -1,5 +1,5 @@
 // src/hooks/usePlayerGestures.ts
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import { Dimensions } from 'react-native';
 import {
     useSharedValue,
@@ -28,6 +28,8 @@ export function usePlayerGestures(options: UsePlayerGesturesOptions) {
     const [brightness, setBrightnessState] = useState(1.0); // 1.0 = full brightness
     const [showBrightnessIndicator, setShowBrightnessIndicator] = useState(false);
     const brightnessStartRef = useRef(1.0);
+    const brightnessCurrentRef = useRef(1.0);
+    const indicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Gesture tracking
     const gestureActiveRef = useRef(false);
@@ -41,8 +43,8 @@ export function usePlayerGestures(options: UsePlayerGesturesOptions) {
     const setScreenBrightness = useCallback(
         (level: number) => {
             const clamped = Math.max(0.05, Math.min(1, level));
-            setBrightnessState(clamped);
-            brightnessLevel.value = clamped;
+            brightnessCurrentRef.current = clamped;
+            brightnessLevel.set(clamped);
             onBrightnessChange?.(clamped);
         },
         [brightnessLevel, onBrightnessChange],
@@ -54,13 +56,13 @@ export function usePlayerGestures(options: UsePlayerGesturesOptions) {
             const isLeftSide = x < PLAYER_WIDTH / 2;
             if (isLeftSide) {
                 gestureTypeRef.current = 'brightness';
-                brightnessStartRef.current = brightness;
-                brightnessOpacity.value = withTiming(1, { duration: 150 });
+                brightnessStartRef.current = brightnessCurrentRef.current;
+                brightnessOpacity.set(withTiming(1, { duration: 150 }));
                 setShowBrightnessIndicator(true);
             }
             gestureActiveRef.current = true;
         },
-        [brightness, brightnessOpacity],
+        [brightnessOpacity],
     );
 
     const onVerticalPanMove = useCallback(
@@ -81,14 +83,27 @@ export function usePlayerGestures(options: UsePlayerGesturesOptions) {
     const onVerticalPanEnd = useCallback(() => {
         gestureActiveRef.current = false;
         gestureTypeRef.current = null;
+        setBrightnessState(brightnessCurrentRef.current);
 
         // Hide brightness indicator after delay
-        brightnessOpacity.value = withDelay(
-            500,
-            withTiming(0, { duration: 300 }),
+        brightnessOpacity.set(withDelay(500, withTiming(0, { duration: 300 })));
+        if (indicatorTimerRef.current) {
+            clearTimeout(indicatorTimerRef.current);
+        }
+        indicatorTimerRef.current = setTimeout(
+            () => setShowBrightnessIndicator(false),
+            1000,
         );
-        setTimeout(() => setShowBrightnessIndicator(false), 1000);
     }, [brightnessOpacity]);
+
+    useEffect(
+        () => () => {
+            if (indicatorTimerRef.current) {
+                clearTimeout(indicatorTimerRef.current);
+            }
+        },
+        [],
+    );
 
     // Double tap to seek ±10s (VOD only)
     const handleDoubleTap = useCallback(
@@ -105,7 +120,15 @@ export function usePlayerGestures(options: UsePlayerGesturesOptions) {
 
     // Animated styles
     const brightnessIndicatorStyle = useAnimatedStyle(() => ({
-        opacity: brightnessOpacity.value,
+        opacity: brightnessOpacity.get(),
+    }));
+
+    const brightnessOverlayStyle = useAnimatedStyle(() => ({
+        opacity: Math.max(0, 1 - brightnessLevel.get()),
+    }));
+
+    const brightnessFillStyle = useAnimatedStyle(() => ({
+        transform: [{ scaleY: brightnessLevel.get() }],
     }));
 
     return {
@@ -116,6 +139,8 @@ export function usePlayerGestures(options: UsePlayerGesturesOptions) {
         onVerticalPanEnd,
         handleDoubleTap,
         brightnessIndicatorStyle,
+        brightnessOverlayStyle,
+        brightnessFillStyle,
         brightnessLevel,
     };
 }

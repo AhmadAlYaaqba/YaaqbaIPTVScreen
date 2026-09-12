@@ -1,5 +1,7 @@
 /* eslint-env jest */
 
+require('react-native-gesture-handler/jestSetup');
+
 jest.mock('react-native-orientation-locker', () => ({
   lockToLandscape: jest.fn(),
   lockToPortrait: jest.fn(),

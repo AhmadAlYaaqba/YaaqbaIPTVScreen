@@ -39,7 +39,6 @@ import type {
 } from '../services/xtream/xtreamService';
 import { storage } from '../utils/storage';
 import { proxyStreamUrl } from '../utils/proxy';
-import { buildMovieStreamUrl } from '../utils/xtream';
 import { colors, sectionAccents, radii } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 import CategoryDropdown from '../components/mirror/CategoryDropdown';
@@ -357,26 +356,23 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
     try {
       const ext =
         selectedMovie.container_extension?.replace('.', '') || 'mp4';
-      const originalUrl = buildMovieStreamUrl({
-        domain: serverDomain,
-        port: serverPort,
-        username,
-        password,
-        streamId: selectedMovie.stream_id,
-        extension: ext,
-      });
-      const url = proxyStreamUrl(originalUrl, useProxy);
       const movie = selectedMovie;
+      const savedProgress = watchProgress[movie.stream_id];
       setSelectedMovie(null);
       navigation.navigate('VideoPlayer', {
-        streamUrl: url,
-        streamId: movie.stream_id.toString(),
-        containerExtension: ext,
-        isLive: false,
-        title: movie.name || 'Unknown Movie',
-        movieId: movie.stream_id.toString(),
-        continueTime: watchProgress[movie.stream_id],
-        thumbnail: movie.stream_icon,
+        request: {
+          kind: 'movie',
+          streamId: movie.stream_id.toString(),
+          extension: ext,
+          title: movie.name || 'Unknown Movie',
+          resume: savedProgress
+            ? {
+                progress: savedProgress.progress,
+                totalDuration: savedProgress.totalDuration,
+              }
+            : undefined,
+          thumbnail: movie.stream_icon,
+        },
       });
     } catch (e) {
       if (__DEV__) console.error('Error playing movie:', e);

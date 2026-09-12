@@ -31,6 +31,7 @@ export interface XtreamLiveStream {
   stream_id: number;
   name: string;
   num?: number;
+  container_extension?: string;
   stream_icon?: string;
   icon?: string;
   epg_channel_id?: string;

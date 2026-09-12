@@ -1,5 +1,11 @@
 // src/components/PlayerControls.tsx
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import {
     View,
     Text,
@@ -7,14 +13,15 @@ import {
     TouchableOpacity,
     TouchableWithoutFeedback,
     ActivityIndicator,
-    PanResponder,
     LayoutChangeEvent,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withTiming,
     Easing,
+    runOnJS,
 } from 'react-native-reanimated';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
@@ -33,12 +40,15 @@ interface PlayerControlsProps {
     brightness: number;
     showBrightnessIndicator: boolean;
     brightnessIndicatorStyle: any;
+    brightnessOverlayStyle: any;
+    brightnessFillStyle: any;
     onTogglePlayPause: () => void;
     onGoBack: () => void;
     onSeek?: (time: number) => void;
     onRetry: () => void;
     onToggleChannelSwitcher?: () => void;
     onToggleVisibility: () => void;
+    onDoubleTap?: (x: number) => void;
     // Gesture callbacks
     onVerticalPanStart?: (x: number) => void;
     onVerticalPanMove?: (deltaY: number) => void;
@@ -72,12 +82,15 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     brightness,
     showBrightnessIndicator,
     brightnessIndicatorStyle,
+    brightnessOverlayStyle,
+    brightnessFillStyle,
     onTogglePlayPause,
     onGoBack,
     onSeek,
     onRetry,
     onToggleChannelSwitcher,
     onToggleVisibility,
+    onDoubleTap,
     onVerticalPanStart,
     onVerticalPanMove,
     onVerticalPanEnd,
@@ -85,68 +98,76 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     const opacity = useSharedValue(0);
     const translateY = useSharedValue(-10);
 
-    // Track pan state (for brightness gesture on hidden controls)
-    const isPanning = useRef(false);
-    const panStart = useRef<{ x: number; y: number } | null>(null);
-
     // --- Seekbar state ---
     const [isSeeking, setIsSeeking] = useState(false);
     const [seekTime, setSeekTime] = useState(0);
     const seekBarWidth = useRef(0);
-    const seekBarPageX = useRef(0);
 
     const onSeekBarLayout = useCallback((event: LayoutChangeEvent) => {
         seekBarWidth.current = event.nativeEvent.layout.width;
-        // Also measure pageX for accurate touch position
-        event.target?.measure?.((_x: number, _y: number, _w: number, _h: number, pageX: number) => {
-            if (pageX !== undefined) {
-                seekBarPageX.current = pageX;
-            }
-        });
     }, []);
 
-    // Use refs so PanResponder callbacks always read the latest duration & onSeek
-    const durationRef = useRef(duration);
-    const onSeekRef = useRef(onSeek);
-    durationRef.current = duration;
-    onSeekRef.current = onSeek;
+    const getSeekTime = useCallback(
+        (x: number) => {
+            if (seekBarWidth.current <= 0 || duration <= 0) {
+                return null;
+            }
+            return Math.max(
+                0,
+                Math.min(duration, (x / seekBarWidth.current) * duration),
+            );
+        },
+        [duration],
+    );
 
-    const seekPanResponderLatest = useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: () => true,
-            onPanResponderTerminationRequest: () => false,
-            onPanResponderGrant: (evt) => {
-                const touchX = evt.nativeEvent.locationX;
-                const dur = durationRef.current;
-                if (seekBarWidth.current > 0 && dur > 0) {
-                    const time = Math.max(0, Math.min(dur, (touchX / seekBarWidth.current) * dur));
-                    setIsSeeking(true);
-                    setSeekTime(time);
-                }
-            },
-            onPanResponderMove: (evt) => {
-                const touchX = evt.nativeEvent.locationX;
-                const dur = durationRef.current;
-                if (seekBarWidth.current > 0 && dur > 0) {
-                    const time = Math.max(0, Math.min(dur, (touchX / seekBarWidth.current) * dur));
-                    setSeekTime(time);
-                }
-            },
-            onPanResponderRelease: (evt) => {
-                const touchX = evt.nativeEvent.locationX;
-                const dur = durationRef.current;
-                if (seekBarWidth.current > 0 && dur > 0) {
-                    const time = Math.max(0, Math.min(dur, (touchX / seekBarWidth.current) * dur));
-                    onSeekRef.current?.(time);
-                }
-                setIsSeeking(false);
-            },
-            onPanResponderTerminate: () => {
-                setIsSeeking(false);
-            },
-        }),
-    ).current;
+    const beginSeek = useCallback(
+        (x: number) => {
+            const nextTime = getSeekTime(x);
+            if (nextTime === null) return;
+            setIsSeeking(true);
+            setSeekTime(nextTime);
+        },
+        [getSeekTime],
+    );
+
+    const updateSeek = useCallback(
+        (x: number) => {
+            const nextTime = getSeekTime(x);
+            if (nextTime !== null) setSeekTime(nextTime);
+        },
+        [getSeekTime],
+    );
+
+    const commitSeek = useCallback(
+        (x: number) => {
+            const nextTime = getSeekTime(x);
+            if (nextTime !== null) onSeek?.(nextTime);
+            setIsSeeking(false);
+        },
+        [getSeekTime, onSeek],
+    );
+
+    const finishSeek = useCallback(() => setIsSeeking(false), []);
+
+    const seekGesture = useMemo(
+        () =>
+            Gesture.Pan()
+                .enabled(duration > 0 && !!onSeek)
+                .minDistance(0)
+                .onBegin(event => {
+                    runOnJS(beginSeek)(event.x);
+                })
+                .onUpdate(event => {
+                    runOnJS(updateSeek)(event.x);
+                })
+                .onEnd(event => {
+                    runOnJS(commitSeek)(event.x);
+                })
+                .onFinalize(() => {
+                    runOnJS(finishSeek)();
+                }),
+        [beginSeek, commitSeek, duration, finishSeek, onSeek, updateSeek],
+    );
 
     useEffect(() => {
         if (visible || error || isReconnecting) {
@@ -170,43 +191,49 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
     const displayTime = isSeeking ? seekTime : currentTime;
     const progress = duration > 0 ? (displayTime / duration) * 100 : 0;
 
-    // PanResponder for the transparent touch zone (ONLY active when controls hidden)
-    // Handles: tap → show controls, vertical pan → brightness
-    const panResponder = useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: (_evt, gs) => Math.abs(gs.dy) > 10,
-            onPanResponderGrant: evt => {
-                const { locationX, locationY } = evt.nativeEvent;
-                panStart.current = { x: locationX, y: locationY };
-                isPanning.current = false;
-            },
-            onPanResponderMove: (_evt, gs) => {
-                if (!panStart.current) return;
-                if (!isPanning.current && Math.abs(gs.dy) > 15) {
-                    isPanning.current = true;
-                    onVerticalPanStart?.(panStart.current.x);
+    const surfaceGesture = useMemo(() => {
+        const doubleTap = Gesture.Tap()
+            .enabled(!visible && !!onDoubleTap)
+            .numberOfTaps(2)
+            .maxDelay(250)
+            .onEnd((event, success) => {
+                if (success && onDoubleTap) {
+                    runOnJS(onDoubleTap)(event.x);
                 }
-                if (isPanning.current) {
-                    onVerticalPanMove?.(gs.dy);
+            });
+        const verticalPan = Gesture.Pan()
+            .enabled(!visible)
+            .minDistance(12)
+            .onStart(event => {
+                if (onVerticalPanStart) {
+                    runOnJS(onVerticalPanStart)(event.x);
                 }
-            },
-            onPanResponderRelease: () => {
-                if (isPanning.current) {
-                    onVerticalPanEnd?.();
-                } else {
-                    onToggleVisibility();
+            })
+            .onUpdate(event => {
+                if (onVerticalPanMove) {
+                    runOnJS(onVerticalPanMove)(event.translationY);
                 }
-                isPanning.current = false;
-                panStart.current = null;
-            },
-            onPanResponderTerminate: () => {
-                if (isPanning.current) onVerticalPanEnd?.();
-                isPanning.current = false;
-                panStart.current = null;
-            },
-        }),
-    ).current;
+            })
+            .onFinalize(() => {
+                if (onVerticalPanEnd) {
+                    runOnJS(onVerticalPanEnd)();
+                }
+            });
+        const singleTap = Gesture.Tap()
+            .enabled(!visible)
+            .numberOfTaps(1)
+            .onEnd((_event, success) => {
+                if (success) runOnJS(onToggleVisibility)();
+            });
+        return Gesture.Exclusive(doubleTap, verticalPan, singleTap);
+    }, [
+        onDoubleTap,
+        onToggleVisibility,
+        onVerticalPanEnd,
+        onVerticalPanMove,
+        onVerticalPanStart,
+        visible,
+    ]);
 
     return (
         <>
@@ -215,18 +242,16 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
         When controls are visible, this becomes invisible to touches,
         so buttons (pause, back, seek) can be tapped directly.
       */}
-            <View
-                style={styles.touchZone}
-                pointerEvents={visible ? 'none' : 'auto'}
-                {...panResponder.panHandlers}
-            />
+            <GestureDetector gesture={surfaceGesture}>
+                <View
+                    style={styles.touchZone}
+                    pointerEvents={visible ? 'none' : 'auto'}
+                />
+            </GestureDetector>
 
             {/* Visual brightness overlay — darkens the video when brightness < 1 */}
-            <View
-                style={[
-                    styles.brightnessOverlay,
-                    { opacity: Math.max(0, 1 - brightness) },
-                ]}
+            <Animated.View
+                style={[styles.brightnessOverlay, brightnessOverlayStyle]}
                 pointerEvents="none"
             />
 
@@ -241,11 +266,8 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                         color="#fff"
                     />
                     <View style={styles.brightnessBarBg}>
-                        <View
-                            style={[
-                                styles.brightnessBarFill,
-                                { height: `${brightness * 100}%` },
-                            ]}
+                        <Animated.View
+                            style={[styles.brightnessBarFill, brightnessFillStyle]}
                         />
                     </View>
                     <Text style={styles.brightnessText}>
@@ -349,24 +371,24 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                     {!isLive && duration > 0 && (
                         <View style={styles.progressContainer}>
                             <Text style={styles.timeText}>{formatTime(displayTime)}</Text>
-                            <View
-                                style={styles.seekBarTouchTarget}
-                                onLayout={onSeekBarLayout}
-                                {...seekPanResponderLatest.panHandlers}
-                            >
-                                <View style={styles.progressBarBg}>
+                            <GestureDetector gesture={seekGesture}>
+                                <View
+                                    style={styles.seekBarTouchTarget}
+                                    onLayout={onSeekBarLayout}
+                                >
+                                    <View style={styles.progressBarBg}>
+                                        <View
+                                            style={[styles.progressBarFill, { width: `${progress}%` }]}
+                                        />
+                                    </View>
                                     <View
-                                        style={[styles.progressBarFill, { width: `${progress}%` }]}
+                                        style={[
+                                            styles.seekThumb,
+                                            { left: `${progress}%` },
+                                        ]}
                                     />
                                 </View>
-                                {/* Seek thumb */}
-                                <View
-                                    style={[
-                                        styles.seekThumb,
-                                        { left: `${progress}%` },
-                                    ]}
-                                />
-                            </View>
+                            </GestureDetector>
                             <Text style={styles.timeText}>{formatTime(duration)}</Text>
                         </View>
                     )}
@@ -569,8 +591,10 @@ const styles = StyleSheet.create({
     },
     brightnessBarFill: {
         width: '100%',
+        height: '100%',
         backgroundColor: '#FFD700',
         borderRadius: 2,
+        transformOrigin: 'bottom',
     },
     brightnessText: {
         color: '#fff',

@@ -16,12 +16,10 @@ import type { RootScreenProps } from '../navigation/types';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { storage } from '../utils/storage';
-import { unwrapProxyUrl, proxyStreamUrl } from '../utils/proxy';
-import { buildSeriesStreamUrl } from '../utils/xtream';
 import {
-  extractContainerExtension,
-  extractLiveStreamIdentity,
-} from '../utils/streamIdentity';
+  buildDirectPlaybackUrl,
+  switchLivePlaybackRequest,
+} from '../utils/playbackSources';
 import {
   getXtreamErrorMessage,
   useXtreamCategoryContent,
@@ -31,13 +29,10 @@ import type {
   XtreamSession,
 } from '../services/xtream/xtreamService';
 
-// Components
-import NativeVideoPlayer from '../components/NativeVideoPlayer';
-import LibVlcPlayer from '../components/LibVlcPlayer';
-import ExpoVideoPlayer from '../components/ExpoVideoPlayer';
 import PlayerControls from '../components/PlayerControls';
 import ChannelSwitcher from '../components/ChannelSwitcher';
-import type { PlayerHandle } from '../types/player';
+import PlayerAdapterView from '../components/PlayerAdapterView';
+import type { PlaybackRequest, PlayerAdapter } from '../types/player';
 // import DevStreamDebugOverlay from '../components/DevStreamDebugOverlay';
 
 
@@ -48,29 +43,17 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 type Props = RootScreenProps<'VideoPlayer'>;
 
-// Extract original URL from proxy URL for VLC (VLC handles IPTV streams natively)
-const getDirectStreamUrl = (url: string): string => unwrapProxyUrl(url);
-
 const CONTROLS_TIMEOUT = 5000; // Auto-hide controls after 5 seconds
 const EMPTY_CHANNELS: XtreamLiveStream[] = [];
 
 const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
-  const {
-    streamUrl: initialStreamUrl,
-    channelName: initialChannelName,
-    isLive = false,
-    title,
-    seriesId,
-    episodeId,
-    episodeList,
-    currentEpisodeIndex,
-    movieId,
-    continueTime,
-    thumbnail = '',
-    streamId: initialStreamId,
-    containerExtension: initialContainerExtension,
-    categoryId,
-  } = route.params;
+  const [playbackRequest, setPlaybackRequest] = useState<PlaybackRequest>(
+    route.params.request,
+  );
+
+  useEffect(() => {
+    setPlaybackRequest(route.params.request);
+  }, [route.params.request]);
 
   const {
     playlistId,
@@ -81,6 +64,46 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     serverDomain,
     serverPort,
   } = useSelector((state: RootState) => state.user);
+  const connection = useMemo(
+    () => ({
+      domain: serverDomain,
+      port: serverPort,
+      username,
+      password,
+    }),
+    [password, serverDomain, serverPort, username],
+  );
+  const isLive = playbackRequest.kind === 'live';
+  const title = playbackRequest.title;
+  const seriesId =
+    playbackRequest.kind === 'episode' ? playbackRequest.seriesId : undefined;
+  const episodeId =
+    playbackRequest.kind === 'episode' ? playbackRequest.streamId : undefined;
+  const episodeList =
+    playbackRequest.kind === 'episode'
+      ? playbackRequest.episodeList
+      : undefined;
+  const currentEpisodeIndex =
+    playbackRequest.kind === 'episode'
+      ? playbackRequest.currentEpisodeIndex
+      : undefined;
+  const movieId =
+    playbackRequest.kind === 'movie' ? playbackRequest.streamId : undefined;
+  const currentStreamId = playbackRequest.streamId;
+  const currentContainerExtension = playbackRequest.extension;
+  const currentChannelName =
+    playbackRequest.kind === 'live'
+      ? playbackRequest.channelName
+      : playbackRequest.title;
+  const currentThumbnail = playbackRequest.thumbnail ?? '';
+  const categoryId =
+    playbackRequest.kind === 'live'
+      ? playbackRequest.categoryId
+      : undefined;
+  const currentStreamUrl = useMemo(
+    () => buildDirectPlaybackUrl(playbackRequest, connection),
+    [connection, playbackRequest],
+  );
   const session = useMemo<XtreamSession | null>(
     () =>
       playlistId
@@ -105,29 +128,6 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   const refetchLiveChannels = liveChannelsQuery.refetch;
   const { isOffline } = useNetworkStatus();
 
-  // Current stream (can change when switching channels)
-  const [currentStreamUrl, setCurrentStreamUrl] = useState(initialStreamUrl);
-  const [currentChannelName, setCurrentChannelName] = useState(initialChannelName || title || '');
-  const [currentStreamId, setCurrentStreamId] = useState(
-    () =>
-      initialStreamId ||
-      extractLiveStreamIdentity(initialStreamUrl)?.streamId ||
-      '',
-  );
-  const [currentContainerExtension, setCurrentContainerExtension] = useState(
-    () =>
-      initialContainerExtension ||
-      extractLiveStreamIdentity(initialStreamUrl)?.containerExtension ||
-      'm3u8',
-  );
-  const [currentThumbnail, setCurrentThumbnail] = useState(thumbnail);
-
-  useEffect(() => {
-    if (__DEV__ && currentStreamUrl) {
-      console.log('[Player] playing →', currentStreamUrl);
-    }
-  }, [currentStreamUrl]);
-
   // Controls visibility
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -135,36 +135,17 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   // Channel switcher
   const [channelSwitcherVisible, setChannelSwitcherVisible] = useState(false);
 
-  // Video player hook (native player logic)
+  // Every engine receives the same selected fallback source.
   const player = useVideoPlayer({
-    originalStreamUrl: currentStreamUrl,
-    serverDomain,
-    serverPort,
-    username,
-    password,
-    streamId: currentStreamId,
-    isLive,
+    request: playbackRequest,
+    connection,
+    playlistId,
+    playerEngine,
+    isOffline,
     useProxy,
     autoReconnect: true,
-    maxRetries: 10,
   });
-  const initialVodWatchRef = useRef({
-    duration: player.duration,
-    episodeId,
-    isLive,
-    movieId,
-    seriesId,
-    thumbnail,
-    title,
-    streamUrl: initialStreamUrl,
-    containerExtension:
-      initialContainerExtension ||
-      extractContainerExtension(initialStreamUrl) ||
-      undefined,
-  });
-
-  // Single polymorphic ref — every engine wrapper satisfies PlayerHandle.
-  const playerRef = useRef<PlayerHandle>(null);
+  const playerRef = useRef<PlayerAdapter>(null);
 
   // --- Controls auto-hide logic ---
   const resetControlsTimeout = useCallback(() => {
@@ -203,6 +184,11 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     duration: player.duration,
     onSeek: handleSeek,
   });
+  const seekByDoubleTap = gestures.handleDoubleTap;
+  const handleDoubleTap = useCallback(
+    (x: number) => seekByDoubleTap(x, player.currentTime),
+    [player.currentTime, seekByDoubleTap],
+  );
 
   // Show controls initially, then auto-hide
   useEffect(() => {
@@ -308,32 +294,24 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   }, [isLive, player.currentProgressRef, player.duration, saveProgress]);
 
   // --- Auto-play next episode ---
+  const playbackCompleted = player.isCompleted;
+  const resetPlaybackCompletion = player.setIsCompleted;
   useEffect(() => {
-    if (player.isCompleted) {
+    if (playbackCompleted) {
       if (seriesId && episodeList && currentEpisodeIndex !== undefined) {
           const nextEpisodeIndex = currentEpisodeIndex + 1;
         if (nextEpisodeIndex < episodeList.length) {
           const nextEpisode = episodeList[nextEpisodeIndex];
           const nextEpisodeId = String(nextEpisode.id);
           const ext = nextEpisode.container_extension?.replace('.', '') || 'mp4';
-          const originalNextUrl = buildSeriesStreamUrl({
-            domain: serverDomain,
-            port: serverPort,
-            username,
-            password,
+
+          resetPlaybackCompletion(false);
+          setPlaybackRequest({
+            kind: 'episode',
             streamId: nextEpisodeId,
             extension: ext,
-          });
-          const nextUrl = proxyStreamUrl(originalNextUrl, useProxy);
-
-          navigation.replace('VideoPlayer', {
-            streamUrl: nextUrl,
-            streamId: nextEpisodeId,
-            containerExtension: ext,
-            isLive: false,
-            title: nextEpisode.title,
+            title: nextEpisode.title || 'Episode',
             seriesId,
-            episodeId: nextEpisodeId,
             episodeList,
             currentEpisodeIndex: nextEpisodeIndex,
           });
@@ -352,54 +330,49 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     episodeList,
     movieId,
     navigation,
-    password,
-    player.isCompleted,
+    playbackCompleted,
+    resetPlaybackCompletion,
     seriesId,
-    serverDomain,
-    serverPort,
-    useProxy,
-    username,
   ]);
 
   // --- Recently watched tracking ---
   useEffect(() => {
-    const initial = initialVodWatchRef.current;
-    if (initial.isLive) {
+    if (playbackRequest.kind === 'live') {
       return;
     }
 
-    if (initial.seriesId && initial.episodeId) {
+    if (playbackRequest.kind === 'episode') {
       const item = {
-        id: initial.seriesId,
+        id: playbackRequest.seriesId,
         type: 'series' as const,
-        name: initial.title || '',
+        name: playbackRequest.title,
         timestamp: Date.now(),
-        progress: 0,
-        totalDuration: initial.duration,
-        seriesId: initial.seriesId,
-        episodeId: initial.episodeId,
-        thumbnail: initial.thumbnail,
-        streamUrl: initial.streamUrl,
-        containerExtension: initial.containerExtension,
+        progress: playbackRequest.resume?.progress ?? 0,
+        totalDuration: playbackRequest.resume?.totalDuration,
+        seriesId: playbackRequest.seriesId,
+        episodeId: playbackRequest.streamId,
+        thumbnail: playbackRequest.thumbnail,
+        streamUrl: currentStreamUrl,
+        containerExtension: playbackRequest.extension,
       };
       storage.saveRecentlyWatched(item);
       storage.saveLatestWatched(item);
-    } else if (initial.movieId) {
+    } else {
       const item = {
-        id: initial.movieId,
+        id: playbackRequest.streamId,
         type: 'movie' as const,
-        name: initial.title || '',
+        name: playbackRequest.title,
         timestamp: Date.now(),
-        progress: 0,
-        totalDuration: initial.duration,
-        thumbnail: initial.thumbnail,
-        streamUrl: initial.streamUrl,
-        containerExtension: initial.containerExtension,
+        progress: playbackRequest.resume?.progress ?? 0,
+        totalDuration: playbackRequest.resume?.totalDuration,
+        thumbnail: playbackRequest.thumbnail,
+        streamUrl: currentStreamUrl,
+        containerExtension: playbackRequest.extension,
       };
       storage.saveRecentlyWatched(item);
       storage.saveLatestWatched(item);
     }
-  }, []);
+  }, [currentStreamUrl, playbackRequest]);
 
   useEffect(() => {
     if (!isLive || !currentStreamId || !currentChannelName) {
@@ -431,22 +404,24 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   // --- Channel switch ---
   const handleChannelSwitch = useCallback(
     (
-      newStreamUrl: string,
-      newChannelName: string,
       newStreamId: string,
+      newChannelName: string,
+      newExtension: string,
       newThumbnail?: string,
     ) => {
-      setCurrentStreamUrl(newStreamUrl);
-      setCurrentChannelName(newChannelName);
-      setCurrentStreamId(newStreamId);
-      setCurrentContainerExtension(
-        extractLiveStreamIdentity(newStreamUrl)?.containerExtension || 'm3u8',
-      );
-      setCurrentThumbnail(newThumbnail || '');
+      if (playbackRequest.kind === 'live') {
+        setPlaybackRequest(
+          switchLivePlaybackRequest(playbackRequest, {
+            streamId: newStreamId,
+            channelName: newChannelName,
+            extension: newExtension,
+            thumbnail: newThumbnail,
+          }),
+        );
+      }
       setChannelSwitcherVisible(false);
-      // The player hook will re-run with new URL since state changed
     },
-    [],
+    [playbackRequest],
   );
 
   const toggleChannelSwitcher = useCallback(() => {
@@ -465,63 +440,22 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     navigation.goBack();
   }, [navigation]);
 
-  // VLC and expo-video take the raw stream URL; the native player consumes the
-  // useVideoPlayer fallback-source chain (proxied HLS → TS → direct HLS).
-  const rawStreamUrl = useProxy ? currentStreamUrl : getDirectStreamUrl(currentStreamUrl);
-  const isNativeEngine = playerEngine === 'native';
-
-  const activeRequestUrl = isNativeEngine
-    ? player.currentSource?.uri || currentStreamUrl
-    : rawStreamUrl;
-
-  // --- Render ---
-  if (__DEV__) {
-    console.log('[VideoPlayerScreen] render, engine:', playerEngine, 'url:', activeRequestUrl);
-  }
-
-  // Shared per-engine props; the key forces a clean remount on engine change,
-  // reconnect (playerKey) and channel switch (streamId).
-  const playerKey = `${playerEngine}-${player.playerKey}-${currentStreamId}`;
-  const sharedPlayerProps = {
-    isLive,
-    isPaused: player.isPaused,
-    onLoad: player.onLoad,
-    onError: player.onError,
-    onProgress: player.onProgress,
-    onBuffer: player.onBuffer,
-    continueTime: continueTime?.progress,
-  };
-
   return (
     <View style={styles.container}>
-      {/* Video player */}
-      {playerEngine === 'vlc' ? (
-        <LibVlcPlayer
-          key={playerKey}
-          ref={playerRef}
-          uri={rawStreamUrl}
-          {...sharedPlayerProps}
-        />
-      ) : playerEngine === 'expo-video' ? (
-        <ExpoVideoPlayer
-          key={playerKey}
-          ref={playerRef}
-          uri={rawStreamUrl}
-          {...sharedPlayerProps}
-        />
-      ) : (
-        // ExoPlayer / AVPlayer (react-native-video)
-        player.currentSource && (
-          <NativeVideoPlayer
-            key={playerKey}
-            ref={playerRef}
-            uri={player.currentSource.uri}
-            type={player.currentSource.type}
-            bufferConfig={player.bufferConfig}
-            {...sharedPlayerProps}
-          />
-        )
-      )}
+      <PlayerAdapterView
+        ref={playerRef}
+        engine={playerEngine}
+        source={player.currentSource}
+        sourceToken={player.sourceToken}
+        isLive={isLive}
+        isPaused={player.shouldPause}
+        resumePosition={player.resumePosition}
+        bufferConfig={player.bufferConfig}
+        onLoad={player.onLoad}
+        onError={player.onError}
+        onProgress={player.onProgress}
+        onBuffer={player.onBuffer}
+      />
 
       <PlayerControls
         visible={controlsVisible}
@@ -538,11 +472,14 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         brightness={gestures.brightness}
         showBrightnessIndicator={gestures.showBrightnessIndicator}
         brightnessIndicatorStyle={gestures.brightnessIndicatorStyle}
+        brightnessOverlayStyle={gestures.brightnessOverlayStyle}
+        brightnessFillStyle={gestures.brightnessFillStyle}
         onTogglePlayPause={player.togglePlayPause}
         onGoBack={handleGoBack}
         onSeek={handleSeek}
         onRetry={player.retry}
         onToggleVisibility={toggleControls}
+        onDoubleTap={isLive ? undefined : handleDoubleTap}
         onToggleChannelSwitcher={isLive ? toggleChannelSwitcher : undefined}
         onVerticalPanStart={gestures.onVerticalPanStart}
         onVerticalPanMove={gestures.onVerticalPanMove}
@@ -555,11 +492,6 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
           visible={channelSwitcherVisible}
           channels={liveChannels}
           activeStreamId={currentStreamId}
-          serverDomain={serverDomain}
-          serverPort={serverPort}
-          username={username}
-          password={password}
-          useProxy={useProxy}
           isLoading={liveChannelsQuery.isPending}
           isOffline={isOffline}
           error={liveChannelsError}
@@ -569,10 +501,10 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         />
       )}
 
-      {/* {__DEV__ && isLive && activeRequestUrl ? (
+      {/* {__DEV__ && isLive ? (
         <DevStreamDebugOverlay
           playerName={activePlayerName}
-          requestUrl={activeRequestUrl}
+          requestUrl={player.currentSource.uri}
           sourceLabel={activeSourceLabel}
           isBuffering={player.isBuffering}
           isReconnecting={player.isReconnecting}

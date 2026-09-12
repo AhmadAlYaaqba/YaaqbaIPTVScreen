@@ -1,7 +1,5 @@
 // src/components/ChannelSwitcher.tsx
 import React, { useCallback, useEffect } from 'react';
-import { proxyStreamUrl } from '../utils/proxy';
-import { buildLiveStreamUrl } from '../utils/xtream';
 import {
   View,
   Text,
@@ -29,25 +27,21 @@ interface Channel {
     name: string;
     stream_icon?: string;
     icon?: string;
+    container_extension?: string;
 }
 
 interface ChannelSwitcherProps {
   visible: boolean;
   channels: Channel[];
   activeStreamId: string;
-  serverDomain: string;
-  serverPort: string;
-  username: string;
-  password: string;
-  useProxy: boolean;
   isLoading: boolean;
   isOffline: boolean;
   error?: string | null;
   onRetry: () => void;
   onSelectChannel: (
-    streamUrl: string,
-    channelName: string,
     streamId: string,
+    channelName: string,
+    extension: string,
     thumbnail?: string,
   ) => void;
   onClose: () => void;
@@ -58,18 +52,25 @@ const ChannelItem = React.memo(
     streamId,
     name,
     thumbnail,
+    extension,
     isActive,
     onSelect,
   }: {
     streamId: number;
     name: string;
     thumbnail?: string;
+    extension?: string;
     isActive: boolean;
-    onSelect: (streamId: number, name: string, thumbnail?: string) => void;
+    onSelect: (
+      streamId: number,
+      name: string,
+      thumbnail?: string,
+      extension?: string,
+    ) => void;
   }) => {
     const handlePress = useCallback(() => {
-      onSelect(streamId, name, thumbnail);
-    }, [name, onSelect, streamId, thumbnail]);
+      onSelect(streamId, name, thumbnail, extension);
+    }, [extension, name, onSelect, streamId, thumbnail]);
 
     return (
       <TouchableOpacity
@@ -122,11 +123,6 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
   visible,
   channels,
   activeStreamId,
-  serverDomain,
-  serverPort,
-  username,
-  password,
-  useProxy,
   isLoading,
   isOffline,
   error,
@@ -161,33 +157,24 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
         opacity: backdropOpacity.value,
     }));
 
-    const buildStreamUrl = useCallback(
-        (streamId: number) => {
-            const originalUrl = buildLiveStreamUrl({
-                domain: serverDomain,
-                port: serverPort,
-                username,
-                password,
-                streamId,
-            });
-            return proxyStreamUrl(originalUrl, useProxy);
-        },
-        [serverDomain, serverPort, username, password, useProxy],
-    );
-
     const handleSelect = useCallback(
-      (streamId: number, name: string, thumbnail?: string) => {
+      (
+        streamId: number,
+        name: string,
+        thumbnail?: string,
+        extension = 'm3u8',
+      ) => {
         if (String(streamId) !== activeStreamId) {
           onSelectChannel(
-            buildStreamUrl(streamId),
-            name,
             String(streamId),
+            name,
+            extension.replace(/^\./, '') || 'm3u8',
             thumbnail,
           );
         }
         onClose();
       },
-      [activeStreamId, buildStreamUrl, onClose, onSelectChannel],
+      [activeStreamId, onClose, onSelectChannel],
     );
 
     const renderItem = useCallback(
@@ -196,6 +183,7 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
           streamId={item.stream_id}
           name={item.name}
           thumbnail={item.stream_icon || item.icon}
+          extension={item.container_extension}
           isActive={String(item.stream_id) === activeStreamId}
           onSelect={handleSelect}
         />

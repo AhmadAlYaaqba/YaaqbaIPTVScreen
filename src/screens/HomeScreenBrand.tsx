@@ -31,11 +31,9 @@ import { useIsFocused } from '@react-navigation/native';
 import type { TabParamList, TabScreenProps } from '../navigation/types';
 import { RootState } from '../store';
 import { storage, type LatestWatched } from '../utils/storage';
-import { proxyStreamUrl, unwrapProxyUrl } from '../utils/proxy';
+import { proxyStreamUrl } from '../utils/proxy';
 import {
-  buildMovieStreamUrl,
   buildPlayerApiUrl,
-  buildSeriesStreamUrl,
 } from '../utils/xtream';
 import { colors, sectionAccents, radii, gradients } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
@@ -619,67 +617,45 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
 
   const openContinueItem = (item: LatestWatched) => {
     if (item.type === 'series') {
-      const original = item.streamUrl
-        ? unwrapProxyUrl(item.streamUrl)
-        : buildSeriesStreamUrl({
-            domain: serverDomain,
-            port: serverPort,
-            username,
-            password,
-            streamId: item.episodeId,
-            extension: item.containerExtension || 'mp4',
-          });
-      const url = proxyStreamUrl(original, useProxy);
       navigation.navigate('VideoPlayer', {
-        streamUrl: url,
-        streamId: item.episodeId,
-        containerExtension: item.containerExtension || 'mp4',
-        isLive: false,
-        title: item.name,
-        seriesId: item.seriesId,
-        episodeId: item.episodeId,
-        thumbnail: item.thumbnail,
-        continueTime: {
-          progress: item.progress ?? 0,
-          totalDuration: item.totalDuration,
+        request: {
+          kind: 'episode',
+          streamId: item.episodeId,
+          extension: item.containerExtension || 'mp4',
+          title: item.name,
+          seriesId: item.seriesId,
+          thumbnail: item.thumbnail,
+          resume: {
+            progress: item.progress ?? 0,
+            totalDuration: item.totalDuration,
+          },
         },
       });
     } else if (item.type === 'movie') {
-      const original = item.streamUrl
-        ? unwrapProxyUrl(item.streamUrl)
-        : buildMovieStreamUrl({
-            domain: serverDomain,
-            port: serverPort,
-            username,
-            password,
-            streamId: item.id,
-            extension: item.containerExtension || 'mp4',
-          });
-      const url = proxyStreamUrl(original, useProxy);
       navigation.navigate('VideoPlayer', {
-        streamUrl: url,
-        streamId: item.id,
-        containerExtension: item.containerExtension || 'mp4',
-        isLive: false,
-        title: item.name,
-        movieId: item.id,
-        thumbnail: item.thumbnail,
-        continueTime: {
-          progress: item.progress ?? 0,
-          totalDuration: item.totalDuration,
+        request: {
+          kind: 'movie',
+          streamId: item.id,
+          extension: item.containerExtension || 'mp4',
+          title: item.name,
+          thumbnail: item.thumbnail,
+          resume: {
+            progress: item.progress ?? 0,
+            totalDuration: item.totalDuration,
+          },
         },
       });
     } else if (item.type === 'live') {
-      const url = proxyStreamUrl(unwrapProxyUrl(item.streamUrl), useProxy);
       navigation.navigate('VideoPlayer', {
-        streamUrl: url,
-        streamId: item.streamId,
-        containerExtension: item.containerExtension,
-        isLive: true,
-        channelName: item.channelName,
-        title: item.channelName,
-        thumbnail: item.thumbnail,
-        categoryId: item.categoryId,
+        request: {
+          kind: 'live',
+          streamId: item.streamId,
+          extension: item.containerExtension,
+          title: item.channelName,
+          channelName: item.channelName,
+          thumbnail: item.thumbnail,
+          categoryId: item.categoryId,
+        },
       });
     }
   };

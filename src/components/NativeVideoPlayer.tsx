@@ -1,106 +1,134 @@
-// src/components/NativeVideoPlayer.tsx
-import React, { forwardRef, useImperativeHandle, useRef } from 'react';
-import { StyleSheet, Platform } from 'react-native';
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+} from 'react';
+import { Platform, StyleSheet } from 'react-native';
 import Video, {
-    BufferConfig,
-    OnBufferData,
-    OnLoadData,
-    OnVideoErrorData,
-    ReactVideoSource,
+  type BufferConfig,
+  type OnLoadData,
+  type ReactVideoSource,
+  type VideoRef,
 } from 'react-native-video';
 
-interface NativeVideoPlayerProps {
-    uri: string;
-    type?: string;
-    isLive: boolean;
-    isPaused: boolean;
-    bufferConfig?: BufferConfig;
-    onLoad: (data: OnLoadData) => void;
-    onError: (error: OnVideoErrorData) => void;
-    onProgress: (data: any) => void;
-    onBuffer: (data: OnBufferData) => void;
-    continueTime?: number;
+import type {
+  PlaybackSource,
+  PlayerAdapter,
+  PlayerAdapterProps,
+} from '../types/player';
+
+interface NativeVideoPlayerProps extends PlayerAdapterProps {
+  bufferConfig?: BufferConfig;
 }
 
-export interface NativeVideoPlayerRef {
-    seek: (time: number) => void;
+function createNativeSource(
+  source: PlaybackSource,
+  isLive: boolean,
+  bufferConfig?: BufferConfig,
+): ReactVideoSource {
+  return {
+    uri: source.uri,
+    type: source.type,
+    ...(Platform.OS === 'android' ? { bufferConfig } : {}),
+    startPosition: isLive ? undefined : 0,
+  };
 }
 
-const inferVideoType = (url: string): string | undefined => {
-    const lower = (url || '').toLowerCase();
-    if (lower.includes('.m3u8')) return 'm3u8';
-    if (lower.includes('.mpd')) return 'mpd';
-    if (lower.includes('.mp4')) return 'mp4';
-    if (lower.includes('.ts')) return 'mpegts';
-    return undefined;
-};
-
-const NativeVideoPlayer = forwardRef<NativeVideoPlayerRef, NativeVideoPlayerProps>(
-    (
-        {
-            uri,
-            type,
-            isLive,
-            isPaused,
-            bufferConfig,
-            onLoad,
-            onError,
-            onProgress,
-            onBuffer,
-            continueTime,
-        },
-        ref,
-    ) => {
-        const videoRef = useRef<any>(null);
-
-        useImperativeHandle(ref, () => ({
-            seek: (time: number) => {
-                videoRef.current?.seek(time);
-            },
-        }));
-
-        const handleLoad = (data: OnLoadData) => {
-            if (continueTime && continueTime > 0) {
-                videoRef.current?.seek(continueTime);
-            }
-            onLoad(data);
-        };
-
-        const source: ReactVideoSource = {
-            uri,
-            type: type || inferVideoType(uri),
-            ...(Platform.OS === 'android'
-                ? {
-                    bufferConfig,
-                    minLoadRetryCount: isLive ? 5 : 3,
-                }
-                : {}),
-        };
-
-        return (
-            <Video
-                ref={videoRef}
-                source={source}
-                style={styles.video}
-                fullscreenAutorotate={true}
-                fullscreenOrientation="landscape"
-                enterPictureInPictureOnLeave={true}
-                controls={false} // Using custom controls
-                resizeMode="contain"
-                paused={isPaused}
-                onLoad={handleLoad}
-                onError={onError}
-                onProgress={onProgress}
-                onBuffer={onBuffer}
-                playInBackground={false}
-                playWhenInactive={false}
-                ignoreSilentSwitch="ignore"
-                automaticallyWaitsToMinimizeStalling={true}
-                preferredForwardBufferDuration={isLive ? 10 : 0}
-                maxBitRate={isLive ? 2500000 : 0}
-            />
-        );
+const NativeVideoPlayer = forwardRef<PlayerAdapter, NativeVideoPlayerProps>(
+  (
+    {
+      source,
+      sourceToken,
+      isLive,
+      isPaused,
+      bufferConfig,
+      onLoad,
+      onError,
+      onProgress,
+      onBuffer,
+      resumePosition,
     },
+    ref,
+  ) => {
+    const videoRef = useRef<VideoRef>(null);
+    const pendingResumeRef = useRef(resumePosition);
+    const sourceRef = useRef(source);
+    const isLiveRef = useRef(isLive);
+    const bufferConfigRef = useRef(bufferConfig);
+    sourceRef.current = source;
+    pendingResumeRef.current = resumePosition;
+    isLiveRef.current = isLive;
+    bufferConfigRef.current = bufferConfig;
+
+    const replaceSource = useCallback(
+      (nextSource: PlaybackSource, nextResumePosition = 0) => {
+        pendingResumeRef.current = nextResumePosition;
+        videoRef.current?.setSource(
+          createNativeSource(
+            nextSource,
+            isLiveRef.current,
+            bufferConfigRef.current,
+          ),
+        );
+      },
+      [],
+    );
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        seek: timeSeconds => videoRef.current?.seek(timeSeconds),
+        play: () => videoRef.current?.resume(),
+        pause: () => videoRef.current?.pause(),
+        stop: () => {
+          videoRef.current?.pause();
+          videoRef.current?.setSource(undefined);
+        },
+        replaceSource,
+      }),
+      [replaceSource],
+    );
+
+    useEffect(() => {
+      replaceSource(sourceRef.current, pendingResumeRef.current);
+    }, [replaceSource, sourceToken]);
+
+    const handleLoad = useCallback(
+      (data: OnLoadData) => {
+        if (!isLive && pendingResumeRef.current > 0) {
+          videoRef.current?.seek(pendingResumeRef.current);
+        }
+        onLoad({ duration: data.duration || 0 });
+      },
+      [isLive, onLoad],
+    );
+
+    return (
+      <Video
+        ref={videoRef}
+        source={undefined}
+        style={styles.video}
+        fullscreenAutorotate
+        fullscreenOrientation="landscape"
+        enterPictureInPictureOnLeave
+        controls={false}
+        resizeMode="contain"
+        paused={isPaused}
+        onLoad={handleLoad}
+        onError={onError}
+        onProgress={onProgress}
+        progressUpdateInterval={1000}
+        onBuffer={onBuffer}
+        playInBackground={false}
+        playWhenInactive={false}
+        ignoreSilentSwitch="ignore"
+        automaticallyWaitsToMinimizeStalling
+        preferredForwardBufferDuration={isLive ? 10 : 0}
+      />
+    );
+  },
 );
 
 NativeVideoPlayer.displayName = 'NativeVideoPlayer';
@@ -108,7 +136,7 @@ NativeVideoPlayer.displayName = 'NativeVideoPlayer';
 export default React.memo(NativeVideoPlayer);
 
 const styles = StyleSheet.create({
-    video: {
-        flex: 1,
-    },
+  video: {
+    flex: 1,
+  },
 });

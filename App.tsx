@@ -4,11 +4,13 @@ if (__DEV__) {
 }
 
 import React, {useEffect, useState} from 'react';
+import {StyleSheet} from 'react-native';
 import {Provider} from 'react-redux';
 import {store} from './src/store';
 import {NavigationContainer} from '@react-navigation/native';
 import {QueryClientProvider} from '@tanstack/react-query';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
+import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import Orientation from 'react-native-orientation-locker';
 
 import RootNavigator from './RootNavigator';
@@ -47,18 +49,26 @@ const App = () => {
   }, []);
 
   return (
-    <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        {isXtreamCacheReady ? (
-          <SafeAreaProvider>
-            <NavigationContainer>
-              <RootNavigator />
-            </NavigationContainer>
-          </SafeAreaProvider>
-        ) : null}
-      </QueryClientProvider>
-    </Provider>
+    <GestureHandlerRootView style={styles.root}>
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          {isXtreamCacheReady ? (
+            <SafeAreaProvider>
+              <NavigationContainer>
+                <RootNavigator />
+              </NavigationContainer>
+            </SafeAreaProvider>
+          ) : null}
+        </QueryClientProvider>
+      </Provider>
+    </GestureHandlerRootView>
   );
 };
 
 export default App;
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});
