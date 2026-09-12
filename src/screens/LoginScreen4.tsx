@@ -43,6 +43,7 @@ import {
   getPlaylists,
 } from '../services/playlists/playlistStore';
 import { usePlaylists } from '../services/playlists/usePlaylists';
+import type { RootScreenProps } from '../navigation/types';
 
 const SECRET_KEY = '5w.=:uehB3#jwUJ';
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
@@ -105,10 +106,7 @@ const xorEncrypt = (input: string) => {
 
 const xorDecrypt = (input: string) => xorEncrypt(input); // XOR is symmetric
 
-interface Props {
-  navigation: any;
-  route: any;
-}
+type Props = RootScreenProps<'Login'>;
 
 const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
   const initialTab: TabKey = route?.params?.initialTab ?? 'activation';

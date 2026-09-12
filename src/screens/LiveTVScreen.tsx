@@ -31,6 +31,7 @@ import { buildLiveStreamUrl } from '../utils/xtream';
 import { colors, sectionAccents, radii } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 import CategoryDropdown from '../components/mirror/CategoryDropdown';
+import type { TabScreenProps } from '../navigation/types';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
@@ -91,7 +92,7 @@ const ChannelCard = React.memo(
   },
 );
 
-const LiveTVScreen: React.FC<any> = ({ navigation }) => {
+const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
 
   const { username, password, serverDomain, serverPort, useProxy } =
@@ -211,8 +212,8 @@ const LiveTVScreen: React.FC<any> = ({ navigation }) => {
               streamUrl,
               channelName: item.name,
               isLive: true,
-              thumbnail: icon,
-              categoryId: activeCategory || undefined,
+              thumbnail: icon ?? undefined,
+              categoryId: activeCategory ?? undefined,
             })
           }
         />

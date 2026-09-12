@@ -12,10 +12,10 @@ import {useSelector, useDispatch} from 'react-redux';
 import {RootState, AppDispatch} from '../store';
 import {fetchLiveChannels} from '../store/slices/iptvSlice';
 
-import {StackNavigationProp} from '@react-navigation/stack';
-import {RootStackParamList} from '../../RootNavigator';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {LegacyStackParamList} from '../navigation/legacyTypes';
 
-type LiveScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Live'>;
+type LiveScreenNavigationProp = NativeStackNavigationProp<LegacyStackParamList, 'Live'>;
 
 interface Props {
   navigation: LiveScreenNavigationProp;

@@ -18,13 +18,14 @@ import LiveTVScreen from './LiveTVScreen';
 import MoviesScreen from './singleMoviesScreen';
 import SeriesHomeScreen from './SeriesList';
 import SettingsScreen from './SettingsScreen';
+import type { TabParamList } from '../navigation/types';
 
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<TabParamList>();
 
 const ACTIVE_COLOR = '#8b7bff';
 const INACTIVE_COLOR = '#7b829a';
 
-const TAB_LABELS: Record<string, string> = {
+const TAB_LABELS: Record<keyof TabParamList, string> = {
   Home: 'Home',
   LiveTV: 'Live TV',
   Movies: 'Movies',
@@ -32,7 +33,7 @@ const TAB_LABELS: Record<string, string> = {
   Settings: 'Settings',
 };
 
-function getIcon(name: string, color: string, size: number) {
+function getIcon(name: keyof TabParamList, color: string, size: number) {
   switch (name) {
     case 'Home':
       return <Ionicons name="home" size={size} color={color} />;
@@ -49,7 +50,7 @@ function getIcon(name: string, color: string, size: number) {
   }
 }
 
-function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   // Float above the system gesture/nav bar. Fall back to the platform default
   // on devices that report no bottom inset (e.g. Android hardware buttons).
@@ -70,7 +71,8 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         {state.routes.map((route, index) => {
           const isFocused = state.index === index;
           const color = isFocused ? ACTIVE_COLOR : INACTIVE_COLOR;
-          const label = TAB_LABELS[route.name] ?? route.name;
+          const routeName = route.name as keyof TabParamList;
+          const label = TAB_LABELS[routeName];
 
           const onPress = () => {
             const event = navigation.emit({
@@ -90,7 +92,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               onPress={onPress}
               style={styles.tabItem}
             >
-              {getIcon(route.name, color, 22)}
+              {getIcon(routeName, color, 22)}
               <Text style={[styles.tabLabel, { color }]}>{label}</Text>
             </TouchableOpacity>
           );
@@ -100,10 +102,12 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   );
 }
 
+const renderTabBar = (props: BottomTabBarProps) => <CustomTabBar {...props} />;
+
 export default function TabNavigator() {
   return (
     <Tab.Navigator
-      tabBar={(props) => <CustomTabBar {...props} />}
+      tabBar={renderTabBar}
       screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name="Home" component={HomeScreenBrand} />

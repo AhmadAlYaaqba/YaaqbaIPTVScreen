@@ -24,12 +24,11 @@ import Svg, {
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import axios from 'axios';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useIsFocused } from '@react-navigation/native';
 
-import type { RootStackParamList } from '../../RootNavigator';
+import type { TabParamList, TabScreenProps } from '../navigation/types';
 import { RootState } from '../store';
 import { storage } from '../utils/storage';
 import { proxyStreamUrl } from '../utils/proxy';
@@ -41,14 +40,7 @@ import {
 import { colors, sectionAccents, radii, gradients } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  'Home'
->;
-
-interface HomeScreenProps {
-  navigation: HomeScreenNavigationProp;
-}
+type HomeScreenProps = TabScreenProps<'Home'>;
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
@@ -367,7 +359,7 @@ function SectionTile({
         name="chevron-right"
         size={20}
         color={s.accent}
-        style={{ opacity: 0.7 }}
+        style={styles.sectionChevron}
       />
     </TouchableOpacity>
   );
@@ -409,16 +401,14 @@ function LivePulse({ color }: { color: string }) {
     loop.start();
     return () => loop.stop();
   }, [anim]);
+  const pulseStyle = {
+    backgroundColor: color,
+    opacity: anim,
+    transform: [{ scale: anim }],
+  };
   return (
     <Animated.View
-      style={{
-        width: 5,
-        height: 5,
-        borderRadius: 3,
-        backgroundColor: color,
-        opacity: anim,
-        transform: [{ scale: anim }],
-      }}
+      style={[styles.livePulse, pulseStyle]}
     />
   );
 }
@@ -534,7 +524,7 @@ function EmptyContinue() {
       <View style={styles.emptyIcon}>
         <FontAwesome5 name="play" size={15} color={colors.indigo} solid />
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={styles.emptyBody}>
         <Text style={styles.emptyTitle}>Nothing to resume</Text>
         <Text style={styles.emptySub}>
           Start a movie or show — we'll pick up where you left off.
@@ -617,7 +607,7 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
         const plan = isTrial ? 'Trial access' : 'Premium 4K';
 
         setSub({ daysLeft, totalDays, plan, expiresOn, status });
-      } catch (e) {
+      } catch {
         // graceful: leave card in loading/fallback state
       }
     };
@@ -668,7 +658,7 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
     }
   };
 
-  const navBySection: Record<SectionDef['id'], keyof RootStackParamList> = {
+  const navBySection: Record<SectionDef['id'], keyof TabParamList> = {
     live: 'LiveTV',
     movies: 'Movies',
     series: 'Series',
@@ -685,7 +675,7 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
         >
           <Header
             subId={username || 'SUB-—'}
-            onSettings={() => navigation.navigate('Settings' as never)}
+            onSettings={() => navigation.navigate('Settings')}
           />
 
           <SubscriptionCard sub={sub} />
@@ -695,9 +685,7 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
               <SectionTile
                 key={s.id}
                 s={s}
-                onPress={() =>
-                  navigation.navigate(navBySection[s.id] as never)
-                }
+                onPress={() => navigation.navigate(navBySection[s.id])}
               />
             ))}
           </View>
@@ -955,6 +943,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  sectionChevron: {
+    opacity: 0.7,
+  },
   sectionTitle: {
     fontFamily: FONT,
     fontSize: 20,
@@ -1069,6 +1060,11 @@ const styles = StyleSheet.create({
     color: colors.white,
     letterSpacing: 1,
   },
+  livePulse: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+  },
   posterProgressTrack: {
     position: 'absolute',
     left: 0,
@@ -1115,6 +1111,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  emptyBody: {
+    flex: 1,
   },
   emptyIcon: {
     width: 38,

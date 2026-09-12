@@ -9,20 +9,20 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
-import {StackNavigationProp} from '@react-navigation/stack';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RouteProp} from '@react-navigation/native';
-import {RootStackParamList} from '../../RootNavigator';
+import {LegacyStackParamList} from '../navigation/legacyTypes';
 import {RootState, AppDispatch} from '../store';
 import {proxyStreamUrl} from '../utils/proxy';
 import {fetchLiveStreamsByCategory} from '../store/slices/iptvSlice';
 import {buildLiveStreamUrl} from '../utils/xtream';
 
 type LiveChannelsScreenRouteProp = RouteProp<
-  RootStackParamList,
+  LegacyStackParamList,
   'LiveChannels'
 >;
-type LiveChannelsScreenNavProp = StackNavigationProp<
-  RootStackParamList,
+type LiveChannelsScreenNavProp = NativeStackNavigationProp<
+  LegacyStackParamList,
   'LiveChannels'
 >;
 
@@ -55,7 +55,7 @@ const LiveChannelsScreen: React.FC<Props> = ({route, navigation}) => {
         useProxy,
       }),
     );
-  }, [categoryId, categoryName, dispatch, username, password, serverDomain, serverPort, useProxy]);
+  }, [categoryId, categoryName, dispatch, navigation, password, serverDomain, serverPort, useProxy, username]);
 
   if (loading) {
     return (

@@ -5,9 +5,8 @@ import {
   StatusBar,
 } from 'react-native';
 import Orientation from 'react-native-orientation-locker';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RouteProp, useFocusEffect } from '@react-navigation/native';
-import { RootStackParamList } from '../../RootNavigator';
+import { useFocusEffect } from '@react-navigation/native';
+import type { RootScreenProps } from '../navigation/types';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { storage } from '../utils/storage';
@@ -28,13 +27,7 @@ import type { PlayerHandle } from '../types/player';
 import { useVideoPlayer } from '../hooks/useVideoPlayer';
 import { usePlayerGestures } from '../hooks/usePlayerGestures';
 
-type VideoPlayerScreenRouteProp = RouteProp<RootStackParamList, 'VideoPlayer'>;
-type VideoPlayerScreenNavProp = StackNavigationProp<RootStackParamList, 'VideoPlayer'>;
-
-type Props = {
-  route: VideoPlayerScreenRouteProp;
-  navigation: VideoPlayerScreenNavProp;
-};
+type Props = RootScreenProps<'VideoPlayer'>;
 
 // Extract original URL from proxy URL for VLC (VLC handles IPTV streams natively)
 const getDirectStreamUrl = (url: string): string => unwrapProxyUrl(url);
@@ -95,6 +88,17 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     useProxy,
     autoReconnect: true,
     maxRetries: 10,
+  });
+  const initialWatchRef = useRef({
+    currentChannelName,
+    currentStreamUrl,
+    duration: player.duration,
+    episodeId,
+    isLive,
+    movieId,
+    seriesId,
+    thumbnail,
+    title,
   });
 
   // Single polymorphic ref — every engine wrapper satisfies PlayerHandle.
@@ -239,22 +243,23 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         clearInterval(progressSaveIntervalRef.current);
       }
     };
-  }, [isLive, player.duration, saveProgress]);
+  }, [isLive, player.currentProgressRef, player.duration, saveProgress]);
 
   // --- Auto-play next episode ---
   useEffect(() => {
     if (player.isCompleted) {
       if (seriesId && episodeList && currentEpisodeIndex !== undefined) {
-        const nextEpisodeIndex = currentEpisodeIndex + 1;
+          const nextEpisodeIndex = currentEpisodeIndex + 1;
         if (nextEpisodeIndex < episodeList.length) {
           const nextEpisode = episodeList[nextEpisodeIndex];
+          const nextEpisodeId = String(nextEpisode.id);
           const ext = nextEpisode.container_extension?.replace('.', '') || 'mp4';
           const originalNextUrl = buildSeriesStreamUrl({
             domain: serverDomain,
             port: serverPort,
             username,
             password,
-            streamId: nextEpisode.id,
+            streamId: nextEpisodeId,
             extension: ext,
           });
           const nextUrl = proxyStreamUrl(originalNextUrl, useProxy);
@@ -264,7 +269,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
             isLive: false,
             title: nextEpisode.title,
             seriesId,
-            episodeId: nextEpisode.id,
+            episodeId: nextEpisodeId,
             episodeList,
             currentEpisodeIndex: nextEpisodeIndex,
           });
@@ -277,41 +282,56 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         navigation.goBack();
       }
     }
-  }, [player.isCompleted]);
+  }, [
+    currentEpisodeIndex,
+    episodeId,
+    episodeList,
+    movieId,
+    navigation,
+    password,
+    player.isCompleted,
+    seriesId,
+    serverDomain,
+    serverPort,
+    useProxy,
+    username,
+  ]);
 
   // --- Recently watched tracking ---
   useEffect(() => {
-    if (!isLive && (seriesId || movieId)) {
+    const initial = initialWatchRef.current;
+
+    if (!initial.isLive && (initial.seriesId || initial.movieId)) {
       storage.saveRecentlyWatched({
-        id: seriesId || movieId || '',
-        type: seriesId ? 'series' : 'movie',
-        name: title || '',
+        id: initial.seriesId || initial.movieId || '',
+        type: initial.seriesId ? 'series' : 'movie',
+        name: initial.title || '',
         timestamp: Date.now(),
         progress: 0,
-        totalDuration: player.duration,
-        seriesId,
-        episodeId,
-        thumbnail,
+        totalDuration: initial.duration,
+        seriesId: initial.seriesId,
+        episodeId: initial.episodeId,
+        thumbnail: initial.thumbnail,
       });
       storage.saveLatestWatched({
-        id: seriesId || movieId || '',
-        type: seriesId ? 'series' : 'movie',
-        name: title || '',
+        id: initial.seriesId || initial.movieId || '',
+        type: initial.seriesId ? 'series' : 'movie',
+        name: initial.title || '',
         timestamp: Date.now(),
         progress: 0,
-        totalDuration: player.duration,
-        seriesId,
-        episodeId,
-        thumbnail,
+        totalDuration: initial.duration,
+        seriesId: initial.seriesId,
+        episodeId: initial.episodeId,
+        thumbnail: initial.thumbnail,
       });
-    } else if (isLive && currentChannelName) {
+    } else if (initial.isLive && initial.currentChannelName) {
       storage.saveLatestWatched({
-        id: currentStreamUrl,
+        id: initial.currentStreamUrl,
         type: 'live',
-        name: currentChannelName,
+        name: initial.currentChannelName,
         timestamp: Date.now(),
-        channelName: currentChannelName,
-        thumbnail,
+        channelName: initial.currentChannelName,
+        thumbnail: initial.thumbnail,
       });
     }
   }, []);
@@ -344,16 +364,6 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   const activeRequestUrl = isNativeEngine
     ? player.currentSource?.uri || currentStreamUrl
     : rawStreamUrl;
-
-  const activeSourceLabel = isNativeEngine
-    ? player.currentSource?.label
-    : `${playerEngine}${useProxy ? ' (proxied)' : ' (direct)'}`;
-
-  const activePlayerName = {
-    native: 'NativeVideo',
-    vlc: 'ExpoLibVLC',
-    'expo-video': 'ExpoVideo',
-  }[playerEngine];
 
   // --- Render ---
   if (__DEV__) {

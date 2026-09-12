@@ -10,11 +10,11 @@ import {useSelector, useDispatch} from 'react-redux';
 import {RootState, AppDispatch} from '../store';
 // Suppose you have a fetchSeries thunk
 import {fetchSeries} from '../store/slices/iptvSlice';
-import {StackNavigationProp} from '@react-navigation/stack';
-import { RootStackParamList } from '../../RootNavigator';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import { LegacyStackParamList } from '../navigation/legacyTypes';
 
-type SieresScreenNavigationProp = StackNavigationProp<
-  RootStackParamList,
+type SieresScreenNavigationProp = NativeStackNavigationProp<
+  LegacyStackParamList,
   'Series'
 >;
 

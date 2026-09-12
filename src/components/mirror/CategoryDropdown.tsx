@@ -111,10 +111,7 @@ export default function CategoryDropdown({
           onPress={toggleOpen}
           style={[
             styles.trigger,
-            open && {
-              backgroundColor: 'rgba(255,255,255,0.06)',
-              borderColor: colors.border,
-            },
+            open && styles.triggerOpen,
           ]}
         >
           <View
@@ -253,6 +250,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: 'transparent',
+  },
+  triggerOpen: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: colors.border,
   },
   triggerIcon: {
     width: 34,

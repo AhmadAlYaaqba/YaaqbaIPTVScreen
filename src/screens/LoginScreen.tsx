@@ -3,16 +3,16 @@
 import React, {useState} from 'react';
 import {View, TextInput, Button, StyleSheet, Text, Alert} from 'react-native';
 import {useDispatch} from 'react-redux';
-import {StackNavigationProp} from '@react-navigation/stack';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import axios from 'axios';
 import * as Keychain from 'react-native-keychain';
 
 import {AppDispatch} from '../store'; // or wherever your store types live
 import {setUserCredentials} from '../store/slices/userSlice'; // optional Redux action
-import { RootStackParamList } from '../../RootNavigator';
+import { LegacyStackParamList } from '../navigation/legacyTypes';
 
-type LoginScreenNavigationProp = StackNavigationProp<
-  RootStackParamList,
+type LoginScreenNavigationProp = NativeStackNavigationProp<
+  LegacyStackParamList,
   'Login'
 >;
 

@@ -39,6 +39,7 @@ import AmbientGlow from '../components/mirror/AmbientGlow';
 import CategoryDropdown from '../components/mirror/CategoryDropdown';
 import { useTmdbDetails, useTmdbMatch } from '../hooks/useTmdbMatch';
 import { getTenPointRating } from '../utils/rating';
+import type { TabScreenProps } from '../navigation/types';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
@@ -148,7 +149,7 @@ const MoviePoster = React.memo(
   },
 );
 
-const MoviesScreen: React.FC<any> = ({ navigation }) => {
+const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
   const searchRef = useRef<TextInput>(null);

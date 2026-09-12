@@ -10,14 +10,14 @@ import {
 } from 'react-native';
 import FastImage from 'react-native-fast-image'; // 1) Import FastImage
 import {RouteProp} from '@react-navigation/native';
-import {StackNavigationProp} from '@react-navigation/stack';
-import {RootStackParamList} from '../../RootNavigator';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {LegacyStackParamList} from '../navigation/legacyTypes';
 import {useSelector, useDispatch} from 'react-redux';
 import {RootState, AppDispatch} from '../store';
 import {fetchMoviesInCategory} from '../store/slices/iptvSlice';
 
-type MovieListScreenRouteProp = RouteProp<RootStackParamList, 'MovieList'>;
-type MovieListScreenNavProp = StackNavigationProp<RootStackParamList, 'MovieList'>;
+type MovieListScreenRouteProp = RouteProp<LegacyStackParamList, 'MovieList'>;
+type MovieListScreenNavProp = NativeStackNavigationProp<LegacyStackParamList, 'MovieList'>;
 
 interface Props {
   route: MovieListScreenRouteProp;
@@ -44,7 +44,7 @@ const MovieListScreen: React.FC<Props> = ({route, navigation}) => {
         categoryId,
       }),
     );
-  }, [categoryId, categoryName, dispatch]);
+  }, [categoryId, categoryName, dispatch, navigation, password, serverDomain, serverPort, username]);
 
   if (loading) {
     return (

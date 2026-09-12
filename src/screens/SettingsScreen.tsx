@@ -55,6 +55,9 @@ import {
 } from '../services/playlists/playlistStore';
 import { usePlaylists } from '../services/playlists/usePlaylists';
 import { storage } from '../utils/storage';
+import type { TabScreenProps } from '../navigation/types';
+import type { RootStackParamList } from '../navigation/types';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const SWITCH_TRACK = {
@@ -118,11 +121,13 @@ function GridBg() {
   );
 }
 
-const SettingsScreen: React.FC<any> = ({ navigation }) => {
+const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
   const { enterPlaylist } = usePlaylists();
   const { playerEngine, useProxy } = useSelector((state: RootState) => state.user);
+  const rootNavigation =
+    navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [tmdbApiKey, setTmdbApiKey] = useState('');
@@ -200,9 +205,12 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
       if (playlist.id === activeId) {
         return;
       }
-      await enterPlaylist(playlist, navigation);
+      if (!rootNavigation) {
+        return;
+      }
+      await enterPlaylist(playlist, rootNavigation);
     },
-    [activeId, enterPlaylist, navigation],
+    [activeId, enterPlaylist, rootNavigation],
   );
 
   const handleAddPlaylist = useCallback(() => {
@@ -309,7 +317,7 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
               await clearActivePlaylist();
               storage.setActivePlaylistId(null);
               dispatch(clearUserCredentials());
-              navigation.reset({
+              rootNavigation?.reset({
                 index: 0,
                 routes: [{ name: 'Login' }],
               });
@@ -320,7 +328,7 @@ const SettingsScreen: React.FC<any> = ({ navigation }) => {
         },
       ],
     );
-  }, [dispatch, navigation]);
+  }, [dispatch, rootNavigation]);
 
   return (
     <View style={styles.root}>

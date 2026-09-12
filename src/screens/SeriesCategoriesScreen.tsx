@@ -2,12 +2,12 @@
 import React, { useEffect } from 'react';
 import { View, FlatList, TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../../RootNavigator';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { LegacyStackParamList } from '../navigation/legacyTypes';
 import { RootState, AppDispatch } from '../store';
 import { fetchSeriesCategories } from '../store/slices/iptvSlice';
 
-type SeriesCategoriesNavProp = StackNavigationProp<RootStackParamList, 'SeriesCategories'>;
+type SeriesCategoriesNavProp = NativeStackNavigationProp<LegacyStackParamList, 'SeriesCategories'>;
 
 interface Props {
   navigation: SeriesCategoriesNavProp;

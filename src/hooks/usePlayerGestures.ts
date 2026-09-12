@@ -45,7 +45,7 @@ export function usePlayerGestures(options: UsePlayerGesturesOptions) {
             brightnessLevel.value = clamped;
             onBrightnessChange?.(clamped);
         },
-        [onBrightnessChange],
+        [brightnessLevel, onBrightnessChange],
     );
 
     // Handle vertical pan gesture (left side = brightness)
@@ -60,7 +60,7 @@ export function usePlayerGestures(options: UsePlayerGesturesOptions) {
             }
             gestureActiveRef.current = true;
         },
-        [brightness],
+        [brightness, brightnessOpacity],
     );
 
     const onVerticalPanMove = useCallback(
@@ -88,7 +88,7 @@ export function usePlayerGestures(options: UsePlayerGesturesOptions) {
             withTiming(0, { duration: 300 }),
         );
         setTimeout(() => setShowBrightnessIndicator(false), 1000);
-    }, []);
+    }, [brightnessOpacity]);
 
     // Double tap to seek ±10s (VOD only)
     const handleDoubleTap = useCallback(

@@ -7,7 +7,6 @@ import {
     TouchableOpacity,
     TouchableWithoutFeedback,
     ActivityIndicator,
-    Dimensions,
     PanResponder,
     LayoutChangeEvent,
 } from 'react-native';
@@ -18,8 +17,6 @@ import Animated, {
     Easing,
 } from 'react-native-reanimated';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface PlayerControlsProps {
     visible: boolean;
@@ -162,7 +159,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             opacity.value = withTiming(0, { duration: 250 });
             translateY.value = withTiming(-10, { duration: 250 });
         }
-    }, [visible, error, isReconnecting]);
+    }, [error, isReconnecting, opacity, translateY, visible]);
 
     const containerStyle = useAnimatedStyle(() => ({
         opacity: opacity.value,

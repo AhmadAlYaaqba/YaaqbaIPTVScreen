@@ -12,10 +12,10 @@ import {
   setActivePlaylist,
 } from './playlistStore';
 import { PlayerEngine } from '../../types/player';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../navigation/types';
 
-type Nav = {
-  reset: (state: { index: number; routes: { name: string }[] }) => void;
-};
+type Nav = Pick<NativeStackNavigationProp<RootStackParamList>, 'reset'>;
 
 /**
  * Hydrate the Redux user slice + watch-history namespace from a playlist and

@@ -2,16 +2,16 @@
 import React from 'react';
 import {View, Text, StyleSheet, Image, Button} from 'react-native';
 import {RouteProp} from '@react-navigation/native';
-import {StackNavigationProp} from '@react-navigation/stack';
-import {RootStackParamList} from '../../RootNavigator';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {LegacyStackParamList} from '../navigation/legacyTypes';
 import {useSelector} from 'react-redux';
 import {RootState} from '../store';
 import {proxyStreamUrl} from '../utils/proxy';
 import {buildMovieStreamUrl} from '../utils/xtream';
 
-type MovieDetailRouteProp = RouteProp<RootStackParamList, 'MovieDetail'>;
-type MovieDetailNavProp = StackNavigationProp<
-  RootStackParamList,
+type MovieDetailRouteProp = RouteProp<LegacyStackParamList, 'MovieDetail'>;
+type MovieDetailNavProp = NativeStackNavigationProp<
+  LegacyStackParamList,
   'MovieDetail'
 >;
 

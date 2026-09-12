@@ -60,8 +60,9 @@ const LibVlcPlayer = forwardRef<LibVlcPlayerRef, LibVlcPlayerProps>(
         // Stop playback when the player unmounts (e.g. navigating back), while
         // the ref is still attached — mirrors the previous VLC wrapper.
         useEffect(() => {
+            const player = vlcRef.current;
             return () => {
-                vlcRef.current?.stop().catch(() => {});
+                player?.stop().catch(() => {});
             };
         }, []);
 

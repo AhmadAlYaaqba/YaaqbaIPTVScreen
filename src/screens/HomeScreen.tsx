@@ -1,14 +1,14 @@
 // src/screens/HomeScreen.tsx
 import React from 'react';
 import {View, Button, StyleSheet} from 'react-native';
-import {StackNavigationProp} from '@react-navigation/stack';
-import { RootStackParamList } from '../../RootNavigator';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import { LegacyStackParamList } from '../navigation/legacyTypes';
 import { useDispatch, useSelector } from 'react-redux';
 import { setUserPreferences } from '../store/slices/userSlice';
 import { RootState } from '../store';
 import { PLAYER_ENGINES } from '../types/player';
 
-type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
+type HomeScreenNavigationProp = NativeStackNavigationProp<LegacyStackParamList, 'Home'>;
 
 interface Props {
   navigation: HomeScreenNavigationProp;

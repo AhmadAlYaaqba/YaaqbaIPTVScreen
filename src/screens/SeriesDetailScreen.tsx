@@ -15,10 +15,9 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import { useDispatch, useSelector } from 'react-redux';
-import { RouteProp, useFocusEffect } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { useFocusEffect } from '@react-navigation/native';
 
-import { RootStackParamList } from '../../RootNavigator';
+import type { RootScreenProps } from '../navigation/types';
 import { RootState, AppDispatch } from '../store';
 import { fetchSeriesInfo } from '../store/slices/iptvSlice';
 import { storage } from '../utils/storage';
@@ -37,11 +36,9 @@ const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 const ACCENT = sectionAccents.series; // cyan
 
-export type SeriesDetailRouteProp = RouteProp<RootStackParamList, 'SeriesDetail'>;
-export type SeriesDetailNavProp = StackNavigationProp<
-  RootStackParamList,
-  'SeriesDetail'
->;
+type Props = RootScreenProps<'SeriesDetail'>;
+export type SeriesDetailRouteProp = Props['route'];
+export type SeriesDetailNavProp = Props['navigation'];
 
 interface WatchProgress {
   contentId: string;
@@ -52,11 +49,6 @@ interface WatchProgress {
   thumbnail?: string;
   seriesId?: string;
   episodeId?: string;
-}
-
-interface Props {
-  route: SeriesDetailRouteProp;
-  navigation: SeriesDetailNavProp;
 }
 
 const { width } = Dimensions.get('window');

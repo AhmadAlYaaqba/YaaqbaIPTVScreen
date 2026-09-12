@@ -31,6 +31,7 @@ import AmbientGlow from '../components/mirror/AmbientGlow';
 import CategoryDropdown from '../components/mirror/CategoryDropdown';
 import { useTmdbMatch } from '../hooks/useTmdbMatch';
 import { getTenPointRating } from '../utils/rating';
+import type { TabScreenProps } from '../navigation/types';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
@@ -132,7 +133,7 @@ const SeriesPoster = React.memo(
   },
 );
 
-const SeriesHomeScreen: React.FC<any> = ({ navigation }) => {
+const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
   const searchRef = useRef<TextInput>(null);
 

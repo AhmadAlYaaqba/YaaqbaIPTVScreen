@@ -3,18 +3,18 @@
 import React, {useEffect, useState} from 'react';
 import {View, TextInput, Button, StyleSheet, Text, Alert} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
-import {StackNavigationProp} from '@react-navigation/stack';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import axios from 'axios';
 import * as Keychain from 'react-native-keychain';
 
 import {AppDispatch, RootState} from '../store'; // or wherever your store types live
 import {setUserCredentials} from '../store/slices/userSlice'; // optional Redux action
-import {RootStackParamList} from '../../RootNavigator';
+import {LegacyStackParamList} from '../navigation/legacyTypes';
 import DeviceInfo from 'react-native-device-info';
 
 const SECRET_KEY = '5w.=:uehB3#jwUJ';
 
-function xorEncrypt(jsonObj) {
+function xorEncrypt(jsonObj: unknown) {
   const inputStr =
     typeof jsonObj === 'string' ? jsonObj : JSON.stringify(jsonObj);
 
@@ -24,6 +24,7 @@ function xorEncrypt(jsonObj) {
   for (let i = 0; i < inputStr.length; i++) {
     const inputCharCode = inputStr.charCodeAt(i);
     const keyCharCode = SECRET_KEY.charCodeAt(i % SECRET_KEY.length); // repeat key cyclically
+    // eslint-disable-next-line no-bitwise
     const xorCharCode = inputCharCode ^ keyCharCode; // XOR operation
 
     // Append the XORed character to the result string
@@ -33,13 +34,14 @@ function xorEncrypt(jsonObj) {
   return encryptedStr;
 }
 
-function xorDecrypt(encryptedStr) {
+function xorDecrypt(encryptedStr: string) {
   let decryptedStr = '';
 
   // Iterate over each character in the encrypted string
   for (let i = 0; i < encryptedStr.length; i++) {
     const encryptedCharCode = encryptedStr.charCodeAt(i);
     const keyCharCode = SECRET_KEY.charCodeAt(i % SECRET_KEY.length); // cycle through key characters
+    // eslint-disable-next-line no-bitwise
     const decryptedCharCode = encryptedCharCode ^ keyCharCode; // XOR to decrypt
     decryptedStr += String.fromCharCode(decryptedCharCode);
   }
@@ -47,8 +49,8 @@ function xorDecrypt(encryptedStr) {
   return decryptedStr;
 }
 
-type LoginScreenNavigationProp = StackNavigationProp<
-  RootStackParamList,
+type LoginScreenNavigationProp = NativeStackNavigationProp<
+  LegacyStackParamList,
   'Login'
 >;
 
@@ -73,16 +75,16 @@ const LoginScreen: React.FC<Props> = ({navigation}) => {
       // If credentials are already stored, navigate to Home
       navigation.navigate('Home');
     }
-  }, [username, password, serverDomain, serverPort]);
+  }, [navigation, password, serverDomain, serverPort, username]);
 
   // Build the encrypted payload based on the activation code and device MAC address.
-  const buildEncryptedPayload = async (activationCode: string) => {
+  const buildEncryptedPayload = async (code: string) => {
     const macAddress = await getMacAddress();
     // Create the JSON payload; note the key "sn" holds the activation code.
     const payload = {
       mac: macAddress,
       sn: macAddress,
-      code: activationCode,
+      code,
       mode: 'active',
       model: 'testing',
       group: 0,
@@ -177,7 +179,10 @@ const LoginScreen: React.FC<Props> = ({navigation}) => {
       // TODO: Parse and handle the response properly, e.g., extract username/password.
     } catch (error) {
       console.log('errpr ===?', error);
-      Alert.alert('Error', error.message);
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'An unexpected error occurred.',
+      );
     } finally {
       // setLoading(false);
     }

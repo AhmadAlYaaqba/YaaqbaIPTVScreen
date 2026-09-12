@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -102,7 +102,10 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
     }
   }, [dispatch, username, password, serverDomain, serverPort]);
 
-  const safeMovieCategories = Array.isArray(movieCategories) ? movieCategories : [];
+  const safeMovieCategories = useMemo(
+    () => (Array.isArray(movieCategories) ? movieCategories : []),
+    [movieCategories],
+  );
 
   useEffect(() => {
     if (safeMovieCategories.length && !activeCategory) {
@@ -119,7 +122,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
         }),
       );
     }
-  }, [safeMovieCategories]);
+  }, [activeCategory, dispatch, password, safeMovieCategories, serverDomain, serverPort, username]);
 
   // fetch movies when category changes (after initial)
   const handleCategorySelect = useCallback(
@@ -288,7 +291,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
               keyExtractor={item => item.stream_id?.toString() || item.name}
               renderItem={renderMovieCard}
               numColumns={3}
-              columnWrapperStyle={{ justifyContent: 'space-between' }}
+              columnWrapperStyle={styles.gridRow}
               contentContainerStyle={styles.grid}
               showsVerticalScrollIndicator={false}
               removeClippedSubviews={true}
@@ -457,6 +460,9 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     paddingHorizontal: 12,
   },
+  gridRow: {
+    justifyContent: 'space-between',
+  },
   movieCard: {
     width: CARD_WIDTH,
     marginBottom: 20,
@@ -516,4 +522,3 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
-

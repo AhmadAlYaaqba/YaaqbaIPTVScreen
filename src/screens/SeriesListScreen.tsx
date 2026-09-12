@@ -12,13 +12,13 @@ import {
 import FastImage from 'react-native-fast-image'; // 1) Import FastImage
 import { useDispatch, useSelector } from 'react-redux';
 import { RouteProp } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootState, AppDispatch } from '../store';
 import { fetchSeriesByCategory } from '../store/slices/iptvSlice';
-import { RootStackParamList } from '../../RootNavigator';
+import { LegacyStackParamList } from '../navigation/legacyTypes';
 
-type SeriesListRouteProp = RouteProp<RootStackParamList, 'SeriesList'>;
-type SeriesListNavProp = StackNavigationProp<RootStackParamList, 'SeriesList'>;
+type SeriesListRouteProp = RouteProp<LegacyStackParamList, 'SeriesList'>;
+type SeriesListNavProp = NativeStackNavigationProp<LegacyStackParamList, 'SeriesList'>;
 
 interface Props {
   route: SeriesListRouteProp;
@@ -44,7 +44,7 @@ const SeriesListScreen: React.FC<Props> = ({ route, navigation }) => {
         categoryId,
       })
     );
-  }, [categoryId, categoryName, dispatch]);
+  }, [categoryId, categoryName, dispatch, navigation, password, serverDomain, serverPort, username]);
 
   if (loading) {
     return (

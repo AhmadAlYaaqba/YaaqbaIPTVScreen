@@ -111,7 +111,7 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
             });
             backdropOpacity.value = withTiming(0, { duration: 150 });
         }
-    }, [visible]);
+    }, [backdropOpacity, translateX, visible]);
 
     const panelStyle = useAnimatedStyle(() => ({
         transform: [{ translateX: translateX.value }],
@@ -168,7 +168,7 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
     if (!visible) return null;
 
     return (
-        <View style={[StyleSheet.absoluteFill, { zIndex: 200, elevation: 200 }]}>
+        <View style={styles.overlay}>
             {/* Backdrop */}
             <TouchableWithoutFeedback onPress={onClose}>
                 <Animated.View style={[styles.backdrop, backdropStyle]} />
@@ -204,6 +204,11 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
 export default React.memo(ChannelSwitcher);
 
 const styles = StyleSheet.create({
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 200,
+        elevation: 200,
+    },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(0,0,0,0.5)',
