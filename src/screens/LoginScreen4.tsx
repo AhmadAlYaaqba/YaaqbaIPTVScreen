@@ -65,8 +65,7 @@ function GridBg() {
           id="login-grid"
           width={32}
           height={32}
-          patternUnits="userSpaceOnUse"
-        >
+          patternUnits="userSpaceOnUse">
           <Path
             d="M 32 0 L 0 0 0 32"
             fill="none"
@@ -79,7 +78,13 @@ function GridBg() {
           <Stop offset="78%" stopColor="#fff" stopOpacity={0} />
         </SvgRadialGradient>
         <Mask id="login-grid-mask">
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#login-grid-fade)" />
+          <Rect
+            x="0"
+            y="0"
+            width="100%"
+            height="100%"
+            fill="url(#login-grid-fade)"
+          />
         </Mask>
       </Defs>
       <Rect
@@ -176,7 +181,6 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
         'http://screen-net.live/iptv/V7.php/',
         useProxy,
       );
-      if (__DEV__) console.log('[Login] activation POST →', activationUrl);
       const { data: encryptedResponse } = await axios.post(
         activationUrl,
         body.toString(),
@@ -190,9 +194,10 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
       );
 
       const parsed = JSON.parse(xorDecrypt(encryptedResponse));
-      if (__DEV__) console.log('Parsed response:', parsed);
       if (parsed.status === 103) {
-        setError('Activation failed. Please check your code or try again later.');
+        setError(
+          'Activation failed. Please check your code or try again later.',
+        );
         return;
       }
 
@@ -207,10 +212,12 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
       });
 
       await enterPlaylist(playlist, navigation);
-    } catch (e: any) {
-      if (__DEV__) console.error(e);
+    } catch {
       setError('Activation failed. Please check your code or try again later.');
-      Alert.alert('Activation failed', e.message ?? 'Unknown error');
+      Alert.alert(
+        'Activation failed',
+        'Please check your code or try again later.',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -237,10 +244,6 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
         action: '',
       });
       const requestUrl = proxyApiUrl(originalUrl, useProxy);
-      if (__DEV__) {
-        console.log('[Login] xtream verify →', originalUrl);
-        console.log('[Login] xtream verify (request) →', requestUrl);
-      }
       const response = await axios.get(requestUrl, {
         headers: XTREAM_REQUEST_HEADERS,
         timeout: 15000,
@@ -248,7 +251,9 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
 
       const userInfo = response?.data?.user_info;
       if (!userInfo || userInfo.auth !== 1) {
-        setError('Could not verify this server. Check the URL and credentials.');
+        setError(
+          'Could not verify this server. Check the URL and credentials.',
+        );
         return;
       }
 
@@ -263,9 +268,10 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
       });
 
       await enterPlaylist(playlist, navigation);
-    } catch (e: any) {
-      if (__DEV__) console.error(e);
-      setError('Could not connect. Please check the server URL and your connection.');
+    } catch {
+      setError(
+        'Could not connect. Please check the server URL and your connection.',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -285,15 +291,16 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
         onPress={() => {
           setError(null);
           setTab(key);
-        }}
-      >
+        }}>
         <FontAwesome5
           name={icon}
           size={13}
           color={active ? colors.scene : colors.fgMuted}
           solid={active}
         />
-        <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
+        <Text style={[styles.tabText, active && styles.tabTextActive]}>
+          {label}
+        </Text>
       </TouchableOpacity>
     );
   };
@@ -306,15 +313,13 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
         <ScrollView
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+          showsVerticalScrollIndicator={false}>
           <View style={styles.brandBlock}>
             <LinearGradient
               colors={gradients.triad as unknown as string[]}
               start={GRADIENT_START}
               end={GRADIENT_END}
-              style={styles.logoRing}
-            >
+              style={styles.logoRing}>
               <View style={styles.logoInner}>
                 <FontAwesome5 name="tv" color={colors.indigo} size={24} />
               </View>
@@ -371,8 +376,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                   style={[styles.button, isLoading && styles.buttonDisabled]}
                   activeOpacity={0.86}
                   onPress={handleActivation}
-                  disabled={isLoading}
-                >
+                  disabled={isLoading}>
                   <LinearGradient
                     colors={gradients.progress as unknown as string[]}
                     start={GRADIENT_START}
@@ -386,7 +390,12 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                     </>
                   ) : (
                     <>
-                      <FontAwesome5 name="bolt" size={14} color={colors.scene} solid />
+                      <FontAwesome5
+                        name="bolt"
+                        size={14}
+                        color={colors.scene}
+                        solid
+                      />
                       <Text style={styles.buttonText}>Activate</Text>
                     </>
                   )}
@@ -451,8 +460,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                   style={[styles.button, isLoading && styles.buttonDisabled]}
                   activeOpacity={0.86}
                   onPress={handleAddXtream}
-                  disabled={isLoading}
-                >
+                  disabled={isLoading}>
                   <LinearGradient
                     colors={gradients.progress as unknown as string[]}
                     start={GRADIENT_START}
@@ -466,7 +474,12 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                     </>
                   ) : (
                     <>
-                      <FontAwesome5 name="plus" size={14} color={colors.scene} solid />
+                      <FontAwesome5
+                        name="plus"
+                        size={14}
+                        color={colors.scene}
+                        solid
+                      />
                       <Text style={styles.buttonText}>Add playlist</Text>
                     </>
                   )}
@@ -514,8 +527,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                   style={styles.savedRow}
                   activeOpacity={0.8}
                   onPress={() => handleResume(pl)}
-                  disabled={isLoading}
-                >
+                  disabled={isLoading}>
                   <View style={styles.savedIcon}>
                     <FontAwesome5
                       name={pl.kind === 'activation' ? 'key' : 'server'}
@@ -528,7 +540,9 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                       {pl.name}
                     </Text>
                     <Text style={styles.savedKind}>
-                      {pl.kind === 'activation' ? 'Activation code' : 'Xtream server'}
+                      {pl.kind === 'activation'
+                        ? 'Activation code'
+                        : 'Xtream server'}
                     </Text>
                   </View>
                   <FontAwesome5
@@ -549,14 +563,15 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                 navigation.canGoBack()
                   ? navigation.goBack()
                   : navigation.navigate('Main')
-              }
-            >
+              }>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.footer}>
               <Text style={styles.footerText}>Need help? Contact support</Text>
-              <Text style={styles.footerSubText}>ScreenIPTV activation portal</Text>
+              <Text style={styles.footerSubText}>
+                ScreenIPTV activation portal
+              </Text>
             </View>
           )}
         </ScrollView>

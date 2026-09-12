@@ -2,10 +2,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import {
-  storage,
-  WATCH_HISTORY_SCHEMA_VERSION,
-} from '../src/utils/storage';
+import { storage, WATCH_HISTORY_SCHEMA_VERSION } from '../src/utils/storage';
 import { proxyStreamUrl } from '../src/utils/proxy';
 
 const PLAYLIST_A = 'playlist-a';
@@ -157,11 +154,99 @@ describe('playlist-scoped watch storage', () => {
 
     await storage.clearPlaylistData(PLAYLIST_A);
 
-    expect(await AsyncStorage.getItem(`@latest_watched:${PLAYLIST_A}`)).toBeNull();
-    expect(await AsyncStorage.getItem(`@movie_progress:${PLAYLIST_A}`)).toBeNull();
+    expect(
+      await AsyncStorage.getItem(`@latest_watched:${PLAYLIST_A}`),
+    ).toBeNull();
+    expect(
+      await AsyncStorage.getItem(`@movie_progress:${PLAYLIST_A}`),
+    ).toBeNull();
     expect(await AsyncStorage.getItem(`@latest_watched:${PLAYLIST_B}`)).toBe(
       '[{"id":"keep"}]',
     );
+  });
+
+  it('removes completed content from progress and Continue Watching together', async () => {
+    await AsyncStorage.multiSet([
+      [
+        `@movie_progress:${PLAYLIST_A}`,
+        JSON.stringify({
+          'movie-done': { progress: 119, totalDuration: 120 },
+          'movie-keep': { progress: 30, totalDuration: 120 },
+        }),
+      ],
+      [
+        `@latest_watched:${PLAYLIST_A}`,
+        JSON.stringify([
+          { id: 'movie-done', type: 'movie', name: 'Done', timestamp: 2 },
+          { id: 'movie-keep', type: 'movie', name: 'Keep', timestamp: 1 },
+        ]),
+      ],
+      [
+        `@recently_watched:${PLAYLIST_A}`,
+        JSON.stringify([
+          { id: 'movie-done', type: 'movie', name: 'Done', timestamp: 2 },
+        ]),
+      ],
+    ]);
+
+    await storage.completeWatchProgress('movie-done', true);
+
+    expect(await storage.getAllProgress(true)).toEqual({
+      'movie-keep': { progress: 30, totalDuration: 120 },
+    });
+    expect((await storage.getLatestWatched()).map(item => item.id)).toEqual([
+      'movie-keep',
+    ]);
+    expect(await storage.getRecentlyWatched()).toEqual([]);
+  });
+
+  it('removes only the completed episode from series progress and history', async () => {
+    await AsyncStorage.multiSet([
+      [
+        `@series_progress:${PLAYLIST_A}`,
+        JSON.stringify({
+          'series-1_episode-1': { progress: 119, totalDuration: 120 },
+          'series-1_episode-2': { progress: 30, totalDuration: 120 },
+        }),
+      ],
+      [
+        `@latest_watched:${PLAYLIST_A}`,
+        JSON.stringify([
+          {
+            id: 'series-1',
+            type: 'series',
+            name: 'Episode 1',
+            seriesId: 'series-1',
+            episodeId: 'episode-1',
+            timestamp: 2,
+          },
+          {
+            id: 'series-2',
+            type: 'series',
+            name: 'Other series',
+            seriesId: 'series-2',
+            episodeId: 'episode-9',
+            timestamp: 1,
+          },
+        ]),
+      ],
+    ]);
+
+    await storage.completeWatchProgress(
+      'episode-1',
+      false,
+      'series-1',
+      'episode-1',
+    );
+
+    expect(await storage.getAllProgress(false)).toEqual({
+      'series-1_episode-2': { progress: 30, totalDuration: 120 },
+    });
+    expect(
+      (await storage.getLatestWatched())
+        .filter(item => item.type === 'series')
+        .map(item => item.episodeId),
+    ).toEqual(['episode-9']);
   });
 
   it('moves unscoped legacy data into the selected playlist once', async () => {

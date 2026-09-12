@@ -1,16 +1,15 @@
 // src/screens/LoginScreen.tsx
 
-import React, {useEffect, useState} from 'react';
-import {View, TextInput, Button, StyleSheet, Text, Alert} from 'react-native';
-import {useDispatch, useSelector} from 'react-redux';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import React, { useEffect, useState } from 'react';
+import { View, TextInput, Button, StyleSheet, Text, Alert } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import axios from 'axios';
 import * as Keychain from 'react-native-keychain';
 
-import {AppDispatch, RootState} from '../store'; // or wherever your store types live
-import {setUserCredentials} from '../store/slices/userSlice'; // optional Redux action
-import {LegacyStackParamList} from '../navigation/legacyTypes';
-import DeviceInfo from 'react-native-device-info';
+import { AppDispatch, RootState } from '../store'; // or wherever your store types live
+import { setUserCredentials } from '../store/slices/userSlice'; // optional Redux action
+import { LegacyStackParamList } from '../navigation/legacyTypes';
 
 const SECRET_KEY = '5w.=:uehB3#jwUJ';
 
@@ -58,11 +57,11 @@ interface Props {
   navigation: LoginScreenNavigationProp;
 }
 
-const LoginScreen: React.FC<Props> = ({navigation}) => {
+const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
 
   const [activationCode, setActivationCode] = useState('');
-  const {username, password, serverDomain, serverPort} = useSelector(
+  const { username, password, serverDomain, serverPort } = useSelector(
     (state: RootState) => state.user,
   );
 
@@ -101,17 +100,12 @@ const LoginScreen: React.FC<Props> = ({navigation}) => {
       Alert.alert('Validation', 'Please enter an activation code.');
       return;
     }
-    console.log('DeviceInfo ==>', DeviceInfo.getAndroidId());
-    console.log('DeviceInfo ==>', DeviceInfo.getMacAddress());
-    console.log('DeviceInfo ==>', DeviceInfo.getMacAddressSync());
-
     // setLoading(true);
     try {
       // Build the encrypted payload.
       const encryptedPayload = await buildEncryptedPayload(activationCode);
 
       // Construct the body as form-urlencoded (key is "json").
-      console.log('encryptedPayload', encryptedPayload);
       const formBody = new URLSearchParams();
       formBody.append('json', encryptedPayload);
 
@@ -132,16 +126,13 @@ const LoginScreen: React.FC<Props> = ({navigation}) => {
 
         // Get the full response data (which is the encrypted response)
         const encryptedData = response.data;
-        console.log('Encrypted response received:', encryptedData);
 
         // Decrypt the response using the XOR decryption method
         const decryptedResponse = xorDecrypt(encryptedData);
-        console.log('Decrypted response (as string):', decryptedResponse);
 
         // If the decrypted response is a JSON string, parse it
         try {
           const parsedResponse = JSON.parse(decryptedResponse);
-          console.log('Parsed JSON response:', parsedResponse);
 
           const storedData = JSON.stringify({
             username: parsedResponse.username,
@@ -166,22 +157,20 @@ const LoginScreen: React.FC<Props> = ({navigation}) => {
 
           // 3. Navigate to Home (or another screen).
           navigation.navigate('Home');
-        } catch (parseError) {
-          console.error(
-            'Error parsing JSON from decrypted response:',
-            parseError,
-          );
+        } catch {
+          Alert.alert('Error', 'The activation response was invalid.');
         }
-      } catch (error) {
-        console.error('Error during API call:', error);
+      } catch {
+        Alert.alert('Error', 'The activation request failed.');
       }
 
       // TODO: Parse and handle the response properly, e.g., extract username/password.
     } catch (error) {
-      console.log('errpr ===?', error);
       Alert.alert(
         'Error',
-        error instanceof Error ? error.message : 'An unexpected error occurred.',
+        error instanceof Error
+          ? error.message
+          : 'An unexpected error occurred.',
       );
     } finally {
       // setLoading(false);

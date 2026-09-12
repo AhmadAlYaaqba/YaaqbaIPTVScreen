@@ -1,5 +1,4 @@
 import React, {
-  useEffect,
   useState,
   useRef,
   useMemo,
@@ -22,9 +21,13 @@ import {
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
 import LinearGradient from 'react-native-linear-gradient';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { RootState } from '../store';
 import {
@@ -37,8 +40,9 @@ import type {
   XtreamMovieStream,
   XtreamSession,
 } from '../services/xtream/xtreamService';
-import { storage } from '../utils/storage';
+import { storage, type WatchProgress } from '../utils/storage';
 import { proxyStreamUrl } from '../utils/proxy';
+import { getMediaDurationSeconds } from '../utils/playbackTime';
 import { colors, sectionAccents, radii } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 import CategoryDropdown from '../components/mirror/CategoryDropdown';
@@ -107,7 +111,12 @@ const MoviePoster = React.memo(
         style={styles.card}
         onPress={handlePress}
         activeOpacity={0.85}
-      >
+        accessibilityRole="button"
+        accessibilityLabel={
+          progressPercent > 0
+            ? `${name}, ${Math.round(progressPercent)} percent watched`
+            : name
+        }>
         <View style={styles.poster}>
           {posterUri ? (
             <FastImage
@@ -138,8 +147,7 @@ const MoviePoster = React.memo(
           <LinearGradient
             colors={['transparent', 'rgba(6,8,16,0.55)', 'rgba(6,8,16,0.92)']}
             style={styles.scrim}
-            pointerEvents="none"
-          >
+            pointerEvents="none">
             <Text style={styles.posterTitle} numberOfLines={3}>
               {name}
             </Text>
@@ -153,7 +161,6 @@ const MoviePoster = React.memo(
             </View>
           )}
         </View>
-
       </TouchableOpacity>
     );
   },
@@ -183,7 +190,9 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<any>(null);
-  const [watchProgress, setWatchProgress] = useState<Record<string, any>>({});
+  const [watchProgress, setWatchProgress] = useState<
+    Record<string, WatchProgress>
+  >({});
 
   const categoriesQuery = useXtreamCategories(session, 'movie');
   const movieCategories = categoriesQuery.data ?? EMPTY_CATEGORIES;
@@ -223,23 +232,22 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
     refetch: refetchMovies,
   } = moviesQuery;
 
-  // load watch progress for the current list
-  useEffect(() => {
-    const loadProgress = async () => {
-      const progressMap: Record<string, any> = {};
-      for (const movie of movieList) {
-        const progress = await storage.getWatchProgress(
-          movie.stream_id.toString(),
-          true,
-        );
-        if (progress) {
-          progressMap[movie.stream_id] = progress;
-        }
+  // One storage read per screen focus, regardless of catalog size.
+  useFocusEffect(
+    useCallback(() => {
+      if (!playlistId) {
+        setWatchProgress({});
+        return;
       }
-      setWatchProgress(progressMap);
-    };
-    loadProgress();
-  }, [movieList]);
+      let active = true;
+      storage.getAllProgress(true).then(progress => {
+        if (active) setWatchProgress(progress);
+      });
+      return () => {
+        active = false;
+      };
+    }, [playlistId]),
+  );
 
   const handleCategorySelect = useCallback(
     (categoryId: string) => {
@@ -354,8 +362,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
       return;
     }
     try {
-      const ext =
-        selectedMovie.container_extension?.replace('.', '') || 'mp4';
+      const ext = selectedMovie.container_extension?.replace('.', '') || 'mp4';
       const movie = selectedMovie;
       const savedProgress = watchProgress[movie.stream_id];
       setSelectedMovie(null);
@@ -365,6 +372,10 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
           streamId: movie.stream_id.toString(),
           extension: ext,
           title: movie.name || 'Unknown Movie',
+          expectedDuration: getMediaDurationSeconds(
+            movie,
+            selectedTmdbDetails?.runtime,
+          ),
           resume: savedProgress
             ? {
                 progress: savedProgress.progress,
@@ -413,15 +424,18 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
               style={styles.searchInput}
               autoCorrect={false}
               selectionColor={ACCENT}
+              accessibilityLabel="Search movies"
             />
             {!!search && (
               <TouchableOpacity
+                style={styles.searchClearButton}
                 onPress={() => {
                   setSearch('');
                   searchRef.current?.focus();
                 }}
                 hitSlop={8}
-              >
+                accessibilityRole="button"
+                accessibilityLabel="Clear movie search">
                 <FontAwesome5 name="times" size={14} color={colors.fgMuted} />
               </TouchableOpacity>
             )}
@@ -485,8 +499,8 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
     (selectedTmdbDetails?.releaseDate
       ? selectedTmdbDetails.releaseDate.substring(0, 4)
       : selectedTmdbMatch?.releaseDate
-        ? selectedTmdbMatch.releaseDate.substring(0, 4)
-        : null);
+      ? selectedTmdbMatch.releaseDate.substring(0, 4)
+      : null);
 
   // ---------- render ---------- //
   if (isOffline && movieCategories.length === 0) {
@@ -630,16 +644,19 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
         visible={!!selectedMovie}
         animationType="slide"
         transparent
-        onRequestClose={() => setSelectedMovie(null)}
-      >
+        onRequestClose={() => setSelectedMovie(null)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalWrap, { paddingTop: insets.top }]}>
             {selectedMovie && (
-              <View style={styles.modalCard}>
+              <View
+                style={styles.modalCard}
+                accessibilityViewIsModal
+                accessibilityLabel={`${selectedMovie.name} details`}>
                 <TouchableOpacity
                   style={styles.modalClose}
                   onPress={() => setSelectedMovie(null)}
-                >
+                  accessibilityRole="button"
+                  accessibilityLabel="Close movie details">
                   <FontAwesome5 name="times" size={16} color={colors.fg} />
                 </TouchableOpacity>
 
@@ -663,7 +680,11 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                   />
                 ) : (
                   <View style={[styles.modalPoster, styles.posterPlaceholder]}>
-                    <FontAwesome5 name="film" size={40} color={colors.fgSubtle} />
+                    <FontAwesome5
+                      name="film"
+                      size={40}
+                      color={colors.fgSubtle}
+                    />
                   </View>
                 )}
 
@@ -724,8 +745,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                       <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.castRow}
-                      >
+                        contentContainerStyle={styles.castRow}>
                         {modalCast.map(member => (
                           <View key={member.id} style={styles.castChip}>
                             {member.profile ? (
@@ -756,8 +776,14 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                   style={[styles.playButton, { backgroundColor: ACCENT }]}
                   activeOpacity={0.85}
                   onPress={playSelected}
-                >
-                  <FontAwesome5 name="play" size={14} color={colors.scene} solid />
+                  accessibilityRole="button"
+                  accessibilityLabel={`Play ${selectedMovie.name}`}>
+                  <FontAwesome5
+                    name="play"
+                    size={14}
+                    color={colors.scene}
+                    solid
+                  />
                   <Text style={styles.playText}>Play Movie</Text>
                 </TouchableOpacity>
               </View>
@@ -837,6 +863,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.fg,
     padding: 0,
+  },
+  searchClearButton: {
+    width: 44,
+    height: 44,
+    marginRight: -10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // meta row
@@ -982,9 +1015,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 14,
     right: 14,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(8,11,22,0.6)',
     borderWidth: 1,
     borderColor: colors.borderStrong,

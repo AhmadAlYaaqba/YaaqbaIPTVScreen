@@ -1,5 +1,5 @@
 // src/screens/LiveChannelsScreen.tsx
-import React, {useEffect} from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,14 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
-import {useDispatch, useSelector} from 'react-redux';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {RouteProp} from '@react-navigation/native';
-import {LegacyStackParamList} from '../navigation/legacyTypes';
-import {RootState, AppDispatch} from '../store';
-import {proxyStreamUrl} from '../utils/proxy';
-import {fetchLiveStreamsByCategory} from '../store/slices/iptvSlice';
-import {buildLiveStreamUrl} from '../utils/xtream';
+import { useDispatch, useSelector } from 'react-redux';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
+import { LegacyStackParamList } from '../navigation/legacyTypes';
+import { RootState, AppDispatch } from '../store';
+import { proxyStreamUrl } from '../utils/proxy';
+import { fetchLiveStreamsByCategory } from '../store/slices/iptvSlice';
+import { buildLiveStreamUrl } from '../utils/xtream';
 
 type LiveChannelsScreenRouteProp = RouteProp<
   LegacyStackParamList,
@@ -31,20 +31,19 @@ interface Props {
   navigation: LiveChannelsScreenNavProp;
 }
 
-const LiveChannelsScreen: React.FC<Props> = ({route, navigation}) => {
-  const {categoryId, categoryName} = route.params;
+const LiveChannelsScreen: React.FC<Props> = ({ route, navigation }) => {
+  const { categoryId, categoryName } = route.params;
 
   const dispatch = useDispatch<AppDispatch>();
 
-  const {username, password, serverDomain, serverPort, useProxy} = useSelector(
-    (state: RootState) => state.user,
-  );
-  const {liveChannels, loading, error} = useSelector(
+  const { username, password, serverDomain, serverPort, useProxy } =
+    useSelector((state: RootState) => state.user);
+  const { liveChannels, loading, error } = useSelector(
     (state: RootState) => state.iptv,
   );
 
   useEffect(() => {
-    navigation.setOptions({title: categoryName ?? 'Channels'});
+    navigation.setOptions({ title: categoryName ?? 'Channels' });
     dispatch(
       fetchLiveStreamsByCategory({
         username,
@@ -55,7 +54,17 @@ const LiveChannelsScreen: React.FC<Props> = ({route, navigation}) => {
         useProxy,
       }),
     );
-  }, [categoryId, categoryName, dispatch, navigation, password, serverDomain, serverPort, useProxy, username]);
+  }, [
+    categoryId,
+    categoryName,
+    dispatch,
+    navigation,
+    password,
+    serverDomain,
+    serverPort,
+    useProxy,
+    username,
+  ]);
 
   if (loading) {
     return (
@@ -73,12 +82,11 @@ const LiveChannelsScreen: React.FC<Props> = ({route, navigation}) => {
     );
   }
 
-  const renderChannel = ({item}: {item: any}) => {
+  const renderChannel = ({ item }: { item: any }) => {
     return (
       <TouchableOpacity
         style={styles.channelItem}
         onPress={() => {
-          if (__DEV__) console.log('item ==>', item);
           // Construct the URL for the channel's actual stream
           // If Xtream Codes, you might have something like:
           // http://domain:port/live/USERNAME/PASSWORD/STREAM_ID.ts or .m3u8
@@ -92,7 +100,6 @@ const LiveChannelsScreen: React.FC<Props> = ({route, navigation}) => {
             streamId: item.stream_id,
           });
           const streamUrl = proxyStreamUrl(originalStreamUrl, useProxy);
-          if (__DEV__) console.log('streamUrl ==>', streamUrl);
           navigation.navigate('VideoPlayer', {
             streamUrl,
             channelName: item.name,

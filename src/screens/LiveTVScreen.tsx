@@ -95,7 +95,8 @@ const ChannelCard = React.memo(
         style={styles.card}
         onPress={handlePress}
         activeOpacity={0.8}
-      >
+        accessibilityRole="button"
+        accessibilityLabel={number ? `${name}, channel ${number}` : name}>
         <View style={styles.logoTile}>
           {icon ? (
             <Image
@@ -203,12 +204,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
   }, []);
 
   const handleChannelPress = useCallback(
-    (
-      streamId: number,
-      name: string,
-      rawIcon?: string,
-      extension?: string,
-    ) => {
+    (streamId: number, name: string, rawIcon?: string, extension?: string) => {
       const icon = rawIcon ? proxyStreamUrl(rawIcon, useProxy) : null;
 
       navigation.navigate('VideoPlayer', {
@@ -246,9 +242,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
   const filteredChannels = useMemo(
     () =>
       normalizedSearch
-        ? channels.filter(c =>
-            c.name?.toLowerCase().includes(normalizedSearch),
-          )
+        ? channels.filter(c => c.name?.toLowerCase().includes(normalizedSearch))
         : channels,
     [channels, normalizedSearch],
   );
@@ -319,15 +313,18 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
               style={styles.searchInput}
               autoCorrect={false}
               selectionColor={ACCENT}
+              accessibilityLabel="Search live channels"
             />
             {!!search && (
               <TouchableOpacity
+                style={styles.searchClearButton}
                 onPress={() => {
                   setSearch('');
                   searchRef.current?.focus();
                 }}
                 hitSlop={8}
-              >
+                accessibilityRole="button"
+                accessibilityLabel="Clear channel search">
                 <FontAwesome5 name="times" size={14} color={colors.fgMuted} />
               </TouchableOpacity>
             )}
@@ -470,7 +467,9 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
               <CatalogStatus
                 kind="empty"
                 title={
-                  normalizedSearch ? 'No matching channels' : 'No channels found'
+                  normalizedSearch
+                    ? 'No matching channels'
+                    : 'No channels found'
                 }
                 message={
                   normalizedSearch
@@ -568,6 +567,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.fg,
     padding: 0,
+  },
+  searchClearButton: {
+    width: 44,
+    height: 44,
+    marginRight: -10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // meta row

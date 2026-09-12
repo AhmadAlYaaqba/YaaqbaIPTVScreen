@@ -1,15 +1,12 @@
 import React from 'react';
-import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import {
+  createBottomTabNavigator,
+  BottomTabBarProps,
+} from '@react-navigation/bottom-tabs';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import {
-  StyleSheet,
-  Platform,
-  View,
-  Text,
-  TouchableOpacity,
-} from 'react-native';
+import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import { StyleSheet, Platform, View, Text, Pressable } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -36,17 +33,21 @@ const TAB_LABELS: Record<keyof TabParamList, string> = {
 function getIcon(name: keyof TabParamList, color: string, size: number) {
   switch (name) {
     case 'Home':
-      return <Ionicons name="home" size={size} color={color} />;
+      return <FontAwesome5 name="home" size={size - 1} color={color} solid />;
     case 'LiveTV':
       return <MaterialIcons name="live-tv" size={size} color={color} />;
     case 'Movies':
-      return <MaterialCommunityIcons name="movie-open" size={size} color={color} />;
+      return (
+        <MaterialCommunityIcons name="movie-open" size={size} color={color} />
+      );
     case 'Series':
-      return <MaterialCommunityIcons name="movie-roll" size={size} color={color} />;
+      return (
+        <MaterialCommunityIcons name="movie-roll" size={size} color={color} />
+      );
     case 'Settings':
-      return <Ionicons name="settings-sharp" size={size} color={color} />;
+      return <FontAwesome5 name="cog" size={size} color={color} solid />;
     default:
-      return <Ionicons name="ellipse" size={size} color={color} />;
+      return <FontAwesome5 name="circle" size={size} color={color} solid />;
   }
 }
 
@@ -86,15 +87,16 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
           };
 
           return (
-            <TouchableOpacity
+            <Pressable
               key={route.key}
-              activeOpacity={0.7}
               onPress={onPress}
               style={styles.tabItem}
-            >
+              accessibilityRole="tab"
+              accessibilityLabel={label}
+              accessibilityState={{ selected: isFocused }}>
               {getIcon(routeName, color, 22)}
               <Text style={[styles.tabLabel, { color }]}>{label}</Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>
@@ -106,10 +108,7 @@ const renderTabBar = (props: BottomTabBarProps) => <CustomTabBar {...props} />;
 
 export default function TabNavigator() {
   return (
-    <Tab.Navigator
-      tabBar={renderTabBar}
-      screenOptions={{ headerShown: false }}
-    >
+    <Tab.Navigator tabBar={renderTabBar} screenOptions={{ headerShown: false }}>
       <Tab.Screen name="Home" component={HomeScreenBrand} />
       <Tab.Screen name="LiveTV" component={LiveTVScreen} />
       <Tab.Screen name="Movies" component={MoviesScreen} />
@@ -155,6 +154,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 8,
     gap: 4,
+    minHeight: 48,
   },
   tabLabel: {
     fontSize: 11,

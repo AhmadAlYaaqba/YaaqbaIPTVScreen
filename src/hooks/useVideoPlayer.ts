@@ -49,7 +49,9 @@ function getInitialProgress(request: PlaybackRequest): number {
 }
 
 function getInitialDuration(request: PlaybackRequest): number {
-  return request.kind === 'live' ? 0 : request.resume?.totalDuration ?? 0;
+  if (request.kind === 'live') return 0;
+  const duration = request.resume?.totalDuration ?? request.expectedDuration;
+  return duration && Number.isFinite(duration) && duration > 0 ? duration : 0;
 }
 
 export function useVideoPlayer(options: UseVideoPlayerOptions) {
@@ -69,7 +71,9 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     () => buildPlaybackSources(request, connection, useProxy),
     [connection, request, useProxy],
   );
-  const requestKey = `${playlistId ?? 'none'}:${request.kind}:${request.streamId}:${request.extension}:${useProxy}`;
+  const requestKey = `${playlistId ?? 'none'}:${request.kind}:${
+    request.streamId
+  }:${request.extension}:${useProxy}`;
   const initialProgress = getInitialProgress(request);
   const initialDuration = getInitialDuration(request);
 
@@ -84,11 +88,15 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   const [duration, setDuration] = useState(initialDuration);
   const [currentTime, setCurrentTime] = useState(initialProgress);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [lastFailureReason, setLastFailureReason] = useState<string | null>(null);
+  const [lastFailureReason, setLastFailureReason] = useState<string | null>(
+    null,
+  );
   const [debugEntries, setDebugEntries] = useState<PlaybackDebugEntry[]>([]);
 
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const bufferStallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bufferStallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const currentProgressRef = useRef(initialProgress);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const sourceIndexRef = useRef(0);
@@ -269,12 +277,8 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       setIsReconnecting(false);
       setIsBuffering(false);
       onSourceExhausted?.();
-    }, [
-      autoReconnect,
-      clearBufferStallTimer,
-      onSourceExhausted,
-      sources.length,
-    ],
+    },
+    [autoReconnect, clearBufferStallTimer, onSourceExhausted, sources.length],
   );
 
   const onError = useCallback(
@@ -298,14 +302,20 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         });
       }
       handlePlaybackFailure(errorMessage);
-    }, [currentSource, handlePlaybackFailure, playerEngine, pushDebugEntry],
+    },
+    [currentSource, handlePlaybackFailure, playerEngine, pushDebugEntry],
   );
 
   const onLoad = useCallback(
     (data: { duration?: number }) => {
       clearReconnectTimer();
       clearBufferStallTimer();
-      setDuration(data.duration || initialDuration || 0);
+      const loadedDuration = Number(data.duration);
+      setDuration(
+        Number.isFinite(loadedDuration) && loadedDuration > 0
+          ? loadedDuration
+          : initialDuration,
+      );
       setError(null);
       setIsReconnecting(false);
       setReconnectAttempt(0);
@@ -328,7 +338,8 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
           status: 'loaded',
         });
       }
-    }, [
+    },
+    [
       clearBufferStallTimer,
       clearReconnectTimer,
       currentSource,
@@ -339,12 +350,20 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   );
 
   const onProgress = useCallback(
-    (data: { currentTime?: number }) => {
+    (data: { currentTime?: number; seekableDuration?: number }) => {
       if (isLive) {
         return;
       }
 
       const nextTime = data.currentTime || 0;
+      const seekableDuration = Number(data.seekableDuration);
+      if (
+        duration <= 0 &&
+        Number.isFinite(seekableDuration) &&
+        seekableDuration > 0
+      ) {
+        setDuration(seekableDuration);
+      }
       currentProgressRef.current = nextTime;
       const wholeSecond = Math.floor(nextTime);
       if (wholeSecond !== lastProgressSecondRef.current) {
@@ -355,7 +374,25 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       if (duration > 0 && nextTime >= duration - 5) {
         setIsCompleted(true);
       }
-    }, [duration, isLive],
+    },
+    [duration, isLive],
+  );
+
+  const recordSeek = useCallback(
+    (time: number) => {
+      if (isLive) {
+        return;
+      }
+      const nextTime = Math.max(
+        0,
+        duration > 0 ? Math.min(duration, time) : time,
+      );
+      currentProgressRef.current = nextTime;
+      lastProgressSecondRef.current = Math.floor(nextTime);
+      setCurrentTime(nextTime);
+      setIsCompleted(false);
+    },
+    [duration, isLive],
   );
 
   const onBuffer = useCallback(
@@ -372,7 +409,8 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         bufferStallTimerRef.current = null;
         handlePlaybackFailure('Live stream stalled for 12 seconds');
       }, LIVE_STALL_TIMEOUT_MS);
-    }, [clearBufferStallTimer, handlePlaybackFailure, isLive],
+    },
+    [clearBufferStallTimer, handlePlaybackFailure, isLive],
   );
 
   const togglePlayPause = useCallback(() => {
@@ -421,7 +459,8 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     const subscription = AppState.addEventListener(
       'change',
       (nextState: AppStateStatus) => {
-        const wasBackgrounded = appStateRef.current.match(/inactive|background/);
+        const wasBackgrounded =
+          appStateRef.current.match(/inactive|background/);
         appStateRef.current = nextState;
         if (
           wasBackgrounded &&
@@ -452,28 +491,28 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     Platform.OS !== 'android'
       ? undefined
       : isLive
-        ? {
-            minBufferMs: 15000,
-            maxBufferMs: 50000,
-            bufferForPlaybackMs: 2500,
-            bufferForPlaybackAfterRebufferMs: 5000,
-            backBufferDurationMs: 0,
-            cacheSizeMB: 0,
-            live: {
-              targetOffsetMs: 6000,
-              minOffsetMs: 4000,
-              maxOffsetMs: 10000,
-              minPlaybackSpeed: 0.97,
-              maxPlaybackSpeed: 1.03,
-            },
-          }
-        : {
-            minBufferMs: 15000,
-            maxBufferMs: 50000,
-            bufferForPlaybackMs: 2500,
-            bufferForPlaybackAfterRebufferMs: 5000,
-            cacheSizeMB: 200,
-          };
+      ? {
+          minBufferMs: 15000,
+          maxBufferMs: 50000,
+          bufferForPlaybackMs: 2500,
+          bufferForPlaybackAfterRebufferMs: 5000,
+          backBufferDurationMs: 0,
+          cacheSizeMB: 0,
+          live: {
+            targetOffsetMs: 6000,
+            minOffsetMs: 4000,
+            maxOffsetMs: 10000,
+            minPlaybackSpeed: 0.97,
+            maxPlaybackSpeed: 1.03,
+          },
+        }
+      : {
+          minBufferMs: 15000,
+          maxBufferMs: 50000,
+          bufferForPlaybackMs: 2500,
+          bufferForPlaybackAfterRebufferMs: 5000,
+          cacheSizeMB: 200,
+        };
 
   return {
     currentProgressRef,
@@ -502,6 +541,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     onLoad,
     onProgress,
     onBuffer,
+    recordSeek,
     togglePlayPause,
     retry,
     setIsPaused,

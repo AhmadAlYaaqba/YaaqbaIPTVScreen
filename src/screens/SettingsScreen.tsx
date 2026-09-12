@@ -89,8 +89,7 @@ function GridBg() {
           id="settings-grid"
           width={32}
           height={32}
-          patternUnits="userSpaceOnUse"
-        >
+          patternUnits="userSpaceOnUse">
           <Path
             d="M 32 0 L 0 0 0 32"
             fill="none"
@@ -124,11 +123,15 @@ function GridBg() {
   );
 }
 
-const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) => {
+const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
+  navigation,
+}) => {
   const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
   const { enterPlaylist } = usePlaylists();
-  const { playerEngine, useProxy } = useSelector((state: RootState) => state.user);
+  const { playerEngine, useProxy } = useSelector(
+    (state: RootState) => state.user,
+  );
   const rootNavigation =
     navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -276,7 +279,10 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
       setSavedTmdbApiKey(savedKey);
       setTmdbApiKey(savedKey ?? '');
       await queryClient.invalidateQueries({ queryKey: ['tmdb'] });
-      Alert.alert('TMDB API key saved', 'TMDB metadata is enabled on this device.');
+      Alert.alert(
+        'TMDB API key saved',
+        'TMDB metadata is enabled on this device.',
+      );
     } catch (error) {
       if (__DEV__) console.error('Error saving TMDB API key:', error);
       Alert.alert('Could not save key', 'Please try again.');
@@ -318,33 +324,29 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
   }, [queryClient, savedTmdbApiKey, tmdbApiKey]);
 
   const handleLogout = useCallback(async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Sign out of the active session but keep saved playlists so the
-              // user can resume them from the login screen.
-              await clearActivePlaylist();
-              storage.setActivePlaylistId(null);
-              dispatch(resetIptv());
-              dispatch(clearUserCredentials());
-              rootNavigation?.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
-            } catch (error) {
-              if (__DEV__) console.error('Error during logout:', error);
-            }
-          },
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            // Sign out of the active session but keep saved playlists so the
+            // user can resume them from the login screen.
+            await clearActivePlaylist();
+            storage.setActivePlaylistId(null);
+            dispatch(resetIptv());
+            dispatch(clearUserCredentials());
+            rootNavigation?.reset({
+              index: 0,
+              routes: [{ name: 'Login' }],
+            });
+          } catch (error) {
+            if (__DEV__) console.error('Error during logout:', error);
+          }
         },
-      ],
-    );
+      },
+    ]);
   }, [dispatch, rootNavigation]);
 
   return (
@@ -361,7 +363,8 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
                 ? navigation.goBack()
                 : navigation.navigate('Home')
             }
-          >
+            accessibilityRole="button"
+            accessibilityLabel="Back to home">
             <FontAwesome5 name="chevron-left" size={17} color={colors.fg} />
           </TouchableOpacity>
           <View style={styles.headerCopy}>
@@ -374,8 +377,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
         <ScrollView
           style={styles.content}
           contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+          showsVerticalScrollIndicator={false}>
           <View style={styles.heroCard}>
             <LinearGradient
               colors={['rgba(139,123,255,0.12)', 'rgba(14,20,40,0.34)']}
@@ -409,7 +411,8 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
                 style={styles.addPlaylistBtn}
                 activeOpacity={0.8}
                 onPress={handleAddPlaylist}
-              >
+                accessibilityRole="button"
+                accessibilityLabel="Add Xtream playlist">
                 <FontAwesome5 name="plus" size={11} color={colors.indigo} />
                 <Text style={styles.addPlaylistText}>Add Xtream</Text>
               </TouchableOpacity>
@@ -425,20 +428,23 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
                       key={pl.id}
                       style={[
                         styles.playlistRow,
-                        index < playlists.length - 1 && styles.playlistRowDivider,
-                      ]}
-                    >
+                        index < playlists.length - 1 &&
+                          styles.playlistRowDivider,
+                      ]}>
                       <TouchableOpacity
                         style={styles.playlistMain}
                         activeOpacity={0.8}
                         onPress={() => handleSwitchPlaylist(pl)}
-                      >
+                        accessibilityRole="button"
+                        accessibilityLabel={`${pl.name}${
+                          isActive ? ', active playlist' : ''
+                        }`}
+                        accessibilityState={{ selected: isActive }}>
                         <View
                           style={[
                             styles.playlistIconTile,
                             isActive && styles.playlistIconTileActive,
-                          ]}
-                        >
+                          ]}>
                           <FontAwesome5
                             name={pl.kind === 'activation' ? 'key' : 'server'}
                             size={14}
@@ -453,8 +459,8 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
                             {isActive
                               ? 'Active'
                               : pl.kind === 'activation'
-                                ? 'Activation code'
-                                : 'Xtream server'}
+                              ? 'Activation code'
+                              : 'Xtream server'}
                           </Text>
                         </View>
                         {isActive ? (
@@ -470,7 +476,8 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
                         style={styles.playlistDeleteBtn}
                         activeOpacity={0.7}
                         onPress={() => handleDeletePlaylist(pl)}
-                      >
+                        accessibilityRole="button"
+                        accessibilityLabel={`Delete ${pl.name}`}>
                         <FontAwesome5
                           name="trash-alt"
                           size={14}
@@ -499,13 +506,14 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
                     ]}
                     activeOpacity={0.8}
                     onPress={() => handleSelectEngine(engine)}
-                  >
+                    accessibilityRole="button"
+                    accessibilityLabel={`${PLAYER_ENGINE_LABELS[engine]} player`}
+                    accessibilityState={{ selected: isSelected }}>
                     <View
                       style={[
                         styles.playlistIconTile,
                         isSelected && styles.playlistIconTileActive,
-                      ]}
-                    >
+                      ]}>
                       <FontAwesome5
                         name={ENGINE_ICONS[engine]}
                         size={15}
@@ -537,7 +545,11 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
             <View style={styles.settingCard}>
               <View style={styles.row}>
                 <View style={styles.proxyIconTile}>
-                  <FontAwesome5 name="shield-alt" size={16} color={colors.cyan} />
+                  <FontAwesome5
+                    name="shield-alt"
+                    size={16}
+                    color={colors.cyan}
+                  />
                 </View>
                 <View style={styles.rowContent}>
                   <Text style={styles.rowLabel}>Use HTTP Proxy</Text>
@@ -551,6 +563,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
                   trackColor={SWITCH_TRACK}
                   thumbColor={useProxy ? colors.fg : colors.fgSubtle}
                   ios_backgroundColor="rgba(255,255,255,0.14)"
+                  accessibilityLabel="Use HTTP proxy"
                 />
               </View>
             </View>
@@ -584,12 +597,16 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
                   spellCheck={false}
                   secureTextEntry={!showTmdbApiKey}
                   style={styles.tmdbInput}
+                  accessibilityLabel="TMDB API key"
                 />
                 <TouchableOpacity
                   style={styles.tmdbVisibilityButton}
                   activeOpacity={0.75}
                   onPress={() => setShowTmdbApiKey(value => !value)}
-                >
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    showTmdbApiKey ? 'Hide TMDB API key' : 'Show TMDB API key'
+                  }>
                   <FontAwesome5
                     name={showTmdbApiKey ? 'eye-slash' : 'eye'}
                     size={14}
@@ -607,7 +624,9 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
                   activeOpacity={0.82}
                   disabled={!canSaveTmdbApiKey}
                   onPress={handleSaveTmdbApiKey}
-                >
+                  accessibilityRole="button"
+                  accessibilityLabel="Save TMDB API key"
+                  accessibilityState={{ disabled: !canSaveTmdbApiKey }}>
                   {isSavingTmdbKey ? (
                     <ActivityIndicator size="small" color={colors.fg} />
                   ) : (
@@ -621,7 +640,11 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
                   activeOpacity={0.75}
                   disabled={isLoadingTmdbKey || isSavingTmdbKey}
                   onPress={handleClearTmdbApiKey}
-                >
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear TMDB API key"
+                  accessibilityState={{
+                    disabled: isLoadingTmdbKey || isSavingTmdbKey,
+                  }}>
                   <Text style={styles.tmdbClearText}>Clear</Text>
                 </TouchableOpacity>
               </View>
@@ -643,7 +666,8 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
               style={styles.logoutButton}
               activeOpacity={0.82}
               onPress={handleLogout}
-            >
+              accessibilityRole="button"
+              accessibilityLabel="Log out">
               <FontAwesome5
                 name="sign-out-alt"
                 size={16}
@@ -782,6 +806,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 5,
     paddingHorizontal: 11,
+    minHeight: 44,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: 'rgba(139,123,255,0.28)',
@@ -809,6 +834,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     minWidth: 0,
+    minHeight: 44,
   },
   playlistIconTile: {
     width: 40,
@@ -825,8 +851,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(139,123,255,0.28)',
   },
   playlistDeleteBtn: {
-    width: 38,
-    height: 38,
+    width: 44,
+    height: 44,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,14 +1,14 @@
 // src/screens/LoginScreen.tsx
 
-import React, {useState} from 'react';
-import {View, TextInput, Button, StyleSheet, Text, Alert} from 'react-native';
-import {useDispatch} from 'react-redux';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import React, { useState } from 'react';
+import { View, TextInput, Button, StyleSheet, Text, Alert } from 'react-native';
+import { useDispatch } from 'react-redux';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import axios from 'axios';
 import * as Keychain from 'react-native-keychain';
 
-import {AppDispatch} from '../store'; // or wherever your store types live
-import {setUserCredentials} from '../store/slices/userSlice'; // optional Redux action
+import { AppDispatch } from '../store'; // or wherever your store types live
+import { setUserCredentials } from '../store/slices/userSlice'; // optional Redux action
 import { LegacyStackParamList } from '../navigation/legacyTypes';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<
@@ -20,7 +20,7 @@ interface Props {
   navigation: LoginScreenNavigationProp;
 }
 
-const LoginScreen: React.FC<Props> = ({navigation}) => {
+const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
 
   const [username, setUsername] = useState('ahmad544112239');
@@ -37,15 +37,14 @@ const LoginScreen: React.FC<Props> = ({navigation}) => {
     try {
       // Construct the Xtream Codes login URL.
       const originalUrl = `http://${serverDomain}:${serverPort}/player_api.php?username=${username}&password=${password}`;
-      const xtreamUrl = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(originalUrl)}`;
-      console.log('xtreamUrl', xtreamUrl);
+      const xtreamUrl = `https://v0-next-js-proxy-api.vercel.app/api/proxy?url=${encodeURIComponent(
+        originalUrl,
+      )}`;
 
       const response = await axios.get(xtreamUrl);
-      console.log('network response', response);
 
       // Check if the response indicates a successful login.
       const userInfo = response?.data?.user_info;
-      console.log('[Login Response]', userInfo);
 
       if (userInfo && userInfo.auth === 1) {
         // 1. Store all required info in Keychain as one JSON string.
@@ -77,8 +76,7 @@ const LoginScreen: React.FC<Props> = ({navigation}) => {
       } else {
         Alert.alert('Login Failed', 'Invalid username or password.');
       }
-    } catch (error) {
-      console.log('[Login Error]', error);
+    } catch {
       Alert.alert('Error', 'Could not login. Please check your connection.');
     }
   };

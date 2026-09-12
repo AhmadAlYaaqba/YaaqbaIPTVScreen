@@ -260,7 +260,9 @@ function parseProgressMap(value: string | null): Record<string, WatchProgress> {
 }
 
 async function saveHistoryItem(
-  baseKey: typeof STORAGE_KEYS.RECENTLY_WATCHED | typeof STORAGE_KEYS.LATEST_WATCHED,
+  baseKey:
+    | typeof STORAGE_KEYS.RECENTLY_WATCHED
+    | typeof STORAGE_KEYS.LATEST_WATCHED,
   input: WatchHistoryInput,
   limit: number,
 ) {
@@ -269,10 +271,10 @@ async function saveHistoryItem(
   const { items } = normalizeHistoryList(existing, limit);
   const item = versionHistoryInput(input);
   const identity = historyIdentity(item);
-  const next = [item, ...items.filter(entry => historyIdentity(entry) !== identity)].slice(
-    0,
-    limit,
-  );
+  const next = [
+    item,
+    ...items.filter(entry => historyIdentity(entry) !== identity),
+  ].slice(0, limit);
   await AsyncStorage.setItem(key, JSON.stringify(next));
 }
 
@@ -428,6 +430,52 @@ export const storage = {
     }
   },
 
+  completeWatchProgress: async (
+    contentId: string,
+    isMovie: boolean,
+    seriesId?: string,
+    episodeId?: string,
+  ): Promise<void> => {
+    try {
+      const progressKey = scopedKey(
+        isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS,
+      );
+      const recentKey = scopedKey(STORAGE_KEYS.RECENTLY_WATCHED);
+      const latestKey = scopedKey(STORAGE_KEYS.LATEST_WATCHED);
+      const values = new Map(
+        await AsyncStorage.multiGet([progressKey, recentKey, latestKey]),
+      );
+      const progressMap = parseProgressMap(values.get(progressKey) ?? null);
+      const progressStorageKey = isMovie
+        ? contentId
+        : `${seriesId}_${episodeId}`;
+      delete progressMap[progressStorageKey];
+
+      const removeCompletedEntry = (item: WatchHistoryEntry) =>
+        isMovie
+          ? item.type === 'movie' && item.id === contentId
+          : item.type === 'series' &&
+            item.seriesId === seriesId &&
+            item.episodeId === episodeId;
+      const recent = normalizeHistoryList(
+        parseJson<unknown>(values.get(recentKey) ?? null, []),
+        30,
+      ).items.filter(item => !removeCompletedEntry(item));
+      const latest = normalizeHistoryList(
+        parseJson<unknown>(values.get(latestKey) ?? null, []),
+        10,
+      ).items.filter(item => !removeCompletedEntry(item));
+
+      await AsyncStorage.multiSet([
+        [progressKey, JSON.stringify(progressMap)],
+        [recentKey, JSON.stringify(recent)],
+        [latestKey, JSON.stringify(latest)],
+      ]);
+    } catch (error) {
+      if (__DEV__) console.error('Error completing watch progress:', error);
+    }
+  },
+
   getAllProgress: async (
     isMovie: boolean,
   ): Promise<Record<string, WatchProgress>> => {
@@ -468,8 +516,8 @@ export const storage = {
           item.type === 'movie'
             ? movieProgress[item.id]
             : item.type === 'series'
-              ? seriesProgress[`${item.seriesId}_${item.episodeId}`]
-              : undefined;
+            ? seriesProgress[`${item.seriesId}_${item.episodeId}`]
+            : undefined;
         return progress
           ? {
               ...item,

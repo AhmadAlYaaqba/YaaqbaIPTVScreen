@@ -1,10 +1,5 @@
 import React from 'react';
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
 import { colors, radii } from '../../theme/colors';
@@ -34,9 +29,10 @@ export function CatalogGridSkeleton({
               height: itemHeight,
               borderColor: `${accent}22`,
             },
-          ]}
-        >
-          <View style={[styles.skeletonGlow, { backgroundColor: `${accent}12` }]} />
+          ]}>
+          <View
+            style={[styles.skeletonGlow, { backgroundColor: `${accent}12` }]}
+          />
         </View>
       ))}
     </View>
@@ -60,8 +56,8 @@ export function CatalogStatus({
     kind === 'offline'
       ? 'wifi'
       : kind === 'error'
-        ? 'exclamation-circle'
-        : 'inbox';
+      ? 'exclamation-circle'
+      : 'inbox';
 
   return (
     <View style={styles.status}>
@@ -73,13 +69,13 @@ export function CatalogStatus({
       <Text style={styles.statusTitle}>{title}</Text>
       {message ? <Text style={styles.statusMessage}>{message}</Text> : null}
       {onRetry ? (
-        <TouchableOpacity
+        <Pressable
           style={[styles.retryButton, { borderColor: `${accent}66` }]}
-          activeOpacity={0.8}
           onPress={onRetry}
-        >
+          accessibilityRole="button"
+          accessibilityLabel={`Retry: ${title}`}>
           <Text style={styles.retryText}>Retry</Text>
-        </TouchableOpacity>
+        </Pressable>
       ) : null}
     </View>
   );

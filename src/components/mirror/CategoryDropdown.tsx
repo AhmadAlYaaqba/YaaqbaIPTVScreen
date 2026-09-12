@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   Pressable,
   TextInput,
   FlatList,
@@ -98,28 +97,27 @@ export default function CategoryDropdown({
       {/* header row */}
       <View ref={headerRef} style={styles.headerRow} collapsable={false}>
         {onBack && (
-          <TouchableOpacity
-            activeOpacity={0.7}
+          <Pressable
             onPress={onBack}
             style={styles.backBtn}
-          >
+            accessibilityRole="button"
+            accessibilityLabel="Go back">
             <FontAwesome5 name="chevron-left" size={16} color={colors.fg} />
-          </TouchableOpacity>
+          </Pressable>
         )}
-        <TouchableOpacity
-          activeOpacity={0.8}
+        <Pressable
           onPress={toggleOpen}
-          style={[
-            styles.trigger,
-            open && styles.triggerOpen,
-          ]}
-        >
+          style={[styles.trigger, open && styles.triggerOpen]}
+          accessibilityRole="button"
+          accessibilityLabel={`${label} category, ${
+            activeCategoryName || 'none selected'
+          }`}
+          accessibilityState={{ expanded: open }}>
           <View
             style={[
               styles.triggerIcon,
               { backgroundColor: `${accent}26`, borderColor: `${accent}55` },
-            ]}
-          >
+            ]}>
             <FontAwesome5 name={icon} size={16} color={accent} />
           </View>
           <View style={styles.triggerBody}>
@@ -138,11 +136,10 @@ export default function CategoryDropdown({
               />
             </View>
           </View>
-        </TouchableOpacity>
+        </Pressable>
 
         {onSearchToggle && (
-          <TouchableOpacity
-            activeOpacity={0.7}
+          <Pressable
             onPress={onSearchToggle}
             style={[
               styles.searchBtn,
@@ -150,13 +147,17 @@ export default function CategoryDropdown({
                 ? { backgroundColor: `${accent}26`, borderColor: `${accent}66` }
                 : null,
             ]}
-          >
+            accessibilityRole="button"
+            accessibilityLabel={
+              searchActive ? 'Close content search' : 'Open content search'
+            }
+            accessibilityState={{ selected: searchActive }}>
             <FontAwesome5
               name="search"
               size={16}
               color={searchActive ? accent : colors.fgMuted}
             />
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
 
@@ -168,10 +169,15 @@ export default function CategoryDropdown({
         transparent
         animationType="none"
         statusBarTranslucent
-        onRequestClose={() => setOpen(false)}
-      >
-        <Pressable style={styles.scrim} onPress={() => setOpen(false)} />
-        <View style={[styles.panel, { top: panelTop }]}>
+        onRequestClose={() => setOpen(false)}>
+        <Pressable
+          style={styles.scrim}
+          onPress={() => setOpen(false)}
+          accessible={false}
+        />
+        <View
+          style={[styles.panel, { top: panelTop }]}
+          accessibilityViewIsModal>
           <View style={[styles.panelSearch, { borderColor: `${accent}55` }]}>
             <FontAwesome5 name="search" size={14} color={colors.fgSubtle} />
             <TextInput
@@ -183,6 +189,7 @@ export default function CategoryDropdown({
               autoCorrect={false}
               autoCapitalize="none"
               selectionColor={accent}
+              accessibilityLabel={searchPlaceholder}
             />
           </View>
 
@@ -199,24 +206,24 @@ export default function CategoryDropdown({
             renderItem={({ item }) => {
               const active = item.category_id === activeCategoryId;
               return (
-                <TouchableOpacity
-                  activeOpacity={0.7}
+                <Pressable
                   onPress={() => handleSelect(item)}
                   style={[
                     styles.row,
                     active && { backgroundColor: `${accent}1f` },
                   ]}
-                >
+                  accessibilityRole="button"
+                  accessibilityLabel={item.category_name}
+                  accessibilityState={{ selected: active }}>
                   <Text
                     style={[styles.rowText, active && styles.rowTextActive]}
-                    numberOfLines={1}
-                  >
+                    numberOfLines={1}>
                     {item.category_name}
                   </Text>
                   {active && (
                     <FontAwesome5 name="check" size={13} color={accent} />
                   )}
-                </TouchableOpacity>
+                </Pressable>
               );
             }}
           />
@@ -250,6 +257,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: 'transparent',
+    minHeight: 44,
   },
   triggerOpen: {
     backgroundColor: 'rgba(255,255,255,0.06)',
@@ -289,8 +297,8 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   backBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 12,
     flexShrink: 0,
     backgroundColor: colors.glass,
@@ -300,8 +308,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   searchBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 12,
     flexShrink: 0,
     backgroundColor: colors.glass,
@@ -363,6 +371,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 10,
     borderRadius: 12,
+    minHeight: 48,
   },
   rowText: {
     flex: 1,

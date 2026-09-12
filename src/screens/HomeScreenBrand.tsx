@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   Image,
-  TouchableOpacity,
+  Pressable,
   Platform,
   Animated,
   Easing,
@@ -23,7 +24,6 @@ import Svg, {
 } from 'react-native-svg';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { useIsFocused } from '@react-navigation/native';
@@ -32,9 +32,7 @@ import type { TabParamList, TabScreenProps } from '../navigation/types';
 import { RootState } from '../store';
 import { storage, type LatestWatched } from '../utils/storage';
 import { proxyStreamUrl } from '../utils/proxy';
-import {
-  buildPlayerApiUrl,
-} from '../utils/xtream';
+import { buildPlayerApiUrl } from '../utils/xtream';
 import { colors, sectionAccents, radii, gradients } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 
@@ -44,8 +42,18 @@ const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 
 const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -55,12 +63,7 @@ function GridBg() {
   return (
     <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
       <Defs>
-        <Pattern
-          id="grid"
-          width={32}
-          height={32}
-          patternUnits="userSpaceOnUse"
-        >
+        <Pattern id="grid" width={32} height={32} patternUnits="userSpaceOnUse">
           <Path
             d="M 32 0 L 0 0 0 32"
             fill="none"
@@ -106,8 +109,7 @@ function Header({
           colors={[colors.cyan, colors.indigo, colors.magenta]}
           start={{ x: 0.1, y: 0 }}
           end={{ x: 0.9, y: 1 }}
-          style={styles.avatarRing}
-        >
+          style={styles.avatarRing}>
           <View style={styles.avatarInner}>
             <FontAwesome5 name="user" size={18} color={colors.indigo} />
           </View>
@@ -119,13 +121,13 @@ function Header({
           </Text>
         </View>
       </View>
-      <TouchableOpacity
+      <Pressable
         style={styles.settingsBtn}
-        activeOpacity={0.7}
         onPress={onSettings}
-      >
-        <Ionicons name="settings-sharp" size={18} color={colors.fgMuted} />
-      </TouchableOpacity>
+        accessibilityRole="button"
+        accessibilityLabel="Open settings">
+        <FontAwesome5 name="cog" size={17} color={colors.fgMuted} solid />
+      </Pressable>
     </View>
   );
 }
@@ -152,14 +154,18 @@ function SubscriptionCard({ sub }: { sub: SubInfo | null }) {
   const accent = isTrial
     ? colors.cyan
     : isWarning
-      ? colors.magenta
-      : colors.indigo;
+    ? colors.magenta
+    : colors.indigo;
   const dot = isWarning
     ? colors.warning
     : isTrial
-      ? colors.cyan
-      : colors.success;
-  const statusLabel = isTrial ? 'trial' : sub?.status === 'expired' ? 'expired' : 'active';
+    ? colors.cyan
+    : colors.success;
+  const statusLabel = isTrial
+    ? 'trial'
+    : sub?.status === 'expired'
+    ? 'expired'
+    : 'active';
   const plan = sub?.plan ?? 'Premium';
   const pct =
     daysLeft == null
@@ -196,10 +202,12 @@ function SubscriptionCard({ sub }: { sub: SubInfo | null }) {
           style={[
             styles.statusPill,
             { backgroundColor: `${accent}1f`, borderColor: `${accent}55` },
-          ]}
-        >
+          ]}>
           <View
-            style={[styles.statusDot, { backgroundColor: dot, shadowColor: dot }]}
+            style={[
+              styles.statusDot,
+              { backgroundColor: dot, shadowColor: dot },
+            ]}
           />
           <Text style={styles.statusText} numberOfLines={1}>
             {plan} · {statusLabel}
@@ -218,7 +226,12 @@ function SubscriptionCard({ sub }: { sub: SubInfo | null }) {
         <Text style={styles.daysLabel}>days left</Text>
       </View>
 
-      <View style={styles.progressTrack}>
+      <View
+        style={styles.progressTrack}
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel="Subscription time remaining"
+        accessibilityValue={{ min: 0, max: 100, now: Math.round(pct) }}>
         <LinearGradient
           colors={
             (isWarning
@@ -300,20 +313,26 @@ const SECTIONS: SectionDef[] = [
     ),
   },
 ];
+const NAV_BY_SECTION: Record<SectionDef['id'], keyof TabParamList> = {
+  live: 'LiveTV',
+  movies: 'Movies',
+  series: 'Series',
+};
 
-function SectionTile({
+const SectionTile = React.memo(function SectionTile({
   s,
   onPress,
 }: {
   s: SectionDef;
-  onPress: () => void;
+  onPress: (id: SectionDef['id']) => void;
 }) {
+  const handlePress = useCallback(() => onPress(s.id), [onPress, s.id]);
   return (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={onPress}
+    <Pressable
+      onPress={handlePress}
       style={[styles.sectionTile, { borderColor: `${s.accent}30` }]}
-    >
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${s.title}`}>
       {/* background: solid base + soft accent corner glow (radial, fades before edge) */}
       <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
@@ -321,8 +340,7 @@ function SectionTile({
             id={`sec-${s.id}`}
             cx={s.corner.cx}
             cy={s.corner.cy}
-            r="80%"
-          >
+            r="80%">
             <Stop offset="0%" stopColor={s.accent} stopOpacity={0.32} />
             <Stop offset="62%" stopColor={s.accent} stopOpacity={0} />
           </SvgRadialGradient>
@@ -344,8 +362,7 @@ function SectionTile({
             backgroundColor: `${s.accent}22`,
             borderColor: `${s.accent}55`,
           },
-        ]}
-      >
+        ]}>
         {s.renderIcon(24, s.accent)}
       </View>
 
@@ -359,9 +376,9 @@ function SectionTile({
         color={s.accent}
         style={styles.sectionChevron}
       />
-    </TouchableOpacity>
+    </Pressable>
   );
-}
+});
 
 // ─────────────────────────────────────────────────────────────
 // Continue watching
@@ -404,29 +421,25 @@ function LivePulse({ color }: { color: string }) {
     opacity: anim,
     transform: [{ scale: anim }],
   };
-  return (
-    <Animated.View
-      style={[styles.livePulse, pulseStyle]}
-    />
-  );
+  return <Animated.View style={[styles.livePulse, pulseStyle]} />;
 }
 
-function ContinueCard({
+const ContinueCard = React.memo(function ContinueCard({
   item,
-  onPress,
+  onPressItem,
 }: {
-  item: any;
-  onPress: () => void;
+  item: LatestWatched;
+  onPressItem: (item: LatestWatched) => void;
 }) {
-  const type = item.type || 'movie';
+  const type = item.type;
   const accent = TYPE_ACCENT[type] || colors.indigo;
   const isLive = type === 'live';
   const progressPct =
     item.progress && item.totalDuration
       ? Math.max(0, Math.min(100, (item.progress / item.totalDuration) * 100))
       : isLive
-        ? 80
-        : 0;
+      ? 80
+      : 0;
 
   // meta + remaining
   let meta = '';
@@ -448,15 +461,22 @@ function ContinueCard({
     const left = Math.max(0, item.totalDuration - item.progress);
     const min = Math.ceil(left / 60);
     remaining =
-      min >= 60 ? `${Math.floor(min / 60)}h ${min % 60}m left` : `${min} min left`;
+      min >= 60
+        ? `${Math.floor(min / 60)}h ${min % 60}m left`
+        : `${min} min left`;
   }
 
+  const handlePress = useCallback(() => onPressItem(item), [item, onPressItem]);
+  const accessibilityLabel = [item.name, meta, remaining]
+    .filter(Boolean)
+    .join(', ');
+
   return (
-    <TouchableOpacity
+    <Pressable
       style={styles.continueCard}
-      activeOpacity={0.85}
-      onPress={onPress}
-    >
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`Continue ${accessibilityLabel}`}>
       <View style={styles.posterWrap}>
         {item.thumbnail ? (
           <Image
@@ -512,9 +532,17 @@ function ContinueCard({
           {remaining}
         </Text>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
-}
+});
+
+const continueKeyExtractor = (item: LatestWatched) =>
+  item.type === 'series'
+    ? `series-${item.seriesId}-${item.episodeId}`
+    : item.type === 'live'
+    ? `live-${item.streamId}`
+    : `movie-${item.id}`;
+const ContinueSeparator = () => <View style={styles.continueSeparator} />;
 
 function EmptyContinue() {
   return (
@@ -590,8 +618,8 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
         const status: SubInfo['status'] = isTrial
           ? 'trial'
           : rawStatus.includes('expire')
-            ? 'expired'
-            : 'active';
+          ? 'expired'
+          : 'active';
 
         let expiresOn = '—';
         if (hasExp) {
@@ -615,56 +643,69 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
     };
   }, [isFocused, serverDomain, serverPort, username, password, useProxy]);
 
-  const openContinueItem = (item: LatestWatched) => {
-    if (item.type === 'series') {
-      navigation.navigate('VideoPlayer', {
-        request: {
-          kind: 'episode',
-          streamId: item.episodeId,
-          extension: item.containerExtension || 'mp4',
-          title: item.name,
-          seriesId: item.seriesId,
-          thumbnail: item.thumbnail,
-          resume: {
-            progress: item.progress ?? 0,
-            totalDuration: item.totalDuration,
+  const openContinueItem = useCallback(
+    (item: LatestWatched) => {
+      if (item.type === 'series') {
+        navigation.navigate('VideoPlayer', {
+          request: {
+            kind: 'episode',
+            streamId: item.episodeId,
+            extension: item.containerExtension || 'mp4',
+            title: item.name,
+            seriesId: item.seriesId,
+            thumbnail: item.thumbnail,
+            resume: {
+              progress: item.progress ?? 0,
+              totalDuration: item.totalDuration,
+            },
           },
-        },
-      });
-    } else if (item.type === 'movie') {
-      navigation.navigate('VideoPlayer', {
-        request: {
-          kind: 'movie',
-          streamId: item.id,
-          extension: item.containerExtension || 'mp4',
-          title: item.name,
-          thumbnail: item.thumbnail,
-          resume: {
-            progress: item.progress ?? 0,
-            totalDuration: item.totalDuration,
+        });
+      } else if (item.type === 'movie') {
+        navigation.navigate('VideoPlayer', {
+          request: {
+            kind: 'movie',
+            streamId: item.id,
+            extension: item.containerExtension || 'mp4',
+            title: item.name,
+            thumbnail: item.thumbnail,
+            resume: {
+              progress: item.progress ?? 0,
+              totalDuration: item.totalDuration,
+            },
           },
-        },
-      });
-    } else if (item.type === 'live') {
-      navigation.navigate('VideoPlayer', {
-        request: {
-          kind: 'live',
-          streamId: item.streamId,
-          extension: item.containerExtension,
-          title: item.channelName,
-          channelName: item.channelName,
-          thumbnail: item.thumbnail,
-          categoryId: item.categoryId,
-        },
-      });
-    }
-  };
+        });
+      } else if (item.type === 'live') {
+        navigation.navigate('VideoPlayer', {
+          request: {
+            kind: 'live',
+            streamId: item.streamId,
+            extension: item.containerExtension,
+            title: item.channelName,
+            channelName: item.channelName,
+            thumbnail: item.thumbnail,
+            categoryId: item.categoryId,
+          },
+        });
+      }
+    },
+    [navigation],
+  );
 
-  const navBySection: Record<SectionDef['id'], keyof TabParamList> = {
-    live: 'LiveTV',
-    movies: 'Movies',
-    series: 'Series',
-  };
+  const openSettings = useCallback(
+    () => navigation.navigate('Settings'),
+    [navigation],
+  );
+  const openSection = useCallback(
+    (sectionId: SectionDef['id']) =>
+      navigation.navigate(NAV_BY_SECTION[sectionId]),
+    [navigation],
+  );
+  const renderContinueItem = useCallback(
+    ({ item }: { item: LatestWatched }) => (
+      <ContinueCard item={item} onPressItem={openContinueItem} />
+    ),
+    [openContinueItem],
+  );
 
   return (
     <View style={styles.root}>
@@ -673,22 +714,14 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
       <SafeAreaView style={styles.safe}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          <Header
-            subId={username || 'SUB-—'}
-            onSettings={() => navigation.navigate('Settings')}
-          />
+          contentContainerStyle={styles.scrollContent}>
+          <Header subId={username || 'SUB-—'} onSettings={openSettings} />
 
           <SubscriptionCard sub={sub} />
 
           <View style={styles.sectionsBlock}>
             {SECTIONS.map(s => (
-              <SectionTile
-                key={s.id}
-                s={s}
-                onPress={() => navigation.navigate(navBySection[s.id])}
-              />
+              <SectionTile key={s.id} s={s} onPress={openSection} />
             ))}
           </View>
 
@@ -700,27 +733,22 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
               </Text>
               <Text style={styles.continueHeading}>Continue watching</Text>
             </View>
-            {recentWatches.length > 0 && (
-              <TouchableOpacity>
-                <Text style={styles.seeAll}>See all</Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           {recentWatches.length > 0 ? (
-            <ScrollView
+            <FlatList
+              data={recentWatches}
+              renderItem={renderContinueItem}
+              keyExtractor={continueKeyExtractor}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.continueCarousel}
-            >
-              {recentWatches.map((item, idx) => (
-                <ContinueCard
-                  key={item.id ? `${item.type}-${item.id}` : idx}
-                  item={item}
-                  onPress={() => openContinueItem(item)}
-                />
-              ))}
-            </ScrollView>
+              ItemSeparatorComponent={ContinueSeparator}
+              initialNumToRender={3}
+              maxToRenderPerBatch={4}
+              windowSize={5}
+              nestedScrollEnabled
+            />
           ) : (
             <EmptyContinue />
           )}
@@ -783,8 +811,8 @@ const styles = StyleSheet.create({
     color: colors.fg,
   },
   settingsBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 12,
     backgroundColor: colors.glass,
     borderWidth: 1,
@@ -1005,16 +1033,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.fg,
   },
-  seeAll: {
-    fontFamily: FONT,
-    fontSize: 12,
-    color: colors.fgMuted,
-    fontWeight: '500',
-  },
   continueCarousel: {
     paddingHorizontal: 20,
     paddingBottom: 4,
-    gap: 12,
+  },
+  continueSeparator: {
+    width: 12,
   },
   continueCard: {
     width: 180,

@@ -25,6 +25,7 @@ interface PlaybackRequestBase {
   extension: string;
   title: string;
   thumbnail?: string;
+  expectedDuration?: number;
 }
 
 export interface LivePlaybackRequest extends PlaybackRequestBase {

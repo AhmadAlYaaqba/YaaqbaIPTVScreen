@@ -24,8 +24,12 @@ import {
   useXtreamSeriesDetails,
 } from '../services/xtream/xtreamQueries';
 import type { XtreamSession } from '../services/xtream/xtreamService';
-import { storage } from '../utils/storage';
+import { storage, type WatchProgress } from '../utils/storage';
 import { proxyStreamUrl } from '../utils/proxy';
+import {
+  getMediaDurationSeconds,
+  parseRuntimeMinutes,
+} from '../utils/playbackTime';
 import {
   useTmdbDetails,
   useTmdbMatch,
@@ -45,17 +49,6 @@ const REFRESH_COLORS = [ACCENT];
 type Props = RootScreenProps<'SeriesDetail'>;
 export type SeriesDetailRouteProp = Props['route'];
 export type SeriesDetailNavProp = Props['navigation'];
-
-interface WatchProgress {
-  contentId: string;
-  progress: number;
-  timestamp: number;
-  totalDuration: number;
-  title: string;
-  thumbnail?: string;
-  seriesId?: string;
-  episodeId?: string;
-}
 
 const { width } = Dimensions.get('window');
 const THUMB_W = 124;
@@ -154,7 +147,10 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const multiSeason = seasons.length > 1;
 
   useEffect(() => {
-    if (seasons.length && (!selectedSeason || !seasons.includes(selectedSeason))) {
+    if (
+      seasons.length &&
+      (!selectedSeason || !seasons.includes(selectedSeason))
+    ) {
       setSelectedSeason(seasons[0]);
     } else if (!seasons.length && selectedSeason) {
       setSelectedSeason(null);
@@ -178,28 +174,28 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     [selectedSeason, episodes],
   );
 
-  const loadProgress = useCallback(async () => {
-    if (seriesId && selectedSeason && episodes[selectedSeason]) {
-      const progressMap: Record<string, WatchProgress> = {};
-      for (const episode of episodes[selectedSeason]) {
-        const progress = await storage.getWatchProgress(
-          seriesId,
-          false,
-          seriesId,
-          episode.id,
-        );
-        if (progress) {
-          progressMap[episode.id] = progress;
-        }
-      }
-      setWatchProgress(progressMap);
-    }
-  }, [seriesId, selectedSeason, episodes]);
-
   useFocusEffect(
     useCallback(() => {
-      loadProgress();
-    }, [loadProgress]),
+      if (!playlistId) {
+        setWatchProgress({});
+        return;
+      }
+      let active = true;
+      storage.getAllProgress(false).then(allProgress => {
+        if (!active) return;
+        const prefix = `${seriesId}_`;
+        const progressForSeries: Record<string, WatchProgress> = {};
+        Object.entries(allProgress).forEach(([key, progress]) => {
+          if (key.startsWith(prefix)) {
+            progressForSeries[key.slice(prefix.length)] = progress;
+          }
+        });
+        setWatchProgress(progressForSeries);
+      });
+      return () => {
+        active = false;
+      };
+    }, [playlistId, seriesId]),
   );
 
   /* Data helpers */
@@ -221,8 +217,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     tmdbDetails?.rating ??
     tmdbMatch?.rating ??
     null;
-  const rating =
-    ratingValue != null ? ratingValue.toFixed(1) : null;
+  const rating = ratingValue != null ? ratingValue.toFixed(1) : null;
 
   const year =
     info.releaseDate?.substring(0, 4) ||
@@ -231,8 +226,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     tmdbMatch?.releaseDate?.substring(0, 4) ||
     '';
 
-  const plot =
-    info.plot || tmdbDetails?.overview || tmdbMatch?.overview || '';
+  const plot = info.plot || tmdbDetails?.overview || tmdbMatch?.overview || '';
 
   const xtreamGenres: string[] = info.genre
     ? String(info.genre)
@@ -249,13 +243,12 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         .map((n: string) => n.trim())
         .filter(Boolean)
     : [];
-  const castMembers: CastMember[] =
-    tmdbDetails?.cast?.length
-      ? tmdbDetails.cast
-      : xtreamCastArr.map((name, index) => ({
-          id: String(index),
-          name,
-        }));
+  const castMembers: CastMember[] = tmdbDetails?.cast?.length
+    ? tmdbDetails.cast
+    : xtreamCastArr.map((name, index) => ({
+        id: String(index),
+        name,
+      }));
 
   const getEpisodeStill = (ep: any, index: number): string | null => {
     const episodeNumber = ep.episode_num ?? ep.episode ?? index + 1;
@@ -285,6 +278,8 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const playEpisode = (ep: any, index: number) => {
     if (!ep) return;
     const savedProgress = watchProgress[ep.id];
+    const fallbackRuntimeMinutes =
+      parseRuntimeMinutes(info.episode_run_time) ?? tmdbDetails?.runtime;
 
     navigation.navigate('VideoPlayer', {
       request: {
@@ -292,6 +287,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         streamId: String(ep.id),
         extension: ep.container_extension || 'mp4',
         title: ep.title || 'Episode',
+        expectedDuration: getMediaDurationSeconds(ep, fallbackRuntimeMinutes),
         seriesId,
         episodeList: currentEpisodes,
         currentEpisodeIndex: index,
@@ -331,8 +327,8 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             isOffline
               ? 'Series unavailable offline'
               : error
-                ? 'Could not load series'
-                : 'Series unavailable'
+              ? 'Could not load series'
+              : 'Series unavailable'
           }
           message={
             isOffline
@@ -360,8 +356,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             tintColor={ACCENT}
             colors={REFRESH_COLORS}
           />
-        }
-      >
+        }>
         {/* ── Hero ── */}
         <View style={styles.hero}>
           {heroImg ? (
@@ -386,7 +381,8 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
               style={styles.glassBtn}
               activeOpacity={0.8}
               onPress={handleGoBack}
-            >
+              accessibilityRole="button"
+              accessibilityLabel="Back to series">
               <FontAwesome5 name="chevron-left" size={17} color={colors.fg} />
             </TouchableOpacity>
           </View>
@@ -463,7 +459,8 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
               style={styles.playButton}
               activeOpacity={0.85}
               onPress={() => playEpisode(currentEpisodes[0], 0)}
-            >
+              accessibilityRole="button"
+              accessibilityLabel={playLabel}>
               <FontAwesome5 name="play" size={14} color={colors.scene} solid />
               <Text style={styles.playText}>{playLabel}</Text>
             </TouchableOpacity>
@@ -475,14 +472,18 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           <View style={styles.descBlock}>
             <Text
               style={styles.descText}
-              numberOfLines={expanded ? undefined : 3}
-            >
+              numberOfLines={expanded ? undefined : 3}>
               {plot}
             </Text>
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => setExpanded(e => !e)}
-            >
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={
+                expanded ? 'Show less' : 'Read full description'
+              }
+              accessibilityState={{ expanded }}>
               <Text style={styles.readMore}>
                 {expanded ? 'Show less' : 'Read more'}
               </Text>
@@ -497,8 +498,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.castScroll}
-            >
+              contentContainerStyle={styles.castScroll}>
               {castMembers.map(member => (
                 <View key={member.id} style={styles.castItem}>
                   <View style={styles.castAvatar}>
@@ -537,7 +537,9 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                     styles.seasonBtn,
                     seasonOpen && { borderColor: `${ACCENT}66` },
                   ]}
-                >
+                  accessibilityRole="button"
+                  accessibilityLabel={`Season ${selectedSeason}`}
+                  accessibilityState={{ expanded: seasonOpen }}>
                   <Text style={styles.seasonBtnText}>
                     Season {selectedSeason}
                   </Text>
@@ -553,12 +555,12 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                     <Pressable
                       style={styles.seasonScrim}
                       onPress={() => setSeasonOpen(false)}
+                      accessible={false}
                     />
                     <View style={styles.seasonPanel}>
                       <ScrollView
                         showsVerticalScrollIndicator={false}
-                        style={styles.seasonScroll}
-                      >
+                        style={styles.seasonScroll}>
                         {seasons.map(num => {
                           const on = num === selectedSeason;
                           return (
@@ -573,13 +575,16 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                                 styles.seasonRow,
                                 on && { backgroundColor: `${ACCENT}1f` },
                               ]}
-                            >
+                              accessibilityRole="button"
+                              accessibilityLabel={`Season ${num}, ${
+                                episodes[num]?.length || 0
+                              } episodes`}
+                              accessibilityState={{ selected: on }}>
                               <Text
                                 style={[
                                   styles.seasonRowText,
                                   on && { color: colors.fg },
-                                ]}
-                              >
+                                ]}>
                                 Season {num}
                               </Text>
                               <Text style={styles.seasonRowCount}>
@@ -614,7 +619,10 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
               const p = watchProgress[ep.id];
               const pct =
                 p && p.totalDuration
-                  ? Math.max(0, Math.min(100, (p.progress / p.totalDuration) * 100))
+                  ? Math.max(
+                      0,
+                      Math.min(100, (p.progress / p.totalDuration) * 100),
+                    )
                   : 0;
               const epImg = getEpisodeStill(ep, index);
               const synopsis = getEpisodeSynopsis(ep, index);
@@ -632,7 +640,14 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   style={styles.episodeRow}
                   activeOpacity={0.8}
                   onPress={() => playEpisode(ep, index)}
-                >
+                  accessibilityRole="button"
+                  accessibilityLabel={[
+                    ep.title || `Episode ${index + 1}`,
+                    duration ? `duration ${duration}` : null,
+                    remaining || null,
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}>
                   <View style={styles.epThumb}>
                     {epImg ? (
                       <FastImage
@@ -649,7 +664,12 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                       />
                     )}
                     <View style={styles.epPlay}>
-                      <FontAwesome5 name="play" size={11} color={colors.fg} solid />
+                      <FontAwesome5
+                        name="play"
+                        size={11}
+                        color={colors.fg}
+                        solid
+                      />
                     </View>
                     {pct > 0 && (
                       <View style={styles.epProgressTrack}>
@@ -979,6 +999,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
+    minHeight: 44,
     borderRadius: 11,
     backgroundColor: colors.glass,
     borderWidth: 1,
@@ -1025,6 +1046,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 10,
     paddingHorizontal: 11,
+    minHeight: 44,
     borderRadius: 9,
   },
   seasonRowText: {

@@ -53,8 +53,7 @@ function GridBg() {
           id="login-grid"
           width={32}
           height={32}
-          patternUnits="userSpaceOnUse"
-        >
+          patternUnits="userSpaceOnUse">
           <Path
             d="M 32 0 L 0 0 0 32"
             fill="none"
@@ -119,7 +118,9 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     const loadProxyPref = async () => {
       try {
-        const creds = await Keychain.getGenericPassword({ service: 'my-iptv-credentials' });
+        const creds = await Keychain.getGenericPassword({
+          service: 'my-iptv-credentials',
+        });
         if (creds) {
           const parsed = JSON.parse(creds.password);
           const stored = parsed.useProxy ?? parsed.vlcUseProxy ?? true;
@@ -141,7 +142,9 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
     setUseProxy(value);
     dispatch(setUserCredentials({ useProxy: value }));
     try {
-      const creds = await Keychain.getGenericPassword({ service: 'my-iptv-credentials' });
+      const creds = await Keychain.getGenericPassword({
+        service: 'my-iptv-credentials',
+      });
       const parsed = creds ? JSON.parse(creds.password) : {};
       await Keychain.setGenericPassword(
         'xtream-creds',
@@ -179,7 +182,10 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
       const body = new URLSearchParams();
       body.append('json', encryptedPayload);
 
-      const activationUrl = proxyApiUrl('http://screen-net.live/iptv/V7.php/', useProxy);
+      const activationUrl = proxyApiUrl(
+        'http://screen-net.live/iptv/V7.php/',
+        useProxy,
+      );
       const { data: encryptedResponse } = await axios.post(
         activationUrl,
         body.toString(),
@@ -194,7 +200,6 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
 
       const decrypted = xorDecrypt(encryptedResponse);
       const parsed = JSON.parse(decrypted);
-      if (__DEV__) console.log('Parsed response:', parsed);
       if (parsed.status === 103) {
         setError(
           'Activation failed. Please check your code or try again later.',
@@ -225,10 +230,12 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
       );
 
       navigation.replace('Main');
-    } catch (e: any) {
-      if (__DEV__) console.error(e);
+    } catch {
       setError('Activation failed. Please check your code or try again later.');
-      Alert.alert('Activation failed', e.message ?? 'Unknown error');
+      Alert.alert(
+        'Activation failed',
+        'Please check your code or try again later.',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -242,15 +249,13 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
         <ScrollView
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+          showsVerticalScrollIndicator={false}>
           <View style={styles.brandBlock}>
             <LinearGradient
               colors={gradients.triad as unknown as string[]}
               start={GRADIENT_START}
               end={GRADIENT_END}
-              style={styles.logoRing}
-            >
+              style={styles.logoRing}>
               <View style={styles.logoInner}>
                 <FontAwesome5 name="tv" color={colors.indigo} size={24} />
               </View>
@@ -298,8 +303,7 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
               style={[styles.button, isLoading && styles.buttonDisabled]}
               activeOpacity={0.86}
               onPress={handleActivation}
-              disabled={isLoading}
-            >
+              disabled={isLoading}>
               <LinearGradient
                 colors={gradients.progress as unknown as string[]}
                 start={GRADIENT_START}
@@ -357,7 +361,9 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Need help? Contact support</Text>
-            <Text style={styles.footerSubText}>ScreenIPTV activation portal</Text>
+            <Text style={styles.footerSubText}>
+              ScreenIPTV activation portal
+            </Text>
           </View>
         </ScrollView>
       </SafeAreaView>

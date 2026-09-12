@@ -23,8 +23,8 @@ function createExpoSource(source: PlaybackSource): VideoSource {
     source.type === 'm3u8'
       ? 'hls'
       : source.type === 'mpd'
-        ? 'dash'
-        : 'progressive';
+      ? 'dash'
+      : 'progressive';
   return { uri: source.uri, contentType };
 }
 
@@ -156,6 +156,10 @@ const ExpoVideoPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
       );
 
       const timeSubscription = player.addListener('timeUpdate', payload => {
+        const currentDuration = Number(player.duration);
+        if (Number.isFinite(currentDuration) && currentDuration > 0) {
+          durationRef.current = currentDuration;
+        }
         onProgressRef.current({
           currentTime: payload.currentTime || 0,
           seekableDuration: durationRef.current,

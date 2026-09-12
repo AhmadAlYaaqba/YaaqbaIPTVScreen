@@ -1,5 +1,5 @@
 // src/screens/LiveScreen.tsx
-import React, {useEffect} from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,28 +8,30 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
-import {useSelector, useDispatch} from 'react-redux';
-import {RootState, AppDispatch} from '../store';
-import {fetchLiveChannels} from '../store/slices/iptvSlice';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState, AppDispatch } from '../store';
+import { fetchLiveChannels } from '../store/slices/iptvSlice';
 
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {LegacyStackParamList} from '../navigation/legacyTypes';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { LegacyStackParamList } from '../navigation/legacyTypes';
 
-type LiveScreenNavigationProp = NativeStackNavigationProp<LegacyStackParamList, 'Live'>;
+type LiveScreenNavigationProp = NativeStackNavigationProp<
+  LegacyStackParamList,
+  'Live'
+>;
 
 interface Props {
   navigation: LiveScreenNavigationProp;
 }
 
-const LiveScreen: React.FC<Props> = ({navigation}) => {
+const LiveScreen: React.FC<Props> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
 
   // Suppose user credentials are stored in userSlice
-  const {username, password, serverDomain, serverPort} = useSelector(
+  const { username, password, serverDomain, serverPort } = useSelector(
     (state: RootState) => state.user,
   );
-  if (__DEV__) console.log({username, password, serverDomain, serverPort});
-  const {liveCategories, loading, error} = useSelector(
+  const { liveCategories, loading, error } = useSelector(
     (state: RootState) => state.iptv,
   );
 
@@ -61,7 +63,7 @@ const LiveScreen: React.FC<Props> = ({navigation}) => {
   }
 
   // Render each channel in a list
-  const renderChannel = ({item}: {item: any}) => {
+  const renderChannel = ({ item }: { item: any }) => {
     return (
       <TouchableOpacity
         style={styles.channelItem}

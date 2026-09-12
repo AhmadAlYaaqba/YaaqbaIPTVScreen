@@ -97,7 +97,8 @@ const SeriesPoster = React.memo(
         style={styles.card}
         onPress={handlePress}
         activeOpacity={0.85}
-      >
+        accessibilityRole="button"
+        accessibilityLabel={name}>
         <View style={styles.poster}>
           {posterUri ? (
             <FastImage
@@ -127,8 +128,7 @@ const SeriesPoster = React.memo(
           <LinearGradient
             colors={['transparent', 'rgba(6,8,16,0.55)', 'rgba(6,8,16,0.92)']}
             style={styles.scrim}
-            pointerEvents="none"
-          >
+            pointerEvents="none">
             <Text style={styles.posterTitle} numberOfLines={3}>
               {name}
             </Text>
@@ -139,7 +139,9 @@ const SeriesPoster = React.memo(
   },
 );
 
-const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({ navigation }) => {
+const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
+  navigation,
+}) => {
   const searchRef = useRef<TextInput>(null);
 
   const { playlistId, username, password, serverDomain, serverPort, useProxy } =
@@ -333,15 +335,18 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({ navigation }) =>
               style={styles.searchInput}
               autoCorrect={false}
               selectionColor={ACCENT}
+              accessibilityLabel="Search series"
             />
             {!!search && (
               <TouchableOpacity
+                style={styles.searchClearButton}
                 onPress={() => {
                   setSearch('');
                   searchRef.current?.focus();
                 }}
                 hitSlop={8}
-              >
+                accessibilityRole="button"
+                accessibilityLabel="Clear series search">
                 <FontAwesome5 name="times" size={14} color={colors.fgMuted} />
               </TouchableOpacity>
             )}
@@ -567,6 +572,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.fg,
     padding: 0,
+  },
+  searchClearButton: {
+    width: 44,
+    height: 44,
+    marginRight: -10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // meta row
