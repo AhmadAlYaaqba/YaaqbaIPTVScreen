@@ -1,11 +1,10 @@
 // store/slices/iptvSlice.ts
 import {createSlice, createAsyncThunk, PayloadAction} from '@reduxjs/toolkit';
-import axios from 'axios';
-import {proxyApiUrl, unwrapProxyUrl} from '../../utils/proxy';
 import {
-  buildPlayerApiUrl,
-  XTREAM_REQUEST_HEADERS,
-} from '../../utils/xtream';
+  getXtreamCategories,
+  getXtreamCategoryContent,
+  getXtreamSeriesDetails,
+} from '../../services/xtream/xtreamService';
 
 interface Channel {
   num: number;
@@ -95,44 +94,6 @@ const initialState: IPTVState = {
   error: null,
 };
 
-const xtreamRequestConfig = {
-  headers: XTREAM_REQUEST_HEADERS,
-  timeout: 15000,
-};
-
-type XtreamRequestMeta = {
-  context: string;
-  requestUrl: string;
-};
-
-async function fetchXtreamData({
-  context,
-  requestUrl,
-}: XtreamRequestMeta) {
-  if (__DEV__) {
-    console.log(`[Xtream] ${context} → ${unwrapProxyUrl(requestUrl)}`);
-    console.log(`[Xtream] ${context} (request) → ${requestUrl}`);
-  }
-  try {
-    const response = await axios.get(requestUrl, xtreamRequestConfig);
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
-      const data =
-        typeof error.response?.data === 'string'
-          ? error.response.data.slice(0, 160)
-          : JSON.stringify(error.response?.data ?? '').slice(0, 160);
-      const detail = status
-        ? `HTTP ${status}${data ? `: ${data}` : ''}`
-        : error.message;
-      throw new Error(`Xtream request failed (${context}): ${detail}`);
-    }
-
-    throw error;
-  }
-}
-
 // 1) Fetch Live Categories
 export const fetchLiveChannels = createAsyncThunk(
   'iptv/fetchLiveChannels',
@@ -148,19 +109,12 @@ export const fetchLiveChannels = createAsyncThunk(
     domain: string;
     port: string;
     useProxy?: boolean;
-  }) => {
-    const originalUrl = buildPlayerApiUrl({
-      username,
-      password,
-      domain,
-      port,
-      action: 'get_live_categories',
-    });
-    const url = proxyApiUrl(originalUrl, useProxy);
-    return fetchXtreamData({
-      context: 'get_live_categories',
-      requestUrl: url,
-    });
+  }, { signal }) => {
+    return getXtreamCategories(
+      { username, password, domain, port, useProxy },
+      'live',
+      signal,
+    );
   },
 );
 
@@ -179,19 +133,12 @@ export const fetchSeries = createAsyncThunk(
     domain: string;
     port: string;
     useProxy?: boolean;
-  }) => {
-    const originalUrl = buildPlayerApiUrl({
-      username,
-      password,
-      domain,
-      port,
-      action: 'get_series_categories',
-    });
-    const url = proxyApiUrl(originalUrl, useProxy);
-    return fetchXtreamData({
-      context: 'get_series_categories',
-      requestUrl: url,
-    });
+  }, { signal }) => {
+    return getXtreamCategories(
+      { username, password, domain, port, useProxy },
+      'series',
+      signal,
+    );
   },
 );
 
@@ -210,19 +157,12 @@ export const fetchMovieCategories = createAsyncThunk(
     domain: string;
     port: string;
     useProxy?: boolean;
-  }) => {
-    const originalUrl = buildPlayerApiUrl({
-      username,
-      password,
-      domain,
-      port,
-      action: 'get_vod_categories',
-    });
-    const url = proxyApiUrl(originalUrl, useProxy);
-    return (await fetchXtreamData({
-      context: 'get_vod_categories',
-      requestUrl: url,
-    })) as MovieCategory[];
+  }, { signal }) => {
+    return (await getXtreamCategories(
+      { username, password, domain, port, useProxy },
+      'movie',
+      signal,
+    )) as MovieCategory[];
   },
 );
 
@@ -243,20 +183,13 @@ export const fetchMoviesInCategory = createAsyncThunk(
     port: string;
     categoryId: string;
     useProxy?: boolean;
-  }) => {
-    const originalUrl = buildPlayerApiUrl({
-      username,
-      password,
-      domain,
-      port,
-      action: 'get_vod_streams',
-      extraParams: {category_id: categoryId},
-    });
-    const url = proxyApiUrl(originalUrl, useProxy);
-    return (await fetchXtreamData({
-      context: 'get_vod_streams',
-      requestUrl: url,
-    })) as MovieStream[];
+  }, { signal }) => {
+    return (await getXtreamCategoryContent(
+      { username, password, domain, port, useProxy },
+      'movie',
+      categoryId,
+      signal,
+    )) as MovieStream[];
   },
 );
 
@@ -276,20 +209,13 @@ export const fetchLiveStreamsByCategory = createAsyncThunk(
     port: string;
     categoryId: string;
     useProxy?: boolean;
-  }) => {
-    const originalUrl = buildPlayerApiUrl({
-      username,
-      password,
-      domain,
-      port,
-      action: 'get_live_streams',
-      extraParams: {category_id: categoryId},
-    });
-    const url = proxyApiUrl(originalUrl, useProxy);
-    return fetchXtreamData({
-      context: 'get_live_streams',
-      requestUrl: url,
-    });
+  }, { signal }) => {
+    return (await getXtreamCategoryContent(
+      { username, password, domain, port, useProxy },
+      'live',
+      categoryId,
+      signal,
+    )) as Channel[];
   },
 );
 
@@ -310,19 +236,12 @@ export const fetchSeriesCategories = createAsyncThunk(
     domain: string;
     port: string;
     useProxy?: boolean;
-  }) => {
-    const originalUrl = buildPlayerApiUrl({
-      username,
-      password,
-      domain,
-      port,
-      action: 'get_series_categories',
-    });
-    const url = proxyApiUrl(originalUrl, useProxy);
-    return (await fetchXtreamData({
-      context: 'get_series_categories',
-      requestUrl: url,
-    })) as SeriesCategory[];
+  }, { signal }) => {
+    return (await getXtreamCategories(
+      { username, password, domain, port, useProxy },
+      'series',
+      signal,
+    )) as SeriesCategory[];
   },
 );
 
@@ -343,20 +262,13 @@ export const fetchSeriesByCategory = createAsyncThunk(
     port: string;
     categoryId: string;
     useProxy?: boolean;
-  }) => {
-    const originalUrl = buildPlayerApiUrl({
-      username,
-      password,
-      domain,
-      port,
-      action: 'get_series',
-      extraParams: {category_id: categoryId},
-    });
-    const url = proxyApiUrl(originalUrl, useProxy);
-    return (await fetchXtreamData({
-      context: 'get_series',
-      requestUrl: url,
-    })) as SeriesItem[];
+  }, { signal }) => {
+    return (await getXtreamCategoryContent(
+      { username, password, domain, port, useProxy },
+      'series',
+      categoryId,
+      signal,
+    )) as SeriesItem[];
   },
 );
 
@@ -377,20 +289,12 @@ export const fetchSeriesInfo = createAsyncThunk(
     port: string;
     seriesId: string;
     useProxy?: boolean;
-  }) => {
-    const originalUrl = buildPlayerApiUrl({
-      username,
-      password,
-      domain,
-      port,
-      action: 'get_series_info',
-      extraParams: {series_id: seriesId},
-    });
-    const url = proxyApiUrl(originalUrl, useProxy);
-    return (await fetchXtreamData({
-      context: 'get_series_info',
-      requestUrl: url,
-    })) as SeriesInfo;
+  }, { signal }) => {
+    return (await getXtreamSeriesDetails(
+      { username, password, domain, port, useProxy },
+      seriesId,
+      signal,
+    )) as unknown as SeriesInfo;
   },
 );
 

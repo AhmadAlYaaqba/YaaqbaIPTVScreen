@@ -32,6 +32,7 @@ import {
   clearUserCredentials,
   setUserPreferences,
 } from '../store/slices/userSlice';
+import { resetIptv } from '../store/slices/iptvSlice';
 import {
   PlayerEngine,
   PLAYER_ENGINES,
@@ -55,6 +56,8 @@ import {
 } from '../services/playlists/playlistStore';
 import { usePlaylists } from '../services/playlists/usePlaylists';
 import { storage } from '../utils/storage';
+import { removeXtreamPlaylistCache } from '../services/xtream/xtreamPersistence';
+import { clearCatalogViewState } from '../hooks/useCatalogViewState';
 import type { TabScreenProps } from '../navigation/types';
 import type { RootStackParamList } from '../navigation/types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -219,13 +222,6 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
 
   const handleDeletePlaylist = useCallback(
     (playlist: Playlist) => {
-      if (playlist.id === activeId) {
-        Alert.alert(
-          'Playlist in use',
-          'Switch to another playlist before deleting this one.',
-        );
-        return;
-      }
       Alert.alert(
         'Delete playlist',
         `Remove "${playlist.name}"? Its saved watch history will also be cleared.`,
@@ -235,14 +231,34 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
             text: 'Delete',
             style: 'destructive',
             onPress: async () => {
-              await removePlaylist(playlist.id);
-              await loadPlaylists();
+              const wasActive = playlist.id === activeId;
+              try {
+                await removePlaylist(playlist.id);
+                await storage.clearPlaylistData(playlist.id);
+                await removeXtreamPlaylistCache(queryClient, playlist.id);
+                clearCatalogViewState(playlist.id);
+
+                if (wasActive) {
+                  dispatch(resetIptv());
+                  dispatch(clearUserCredentials());
+                  rootNavigation?.reset({
+                    index: 0,
+                    routes: [{ name: 'Login' }],
+                  });
+                  return;
+                }
+
+                await loadPlaylists();
+              } catch (error) {
+                if (__DEV__) console.error('Error deleting playlist:', error);
+                Alert.alert('Could not delete playlist', 'Please try again.');
+              }
             },
           },
         ],
       );
     },
-    [activeId, loadPlaylists],
+    [activeId, dispatch, loadPlaylists, queryClient, rootNavigation],
   );
 
   const handleSaveTmdbApiKey = useCallback(async () => {
@@ -316,6 +332,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({ navigation }) =>
               // user can resume them from the login screen.
               await clearActivePlaylist();
               storage.setActivePlaylistId(null);
+              dispatch(resetIptv());
               dispatch(clearUserCredentials());
               rootNavigation?.reset({
                 index: 0,

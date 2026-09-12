@@ -2,7 +2,8 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { PlayerEngine, DEFAULT_PLAYER_ENGINE } from '../../types/player';
 
-interface UserState {
+export interface UserState {
+  playlistId: string | null;
   username: string;
   password: string;
   serverDomain: string;
@@ -15,6 +16,7 @@ interface UserState {
 }
 
 const initialState: UserState = {
+  playlistId: null,
   username: '',
   password: '',
   serverDomain: '',

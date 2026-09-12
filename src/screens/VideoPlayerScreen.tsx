@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from 'react';
 import {
   View,
   StyleSheet,
@@ -12,6 +18,18 @@ import { RootState } from '../store';
 import { storage } from '../utils/storage';
 import { unwrapProxyUrl, proxyStreamUrl } from '../utils/proxy';
 import { buildSeriesStreamUrl } from '../utils/xtream';
+import {
+  extractContainerExtension,
+  extractLiveStreamIdentity,
+} from '../utils/streamIdentity';
+import {
+  getXtreamErrorMessage,
+  useXtreamCategoryContent,
+} from '../services/xtream/xtreamQueries';
+import type {
+  XtreamLiveStream,
+  XtreamSession,
+} from '../services/xtream/xtreamService';
 
 // Components
 import NativeVideoPlayer from '../components/NativeVideoPlayer';
@@ -26,6 +44,7 @@ import type { PlayerHandle } from '../types/player';
 // Hooks
 import { useVideoPlayer } from '../hooks/useVideoPlayer';
 import { usePlayerGestures } from '../hooks/usePlayerGestures';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 type Props = RootScreenProps<'VideoPlayer'>;
 
@@ -33,6 +52,7 @@ type Props = RootScreenProps<'VideoPlayer'>;
 const getDirectStreamUrl = (url: string): string => unwrapProxyUrl(url);
 
 const CONTROLS_TIMEOUT = 5000; // Auto-hide controls after 5 seconds
+const EMPTY_CHANNELS: XtreamLiveStream[] = [];
 
 const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   const {
@@ -47,21 +67,60 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     movieId,
     continueTime,
     thumbnail = '',
+    streamId: initialStreamId,
+    containerExtension: initialContainerExtension,
+    categoryId,
   } = route.params;
 
-  const { playerEngine, useProxy, username, password, serverDomain, serverPort } = useSelector(
-    (state: RootState) => state.user,
+  const {
+    playlistId,
+    playerEngine,
+    useProxy,
+    username,
+    password,
+    serverDomain,
+    serverPort,
+  } = useSelector((state: RootState) => state.user);
+  const session = useMemo<XtreamSession | null>(
+    () =>
+      playlistId
+        ? {
+            playlistId,
+            username,
+            password,
+            domain: serverDomain,
+            port: serverPort,
+            useProxy,
+          }
+        : null,
+    [playlistId, username, password, serverDomain, serverPort, useProxy],
   );
-  // Get channels for current category from Redux
-  const liveChannels = useSelector((state: RootState) => state.iptv.liveChannels);
+  const liveChannelsQuery = useXtreamCategoryContent(
+    session,
+    'live',
+    isLive ? categoryId ?? null : null,
+  );
+  const liveChannels = liveChannelsQuery.data ?? EMPTY_CHANNELS;
+  const liveChannelsError = getXtreamErrorMessage(liveChannelsQuery.error);
+  const refetchLiveChannels = liveChannelsQuery.refetch;
+  const { isOffline } = useNetworkStatus();
 
   // Current stream (can change when switching channels)
   const [currentStreamUrl, setCurrentStreamUrl] = useState(initialStreamUrl);
   const [currentChannelName, setCurrentChannelName] = useState(initialChannelName || title || '');
-  const [currentStreamId, setCurrentStreamId] = useState(() => {
-    const match = initialStreamUrl.match(/\/(\d+)\.m3u8/);
-    return match?.[1] || '';
-  });
+  const [currentStreamId, setCurrentStreamId] = useState(
+    () =>
+      initialStreamId ||
+      extractLiveStreamIdentity(initialStreamUrl)?.streamId ||
+      '',
+  );
+  const [currentContainerExtension, setCurrentContainerExtension] = useState(
+    () =>
+      initialContainerExtension ||
+      extractLiveStreamIdentity(initialStreamUrl)?.containerExtension ||
+      'm3u8',
+  );
+  const [currentThumbnail, setCurrentThumbnail] = useState(thumbnail);
 
   useEffect(() => {
     if (__DEV__ && currentStreamUrl) {
@@ -89,9 +148,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     autoReconnect: true,
     maxRetries: 10,
   });
-  const initialWatchRef = useRef({
-    currentChannelName,
-    currentStreamUrl,
+  const initialVodWatchRef = useRef({
     duration: player.duration,
     episodeId,
     isLive,
@@ -99,6 +156,11 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     seriesId,
     thumbnail,
     title,
+    streamUrl: initialStreamUrl,
+    containerExtension:
+      initialContainerExtension ||
+      extractContainerExtension(initialStreamUrl) ||
+      undefined,
   });
 
   // Single polymorphic ref — every engine wrapper satisfies PlayerHandle.
@@ -266,6 +328,8 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
 
           navigation.replace('VideoPlayer', {
             streamUrl: nextUrl,
+            streamId: nextEpisodeId,
+            containerExtension: ext,
             isLive: false,
             title: nextEpisode.title,
             seriesId,
@@ -299,12 +363,15 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
 
   // --- Recently watched tracking ---
   useEffect(() => {
-    const initial = initialWatchRef.current;
+    const initial = initialVodWatchRef.current;
+    if (initial.isLive) {
+      return;
+    }
 
-    if (!initial.isLive && (initial.seriesId || initial.movieId)) {
-      storage.saveRecentlyWatched({
-        id: initial.seriesId || initial.movieId || '',
-        type: initial.seriesId ? 'series' : 'movie',
+    if (initial.seriesId && initial.episodeId) {
+      const item = {
+        id: initial.seriesId,
+        type: 'series' as const,
         name: initial.title || '',
         timestamp: Date.now(),
         progress: 0,
@@ -312,36 +379,70 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         seriesId: initial.seriesId,
         episodeId: initial.episodeId,
         thumbnail: initial.thumbnail,
-      });
-      storage.saveLatestWatched({
-        id: initial.seriesId || initial.movieId || '',
-        type: initial.seriesId ? 'series' : 'movie',
+        streamUrl: initial.streamUrl,
+        containerExtension: initial.containerExtension,
+      };
+      storage.saveRecentlyWatched(item);
+      storage.saveLatestWatched(item);
+    } else if (initial.movieId) {
+      const item = {
+        id: initial.movieId,
+        type: 'movie' as const,
         name: initial.title || '',
         timestamp: Date.now(),
         progress: 0,
         totalDuration: initial.duration,
-        seriesId: initial.seriesId,
-        episodeId: initial.episodeId,
         thumbnail: initial.thumbnail,
-      });
-    } else if (initial.isLive && initial.currentChannelName) {
-      storage.saveLatestWatched({
-        id: initial.currentStreamUrl,
-        type: 'live',
-        name: initial.currentChannelName,
-        timestamp: Date.now(),
-        channelName: initial.currentChannelName,
-        thumbnail: initial.thumbnail,
-      });
+        streamUrl: initial.streamUrl,
+        containerExtension: initial.containerExtension,
+      };
+      storage.saveRecentlyWatched(item);
+      storage.saveLatestWatched(item);
     }
   }, []);
 
+  useEffect(() => {
+    if (!isLive || !currentStreamId || !currentChannelName) {
+      return;
+    }
+
+    storage.saveLatestWatched({
+        id: currentStreamId,
+        type: 'live',
+        name: currentChannelName,
+        timestamp: Date.now(),
+        streamId: currentStreamId,
+        streamUrl: currentStreamUrl,
+        containerExtension: currentContainerExtension,
+        categoryId,
+        channelName: currentChannelName,
+        thumbnail: currentThumbnail,
+    });
+  }, [
+    categoryId,
+    currentChannelName,
+    currentContainerExtension,
+    currentStreamId,
+    currentStreamUrl,
+    currentThumbnail,
+    isLive,
+  ]);
+
   // --- Channel switch ---
   const handleChannelSwitch = useCallback(
-    (newStreamUrl: string, newChannelName: string, newStreamId: string) => {
+    (
+      newStreamUrl: string,
+      newChannelName: string,
+      newStreamId: string,
+      newThumbnail?: string,
+    ) => {
       setCurrentStreamUrl(newStreamUrl);
       setCurrentChannelName(newChannelName);
       setCurrentStreamId(newStreamId);
+      setCurrentContainerExtension(
+        extractLiveStreamIdentity(newStreamUrl)?.containerExtension || 'm3u8',
+      );
+      setCurrentThumbnail(newThumbnail || '');
       setChannelSwitcherVisible(false);
       // The player hook will re-run with new URL since state changed
     },
@@ -351,6 +452,14 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   const toggleChannelSwitcher = useCallback(() => {
     setChannelSwitcherVisible(v => !v);
   }, []);
+
+  const closeChannelSwitcher = useCallback(() => {
+    setChannelSwitcherVisible(false);
+  }, []);
+
+  const retryLiveChannels = useCallback(() => {
+    refetchLiveChannels();
+  }, [refetchLiveChannels]);
 
   const handleGoBack = useCallback(() => {
     navigation.goBack();
@@ -445,14 +554,18 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         <ChannelSwitcher
           visible={channelSwitcherVisible}
           channels={liveChannels}
-          activeStreamUrl={currentStreamUrl}
+          activeStreamId={currentStreamId}
           serverDomain={serverDomain}
           serverPort={serverPort}
           username={username}
           password={password}
           useProxy={useProxy}
+          isLoading={liveChannelsQuery.isPending}
+          isOffline={isOffline}
+          error={liveChannelsError}
+          onRetry={retryLiveChannels}
           onSelectChannel={handleChannelSwitch}
-          onClose={() => setChannelSwitcherVisible(false)}
+          onClose={closeChannelSwitcher}
         />
       )}
 

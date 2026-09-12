@@ -25,7 +25,7 @@ export function applyPlaylistToSession(
   playlist: Playlist,
   playerEngine: PlayerEngine,
   dispatch: AppDispatch,
-) {
+): Promise<void> {
   storage.setActivePlaylistId(playlist.id);
 
   // Heal playlists saved before serverPort parsing existed: content screens
@@ -33,16 +33,19 @@ export function applyPlaylistToSession(
   const serverPort =
     playlist.serverPort || parseServerUrl(playlist.serverDomain).port;
 
-  dispatch(
-    setUserCredentials({
-      username: playlist.username,
-      password: playlist.password,
-      serverDomain: playlist.serverDomain,
-      serverPort,
-      useProxy: playlist.useProxy,
-      playerEngine,
-    }),
-  );
+  return storage.migrateLegacyPlaylistData(playlist.id).then(() => {
+    dispatch(
+      setUserCredentials({
+        playlistId: playlist.id,
+        username: playlist.username,
+        password: playlist.password,
+        serverDomain: playlist.serverDomain,
+        serverPort,
+        useProxy: playlist.useProxy,
+        playerEngine,
+      }),
+    );
+  });
 }
 
 export function usePlaylists() {
@@ -57,7 +60,7 @@ export function usePlaylists() {
     async (playlist: Playlist, navigation: Nav) => {
       const store = await getPlaylistStore();
       await setActivePlaylist(playlist.id);
-      applyPlaylistToSession(playlist, store.playerEngine, dispatch);
+      await applyPlaylistToSession(playlist, store.playerEngine, dispatch);
       dispatch(resetIptv());
       navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     },

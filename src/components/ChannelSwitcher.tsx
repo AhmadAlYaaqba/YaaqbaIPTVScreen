@@ -3,14 +3,14 @@ import React, { useCallback, useEffect } from 'react';
 import { proxyStreamUrl } from '../utils/proxy';
 import { buildLiveStreamUrl } from '../utils/xtream';
 import {
-    View,
-    Text,
-    StyleSheet,
-    FlatList,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    Dimensions,
-    Image,
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  Dimensions,
+  Image,
 } from 'react-native';
 import Animated, {
     useSharedValue,
@@ -22,6 +22,7 @@ import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PANEL_WIDTH = Math.round(SCREEN_WIDTH * 0.6);
+const CHANNEL_SKELETON_ITEMS = Array.from({ length: 10 }, (_, index) => index);
 
 interface Channel {
     stream_id: number;
@@ -31,68 +32,107 @@ interface Channel {
 }
 
 interface ChannelSwitcherProps {
-    visible: boolean;
-    channels: Channel[];
-    activeStreamUrl: string;
-    serverDomain: string;
-    serverPort: string;
-    username: string;
-    password: string;
-    useProxy: boolean;
-    onSelectChannel: (streamUrl: string, channelName: string, streamId: string) => void;
-    onClose: () => void;
+  visible: boolean;
+  channels: Channel[];
+  activeStreamId: string;
+  serverDomain: string;
+  serverPort: string;
+  username: string;
+  password: string;
+  useProxy: boolean;
+  isLoading: boolean;
+  isOffline: boolean;
+  error?: string | null;
+  onRetry: () => void;
+  onSelectChannel: (
+    streamUrl: string,
+    channelName: string,
+    streamId: string,
+    thumbnail?: string,
+  ) => void;
+  onClose: () => void;
 }
 
 const ChannelItem = React.memo(
-    ({
-        item,
-        isActive,
-        onPress,
-    }: {
-        item: Channel;
-        isActive: boolean;
-        onPress: () => void;
-    }) => (
-        <TouchableOpacity
-            style={[styles.channelItem, isActive && styles.channelItemActive]}
-            onPress={onPress}
-            activeOpacity={0.7}>
-            {item.stream_icon || item.icon ? (
-                <Image
-                    source={{ uri: item.stream_icon || item.icon }}
-                    style={styles.channelIcon}
-                    resizeMode="contain"
-                />
-            ) : (
-                <View style={styles.channelIconPlaceholder}>
-                    <FontAwesome5 name="tv" size={14} color="#666" />
-                </View>
-            )}
-            <Text
-                style={[styles.channelName, isActive && styles.channelNameActive]}
-                numberOfLines={2}>
-                {item.name}
-            </Text>
-            {isActive && (
-                <View style={styles.nowPlaying}>
-                    <View style={styles.nowPlayingDot} />
-                </View>
-            )}
-        </TouchableOpacity>
-    ),
+  ({
+    streamId,
+    name,
+    thumbnail,
+    isActive,
+    onSelect,
+  }: {
+    streamId: number;
+    name: string;
+    thumbnail?: string;
+    isActive: boolean;
+    onSelect: (streamId: number, name: string, thumbnail?: string) => void;
+  }) => {
+    const handlePress = useCallback(() => {
+      onSelect(streamId, name, thumbnail);
+    }, [name, onSelect, streamId, thumbnail]);
+
+    return (
+      <TouchableOpacity
+        style={[styles.channelItem, isActive && styles.channelItemActive]}
+        onPress={handlePress}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isActive }}
+        accessibilityLabel={`${name}${isActive ? ', now playing' : ''}`}
+      >
+        {thumbnail ? (
+          <Image
+            source={{ uri: thumbnail }}
+            style={styles.channelIcon}
+            resizeMode="contain"
+          />
+        ) : (
+          <View style={styles.channelIconPlaceholder}>
+            <FontAwesome5 name="tv" size={14} color="#666" />
+          </View>
+        )}
+        <Text
+          style={[styles.channelName, isActive && styles.channelNameActive]}
+          numberOfLines={2}
+        >
+          {name}
+        </Text>
+        {isActive && (
+          <View style={styles.nowPlaying}>
+            <View style={styles.nowPlayingDot} />
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  },
 );
 
+const ChannelListSkeleton = React.memo(() => (
+  <View style={styles.skeletonList}>
+    {CHANNEL_SKELETON_ITEMS.map(item => (
+      <View key={item} style={styles.skeletonRow}>
+        <View style={styles.skeletonIcon} />
+        <View style={styles.skeletonText} />
+      </View>
+    ))}
+  </View>
+));
+
 const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
-    visible,
-    channels,
-    activeStreamUrl,
-    serverDomain,
-    serverPort,
-    username,
-    password,
-    useProxy,
-    onSelectChannel,
-    onClose,
+  visible,
+  channels,
+  activeStreamId,
+  serverDomain,
+  serverPort,
+  username,
+  password,
+  useProxy,
+  isLoading,
+  isOffline,
+  error,
+  onRetry,
+  onSelectChannel,
+  onClose,
 }) => {
     const translateX = useSharedValue(PANEL_WIDTH);
     const backdropOpacity = useSharedValue(0);
@@ -135,29 +175,32 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
         [serverDomain, serverPort, username, password, useProxy],
     );
 
-    const renderItem = useCallback(
-        ({ item }: { item: Channel }) => {
-            const itemStreamUrl = buildStreamUrl(item.stream_id);
-            const isActive = itemStreamUrl === activeStreamUrl;
+    const handleSelect = useCallback(
+      (streamId: number, name: string, thumbnail?: string) => {
+        if (String(streamId) !== activeStreamId) {
+          onSelectChannel(
+            buildStreamUrl(streamId),
+            name,
+            String(streamId),
+            thumbnail,
+          );
+        }
+        onClose();
+      },
+      [activeStreamId, buildStreamUrl, onClose, onSelectChannel],
+    );
 
-            return (
-                <ChannelItem
-                    item={item}
-                    isActive={isActive}
-                    onPress={() => {
-                        if (!isActive) {
-                            onSelectChannel(
-                                itemStreamUrl,
-                                item.name,
-                                String(item.stream_id),
-                            );
-                        }
-                        onClose();
-                    }}
-                />
-            );
-        },
-        [activeStreamUrl, buildStreamUrl, onSelectChannel, onClose],
+    const renderItem = useCallback(
+      ({ item }: { item: Channel }) => (
+        <ChannelItem
+          streamId={item.stream_id}
+          name={item.name}
+          thumbnail={item.stream_icon || item.icon}
+          isActive={String(item.stream_id) === activeStreamId}
+          onSelect={handleSelect}
+        />
+      ),
+      [activeStreamId, handleSelect],
     );
 
     const keyExtractor = useCallback(
@@ -186,8 +229,9 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
                     </TouchableOpacity>
                 </View>
 
-                {/* Channel list */}
-                <FlatList
+                {/* Cached channels remain usable while a refresh is in flight. */}
+                {channels.length > 0 ? (
+                  <FlatList
                     data={channels}
                     keyExtractor={keyExtractor}
                     renderItem={renderItem}
@@ -195,7 +239,38 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
                     showsVerticalScrollIndicator={false}
                     initialNumToRender={15}
                     maxToRenderPerBatch={10}
-                />
+                    windowSize={7}
+                    removeClippedSubviews
+                  />
+                ) : isLoading ? (
+                  <ChannelListSkeleton />
+                ) : (
+                  <View style={styles.stateContainer}>
+                    <FontAwesome5
+                      name={isOffline ? 'wifi' : error ? 'exclamation-circle' : 'inbox'}
+                      size={28}
+                      color={error ? '#ff6b6b' : '#777'}
+                    />
+                    <Text style={styles.stateTitle}>
+                      {isOffline
+                        ? 'Channels unavailable offline'
+                        : error
+                          ? 'Could not load channels'
+                          : 'No channels in this category'}
+                    </Text>
+                    {(isOffline || error) && (
+                      <TouchableOpacity
+                        style={styles.retryButton}
+                        onPress={onRetry}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Retry loading channels"
+                      >
+                        <Text style={styles.retryText}>Retry</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
             </Animated.View>
         </View>
     );
@@ -239,6 +314,58 @@ const styles = StyleSheet.create({
     },
     listContent: {
         paddingVertical: 4,
+    },
+    skeletonList: {
+        paddingVertical: 4,
+    },
+    skeletonRow: {
+        height: 53,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: 'rgba(255,255,255,0.06)',
+    },
+    skeletonIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 4,
+        marginRight: 10,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+    },
+    skeletonText: {
+        width: '65%',
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+    },
+    stateContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 24,
+        paddingBottom: 40,
+    },
+    stateTitle: {
+        color: '#bbb',
+        fontSize: 13,
+        lineHeight: 19,
+        textAlign: 'center',
+        marginTop: 12,
+    },
+    retryButton: {
+        marginTop: 16,
+        paddingHorizontal: 20,
+        paddingVertical: 9,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: 'rgba(74,144,226,0.45)',
+        backgroundColor: 'rgba(74,144,226,0.12)',
+    },
+    retryText: {
+        color: '#fff',
+        fontSize: 13,
+        fontWeight: '600',
     },
     channelItem: {
         flexDirection: 'row',

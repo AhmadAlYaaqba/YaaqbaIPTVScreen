@@ -5,3 +5,7 @@ jest.mock('react-native-orientation-locker', () => ({
   lockToPortrait: jest.fn(),
   unlockAllOrientations: jest.fn(),
 }));
+
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);

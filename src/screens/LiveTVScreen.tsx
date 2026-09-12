@@ -1,7 +1,7 @@
 import React, {
-  useEffect,
   useState,
   useCallback,
+  useDeferredValue,
   useMemo,
   useRef,
 } from 'react';
@@ -9,8 +9,8 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   FlatList,
+  RefreshControl,
   TouchableOpacity,
   Image,
   TextInput,
@@ -18,19 +18,31 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
-import { RootState, AppDispatch } from '../store';
+import { RootState } from '../store';
 import {
-  fetchLiveChannels,
-  fetchLiveStreamsByCategory,
-} from '../store/slices/iptvSlice';
+  getXtreamErrorMessage,
+  useXtreamCategories,
+  useXtreamCategoryContent,
+} from '../services/xtream/xtreamQueries';
+import type {
+  XtreamCategory,
+  XtreamLiveStream,
+  XtreamSession,
+} from '../services/xtream/xtreamService';
 import { proxyStreamUrl } from '../utils/proxy';
 import { buildLiveStreamUrl } from '../utils/xtream';
 import { colors, sectionAccents, radii } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 import CategoryDropdown from '../components/mirror/CategoryDropdown';
+import {
+  CatalogGridSkeleton,
+  CatalogStatus,
+} from '../components/catalog/CatalogStates';
+import { useCatalogViewState } from '../hooks/useCatalogViewState';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import type { TabScreenProps } from '../navigation/types';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
@@ -42,28 +54,44 @@ const H_PAD = 20;
 const GUTTER = 10;
 const COLUMNS = 3;
 const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
+const EMPTY_CATEGORIES: XtreamCategory[] = [];
+const EMPTY_CHANNELS: XtreamLiveStream[] = [];
+const channelKeyExtractor = (item: XtreamLiveStream) => String(item.stream_id);
 
 // ─────────────────────────────────────────────────────────────
 // Channel grid card — logo (or dashed fallback) + number + name
 // ─────────────────────────────────────────────────────────────
 const ChannelCard = React.memo(
   ({
-    item,
-    onPress,
+    streamId,
+    name,
+    rawIcon,
+    channelNumber,
+    onPressChannel,
     useProxy,
   }: {
-    item: any;
-    onPress: () => void;
+    streamId: number;
+    name: string;
+    rawIcon?: string;
+    channelNumber?: number;
+    onPressChannel: (
+      streamId: number,
+      name: string,
+      rawIcon?: string,
+    ) => void;
     useProxy: boolean;
   }) => {
-    const rawIcon = item.stream_icon || item.icon || null;
     const icon = rawIcon ? proxyStreamUrl(rawIcon, useProxy) : null;
-    const number = item.num != null ? String(item.num) : '';
+    const number = channelNumber != null ? String(channelNumber) : '';
+    const handlePress = useCallback(
+      () => onPressChannel(streamId, name, rawIcon),
+      [name, onPressChannel, rawIcon, streamId],
+    );
 
     return (
       <TouchableOpacity
-        style={[styles.card, { width: ITEM_WIDTH }]}
-        onPress={onPress}
+        style={styles.card}
+        onPress={handlePress}
         activeOpacity={0.8}
       >
         <View style={styles.logoTile}>
@@ -85,7 +113,7 @@ const ChannelCard = React.memo(
           </Text>
         )}
         <Text style={styles.cardTitle} numberOfLines={1}>
-          {item.name}
+          {name}
         </Text>
       </TouchableOpacity>
     );
@@ -93,89 +121,71 @@ const ChannelCard = React.memo(
 );
 
 const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
-  const dispatch = useDispatch<AppDispatch>();
-
-  const { username, password, serverDomain, serverPort, useProxy } =
+  const { playlistId, username, password, serverDomain, serverPort, useProxy } =
     useSelector((state: RootState) => state.user);
+  const session = useMemo<XtreamSession | null>(
+    () =>
+      playlistId
+        ? {
+            playlistId,
+            username,
+            password,
+            domain: serverDomain,
+            port: serverPort,
+            useProxy,
+          }
+        : null,
+    [playlistId, username, password, serverDomain, serverPort, useProxy],
+  );
 
-  const { liveCategories, liveChannels, loadingCategories, loading, error } =
-    useSelector((state: RootState) => state.iptv);
-
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [activeCategoryName, setActiveCategoryName] = useState<string>('');
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<TextInput>(null);
 
-  // initial fetch categories
-  useEffect(() => {
-    if (username && password && serverDomain && serverPort) {
-      dispatch(
-        fetchLiveChannels({
-          username,
-          password,
-          domain: serverDomain,
-          port: serverPort,
-          useProxy,
-        }),
-      );
-    }
-  }, [dispatch, username, password, serverDomain, serverPort, useProxy]);
-
-  const categories = useMemo(
-    () => (Array.isArray(liveCategories) ? liveCategories : []),
-    [liveCategories],
-  );
-  const channels = useMemo(
-    () => (Array.isArray(liveChannels) ? liveChannels : []),
-    [liveChannels],
-  );
-
-  // open on first category's channels
-  useEffect(() => {
-    if (categories.length && !activeCategory) {
-      const first = categories[0];
-      setActiveCategory(first.category_id);
-      setActiveCategoryName(first.category_name);
-      dispatch(
-        fetchLiveStreamsByCategory({
-          username,
-          password,
-          domain: serverDomain,
-          port: serverPort,
-          categoryId: first.category_id,
-          useProxy,
-        }),
-      );
-    }
-  }, [
+  const categoriesQuery = useXtreamCategories(session, 'live');
+  const categories = categoriesQuery.data ?? EMPTY_CATEGORIES;
+  const {
+    activeCategoryId: activeCategory,
+    activeCategoryName,
+    selectCategory,
+    contentOffset,
+    onScroll,
+    listKey,
+  } = useCatalogViewState({
+    playlistId,
+    mediaType: 'live',
     categories,
+    categoriesReady: categoriesQuery.isSuccess,
+  });
+  const channelsQuery = useXtreamCategoryContent(
+    session,
+    'live',
     activeCategory,
-    username,
-    password,
-    serverDomain,
-    serverPort,
-    useProxy,
-    dispatch,
-  ]);
+  );
+  const channels = channelsQuery.data ?? EMPTY_CHANNELS;
+  const loadingCategories = categoriesQuery.isPending;
+  const loading = channelsQuery.isPending;
+  const error = getXtreamErrorMessage(
+    categoriesQuery.error ?? channelsQuery.error,
+  );
+  const { isOffline } = useNetworkStatus();
+  const {
+    isError: categoriesError,
+    isRefetching: refreshingCategories,
+    refetch: refetchCategories,
+  } = categoriesQuery;
+  const {
+    isError: channelsError,
+    isRefetching: refreshingChannels,
+    refetch: refetchChannels,
+  } = channelsQuery;
 
   const handleCategorySelect = useCallback(
-    (categoryId: string, categoryName: string) => {
-      setActiveCategory(categoryId);
-      setActiveCategoryName(categoryName);
+    (categoryId: string) => {
+      selectCategory(categoryId);
       setSearch('');
-      dispatch(
-        fetchLiveStreamsByCategory({
-          username,
-          password,
-          domain: serverDomain,
-          port: serverPort,
-          categoryId,
-          useProxy,
-        }),
-      );
     },
-    [dispatch, username, password, serverDomain, serverPort, useProxy],
+    [selectCategory],
   );
 
   const toggleSearch = useCallback(() => {
@@ -190,34 +200,27 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
     });
   }, []);
 
-  const renderChannelCard = useCallback(
-    ({ item }: { item: any }) => {
-      const rawIcon = item.stream_icon || item.icon || null;
+  const handleChannelPress = useCallback(
+    (streamId: number, name: string, rawIcon?: string) => {
       const icon = rawIcon ? proxyStreamUrl(rawIcon, useProxy) : null;
       const originalStreamUrl = buildLiveStreamUrl({
         domain: serverDomain,
         port: serverPort,
         username,
         password,
-        streamId: item.stream_id,
+        streamId,
       });
       const streamUrl = proxyStreamUrl(originalStreamUrl, useProxy);
 
-      return (
-        <ChannelCard
-          item={item}
-          useProxy={useProxy}
-          onPress={() =>
-            navigation.navigate('VideoPlayer', {
-              streamUrl,
-              channelName: item.name,
-              isLive: true,
-              thumbnail: icon ?? undefined,
-              categoryId: activeCategory ?? undefined,
-            })
-          }
-        />
-      );
+      navigation.navigate('VideoPlayer', {
+        streamUrl,
+        streamId: String(streamId),
+        containerExtension: 'm3u8',
+        channelName: name,
+        isLive: true,
+        thumbnail: icon ?? undefined,
+        categoryId: activeCategory ?? undefined,
+      });
     },
     [
       navigation,
@@ -230,7 +233,22 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
     ],
   );
 
-  const normalizedSearch = search.trim().toLowerCase();
+  const renderChannelCard = useCallback(
+    ({ item }: { item: XtreamLiveStream }) => (
+      <ChannelCard
+        streamId={item.stream_id}
+        name={item.name}
+        rawIcon={item.stream_icon || item.icon}
+        channelNumber={item.num}
+        useProxy={useProxy}
+        onPressChannel={handleChannelPress}
+      />
+    ),
+    [handleChannelPress, useProxy],
+  );
+
+  const deferredSearch = useDeferredValue(search);
+  const normalizedSearch = deferredSearch.trim().toLowerCase();
   const filteredChannels = useMemo(
     () =>
       normalizedSearch
@@ -239,6 +257,39 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
           )
         : channels,
     [channels, normalizedSearch],
+  );
+
+  const handleRefresh = useCallback(() => {
+    refetchCategories();
+    if (activeCategory) {
+      refetchChannels();
+    }
+  }, [activeCategory, refetchCategories, refetchChannels]);
+
+  const handleRetry = useCallback(() => {
+    if (categoriesError || categories.length === 0) {
+      refetchCategories();
+    }
+    if (activeCategory && (channelsError || channels.length === 0)) {
+      refetchChannels();
+    }
+  }, [
+    activeCategory,
+    categories,
+    categoriesError,
+    channels,
+    channelsError,
+    refetchCategories,
+    refetchChannels,
+  ]);
+
+  const handleListScroll = useCallback(
+    (event: Parameters<typeof onScroll>[0]) => {
+      if (!normalizedSearch) {
+        onScroll(event);
+      }
+    },
+    [normalizedSearch, onScroll],
   );
 
   const renderHeader = () => (
@@ -303,46 +354,68 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
   );
 
   // ---------- render ---------- //
-  if (loadingCategories) {
+  if (isOffline && categories.length === 0) {
     return (
       <View style={styles.root}>
         <AmbientGlow accent={ACCENT} />
         <SafeAreaView style={styles.centerSafe}>
-          <ActivityIndicator size="large" color={ACCENT} />
-          <Text style={styles.loadingText}>Loading categories…</Text>
+          <CatalogStatus
+            kind="offline"
+            title="You’re offline"
+            message="Reconnect to load Live TV categories that are not cached yet."
+            accent={ACCENT}
+            onRetry={handleRetry}
+          />
         </SafeAreaView>
       </View>
     );
   }
 
-  if (error) {
+  if (categoriesError && categories.length === 0) {
     return (
       <View style={styles.root}>
         <AmbientGlow accent={ACCENT} />
         <SafeAreaView style={styles.centerSafe}>
-          <FontAwesome5
-            name="exclamation-circle"
-            size={36}
-            color={colors.danger}
+          <CatalogStatus
+            kind="error"
+            title="Couldn’t load Live TV"
+            message={error}
+            accent={ACCENT}
+            onRetry={handleRetry}
           />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={[styles.retryButton, { borderColor: `${ACCENT}66` }]}
-            activeOpacity={0.8}
-            onPress={() =>
-              dispatch(
-                fetchLiveChannels({
-                  username,
-                  password,
-                  domain: serverDomain,
-                  port: serverPort,
-                  useProxy,
-                }),
-              )
-            }
-          >
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (loadingCategories && categories.length === 0) {
+    return (
+      <View style={styles.root}>
+        <AmbientGlow accent={ACCENT} />
+        <SafeAreaView style={styles.safe}>
+          <CatalogGridSkeleton
+            accent={ACCENT}
+            itemWidth={ITEM_WIDTH}
+            itemHeight={ITEM_WIDTH + 34}
+            gutter={GUTTER}
+          />
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (categoriesQuery.isSuccess && categories.length === 0) {
+    return (
+      <View style={styles.root}>
+        <AmbientGlow accent={ACCENT} />
+        <SafeAreaView style={styles.centerSafe}>
+          <CatalogStatus
+            kind="empty"
+            title="No Live TV categories"
+            message="This playlist did not return any live categories."
+            accent={ACCENT}
+            onRetry={handleRetry}
+          />
         </SafeAreaView>
       </View>
     );
@@ -353,34 +426,65 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
       <AmbientGlow accent={ACCENT} />
       <SafeAreaView style={styles.safe}>
         {renderHeader()}
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={ACCENT} />
-          </View>
+        {loading && channels.length === 0 ? (
+          <CatalogGridSkeleton
+            accent={ACCENT}
+            itemWidth={ITEM_WIDTH}
+            itemHeight={ITEM_WIDTH + 34}
+            gutter={GUTTER}
+          />
+        ) : channels.length === 0 && (isOffline || channelsError) ? (
+          <CatalogStatus
+            kind={isOffline ? 'offline' : 'error'}
+            title={isOffline ? 'You’re offline' : 'Couldn’t load channels'}
+            message={
+              isOffline
+                ? 'Reconnect or choose a category that is already cached.'
+                : error
+            }
+            accent={ACCENT}
+            onRetry={handleRetry}
+          />
         ) : (
           <FlatList
+            key={listKey}
             style={styles.grid}
             data={filteredChannels}
-            keyExtractor={item => String(item.stream_id)}
+            keyExtractor={channelKeyExtractor}
             renderItem={renderChannelCard}
             numColumns={COLUMNS}
             columnWrapperStyle={styles.columnWrapper}
             contentContainerStyle={styles.gridContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            contentOffset={contentOffset}
+            onScroll={handleListScroll}
+            scrollEventThrottle={200}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshingCategories || refreshingChannels}
+                onRefresh={handleRefresh}
+                tintColor={ACCENT}
+                colors={[ACCENT]}
+              />
+            }
             removeClippedSubviews
             maxToRenderPerBatch={12}
             windowSize={5}
             initialNumToRender={12}
             ListEmptyComponent={
-              <View style={styles.center}>
-                <FontAwesome5
-                  name="satellite-dish"
-                  size={36}
-                  color={colors.fgSubtle}
-                />
-                <Text style={styles.emptyText}>No channels found</Text>
-              </View>
+              <CatalogStatus
+                kind="empty"
+                title={
+                  normalizedSearch ? 'No matching channels' : 'No channels found'
+                }
+                message={
+                  normalizedSearch
+                    ? 'Try a different search term.'
+                    : 'This category is currently empty.'
+                }
+                accent={ACCENT}
+              />
             }
           />
         )}
@@ -502,6 +606,7 @@ const styles = StyleSheet.create({
     marginBottom: GUTTER,
   },
   card: {
+    width: ITEM_WIDTH,
     alignItems: 'stretch',
   },
   logoTile: {

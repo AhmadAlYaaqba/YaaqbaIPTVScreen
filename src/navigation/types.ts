@@ -35,6 +35,8 @@ export type RootStackParamList = {
   };
   VideoPlayer: {
     streamUrl: string;
+    streamId?: string;
+    containerExtension?: string;
     channelName?: string;
     isLive?: boolean;
     title?: string;

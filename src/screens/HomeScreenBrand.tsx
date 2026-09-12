@@ -30,12 +30,12 @@ import { useIsFocused } from '@react-navigation/native';
 
 import type { TabParamList, TabScreenProps } from '../navigation/types';
 import { RootState } from '../store';
-import { storage } from '../utils/storage';
-import { proxyStreamUrl } from '../utils/proxy';
+import { storage, type LatestWatched } from '../utils/storage';
+import { proxyStreamUrl, unwrapProxyUrl } from '../utils/proxy';
 import {
-  buildLiveStreamUrl,
   buildMovieStreamUrl,
   buildPlayerApiUrl,
+  buildSeriesStreamUrl,
 } from '../utils/xtream';
 import { colors, sectionAccents, radii, gradients } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
@@ -542,7 +542,7 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
   const { username, password, serverDomain, serverPort, useProxy } =
     useSelector((s: RootState) => s.user);
 
-  const [recentWatches, setRecentWatches] = useState<any[]>([]);
+  const [recentWatches, setRecentWatches] = useState<LatestWatched[]>([]);
   const [sub, setSub] = useState<SubInfo | null>(null);
 
   // Load recent watches
@@ -617,43 +617,69 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
     };
   }, [isFocused, serverDomain, serverPort, username, password, useProxy]);
 
-  const openContinueItem = (item: any) => {
+  const openContinueItem = (item: LatestWatched) => {
     if (item.type === 'series') {
-      navigation.navigate('SeriesDetail', {
-        seriesId: item.seriesId || '',
-        seriesName: item.name,
-      });
-    } else if (item.type === 'movie') {
-      const original = buildMovieStreamUrl({
-        domain: serverDomain,
-        port: serverPort,
-        username,
-        password,
-        streamId: item.id,
-      });
+      const original = item.streamUrl
+        ? unwrapProxyUrl(item.streamUrl)
+        : buildSeriesStreamUrl({
+            domain: serverDomain,
+            port: serverPort,
+            username,
+            password,
+            streamId: item.episodeId,
+            extension: item.containerExtension || 'mp4',
+          });
       const url = proxyStreamUrl(original, useProxy);
       navigation.navigate('VideoPlayer', {
         streamUrl: url,
+        streamId: item.episodeId,
+        containerExtension: item.containerExtension || 'mp4',
+        isLive: false,
+        title: item.name,
+        seriesId: item.seriesId,
+        episodeId: item.episodeId,
+        thumbnail: item.thumbnail,
+        continueTime: {
+          progress: item.progress ?? 0,
+          totalDuration: item.totalDuration,
+        },
+      });
+    } else if (item.type === 'movie') {
+      const original = item.streamUrl
+        ? unwrapProxyUrl(item.streamUrl)
+        : buildMovieStreamUrl({
+            domain: serverDomain,
+            port: serverPort,
+            username,
+            password,
+            streamId: item.id,
+            extension: item.containerExtension || 'mp4',
+          });
+      const url = proxyStreamUrl(original, useProxy);
+      navigation.navigate('VideoPlayer', {
+        streamUrl: url,
+        streamId: item.id,
+        containerExtension: item.containerExtension || 'mp4',
         isLive: false,
         title: item.name,
         movieId: item.id,
         thumbnail: item.thumbnail,
-        continueTime: { progress: item.progress },
+        continueTime: {
+          progress: item.progress ?? 0,
+          totalDuration: item.totalDuration,
+        },
       });
     } else if (item.type === 'live') {
-      const original = buildLiveStreamUrl({
-        domain: serverDomain,
-        port: serverPort,
-        username,
-        password,
-        streamId: item.id,
-        extension: 'ts',
-      });
-      const url = proxyStreamUrl(original, useProxy);
+      const url = proxyStreamUrl(unwrapProxyUrl(item.streamUrl), useProxy);
       navigation.navigate('VideoPlayer', {
         streamUrl: url,
+        streamId: item.streamId,
+        containerExtension: item.containerExtension,
         isLive: true,
-        title: item.channelName || item.name,
+        channelName: item.channelName,
+        title: item.channelName,
+        thumbnail: item.thumbnail,
+        categoryId: item.categoryId,
       });
     }
   };

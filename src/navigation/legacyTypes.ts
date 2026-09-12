@@ -14,6 +14,8 @@ export type LegacyStackParamList = {
   LiveChannels: { categoryId: string; categoryName: string };
   VideoPlayer: {
     streamUrl: string;
+    streamId?: string;
+    containerExtension?: string;
     channelName?: string;
     isLive?: boolean;
     title?: string;

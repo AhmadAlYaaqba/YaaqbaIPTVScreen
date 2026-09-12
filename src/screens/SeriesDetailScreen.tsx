@@ -3,23 +3,27 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   ScrollView,
   Dimensions,
   Platform,
   Pressable,
+  RefreshControl,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 
 import type { RootScreenProps } from '../navigation/types';
-import { RootState, AppDispatch } from '../store';
-import { fetchSeriesInfo } from '../store/slices/iptvSlice';
+import { RootState } from '../store';
+import {
+  getXtreamErrorMessage,
+  useXtreamSeriesDetails,
+} from '../services/xtream/xtreamQueries';
+import type { XtreamSession } from '../services/xtream/xtreamService';
 import { storage } from '../utils/storage';
 import { proxyStreamUrl } from '../utils/proxy';
 import { buildSeriesStreamUrl } from '../utils/xtream';
@@ -31,10 +35,13 @@ import {
 import { CastMember } from '../types/media';
 import { colors, sectionAccents, radii } from '../theme/colors';
 import { getTenPointRating } from '../utils/rating';
+import { CatalogStatus } from '../components/catalog/CatalogStates';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 const ACCENT = sectionAccents.series; // cyan
+const REFRESH_COLORS = [ACCENT];
 
 type Props = RootScreenProps<'SeriesDetail'>;
 export type SeriesDetailRouteProp = Props['route'];
@@ -53,6 +60,21 @@ interface WatchProgress {
 
 const { width } = Dimensions.get('window');
 const THUMB_W = 124;
+
+const SeriesDetailSkeleton = React.memo(() => (
+  <View style={styles.skeletonRoot}>
+    <View style={styles.skeletonHero} />
+    <View style={styles.skeletonBody}>
+      <View style={[styles.skeletonLine, styles.skeletonTitle]} />
+      <View style={[styles.skeletonLine, styles.skeletonMeta]} />
+      <View style={styles.skeletonButton} />
+      <View style={[styles.skeletonLine, styles.skeletonCopy]} />
+      <View style={[styles.skeletonLine, styles.skeletonCopyShort]} />
+      <View style={styles.skeletonEpisode} />
+      <View style={styles.skeletonEpisode} />
+    </View>
+  </View>
+));
 
 const initials = (name: string) =>
   name
@@ -76,14 +98,28 @@ function formatRemaining(p?: WatchProgress) {
 const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const { seriesId, seriesName, baseInfo } = route.params;
   const insets = useSafeAreaInsets();
-  const dispatch = useDispatch<AppDispatch>();
 
-  const { username, password, serverDomain, serverPort, useProxy } = useSelector(
-    (s: RootState) => s.user,
+  const { playlistId, username, password, serverDomain, serverPort, useProxy } =
+    useSelector((s: RootState) => s.user);
+  const session = useMemo<XtreamSession | null>(
+    () =>
+      playlistId
+        ? {
+            playlistId,
+            username,
+            password,
+            domain: serverDomain,
+            port: serverPort,
+            useProxy,
+          }
+        : null,
+    [playlistId, username, password, serverDomain, serverPort, useProxy],
   );
-  const { selectedSeriesInfo, loading, error } = useSelector(
-    (s: RootState) => s.iptv,
-  );
+  const seriesDetailsQuery = useXtreamSeriesDetails(session, seriesId);
+  const selectedSeriesInfo = seriesDetailsQuery.data;
+  const loading = seriesDetailsQuery.isPending;
+  const error = getXtreamErrorMessage(seriesDetailsQuery.error);
+  const { isOffline } = useNetworkStatus();
 
   const [watchProgress, setWatchProgress] = useState<
     Record<string, WatchProgress>
@@ -108,27 +144,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   useEffect(() => {
     navigation.setOptions({ title: seriesName });
-    dispatch(
-      fetchSeriesInfo({
-        username,
-        password,
-        domain: serverDomain,
-        port: serverPort,
-        seriesId,
-        useProxy,
-      }),
-    );
-  }, [
-    dispatch,
-    navigation,
-    seriesId,
-    seriesName,
-    username,
-    password,
-    serverDomain,
-    serverPort,
-    useProxy,
-  ]);
+  }, [navigation, seriesName]);
 
   const info = selectedSeriesInfo?.info ?? baseInfo ?? ({} as any);
   const episodes = useMemo(
@@ -139,7 +155,11 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const multiSeason = seasons.length > 1;
 
   useEffect(() => {
-    if (seasons.length && !selectedSeason) setSelectedSeason(seasons[0]);
+    if (seasons.length && (!selectedSeason || !seasons.includes(selectedSeason))) {
+      setSelectedSeason(seasons[0]);
+    } else if (!seasons.length && selectedSeason) {
+      setSelectedSeason(null);
+    }
   }, [seasons, selectedSeason]);
 
   const selectedSeasonNumber = selectedSeason
@@ -277,6 +297,8 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
     navigation.navigate('VideoPlayer', {
       streamUrl: url,
+      streamId: String(ep.id),
+      containerExtension: ep.container_extension || 'mp4',
       isLive: false,
       title: ep.title,
       seriesId: seriesId,
@@ -288,23 +310,42 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     });
   };
 
+  const refetchSeriesDetails = seriesDetailsQuery.refetch;
+  const handleRefresh = useCallback(() => {
+    refetchSeriesDetails();
+  }, [refetchSeriesDetails]);
+  const handleGoBack = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+
   /* Loading / error states */
-  if (loading) {
+  if (loading && !selectedSeriesInfo) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={ACCENT} />
+      <View style={styles.root}>
+        <SeriesDetailSkeleton />
       </View>
     );
   }
-  if (error) {
+  if (!selectedSeriesInfo) {
     return (
-      <View style={styles.center}>
-        <FontAwesome5
-          name="exclamation-circle"
-          size={36}
-          color={colors.danger}
+      <View style={styles.root}>
+        <CatalogStatus
+          kind={isOffline ? 'offline' : error ? 'error' : 'empty'}
+          title={
+            isOffline
+              ? 'Series unavailable offline'
+              : error
+                ? 'Could not load series'
+                : 'Series unavailable'
+          }
+          message={
+            isOffline
+              ? 'Reconnect and retry to load details and episodes.'
+              : error || 'No details or episodes were returned for this series.'
+          }
+          accent={ACCENT}
+          onRetry={handleRefresh}
         />
-        <Text style={styles.errorText}>{error}</Text>
       </View>
     );
   }
@@ -316,6 +357,14 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={seriesDetailsQuery.isRefetching}
+            onRefresh={handleRefresh}
+            tintColor={ACCENT}
+            colors={REFRESH_COLORS}
+          />
+        }
       >
         {/* ── Hero ── */}
         <View style={styles.hero}>
@@ -340,7 +389,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             <TouchableOpacity
               style={styles.glassBtn}
               activeOpacity={0.8}
-              onPress={() => navigation.goBack()}
+              onPress={handleGoBack}
             >
               <FontAwesome5 name="chevron-left" size={17} color={colors.fg} />
             </TouchableOpacity>
@@ -412,16 +461,18 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         )}
 
         {/* ── Primary actions ── */}
-        <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={styles.playButton}
-            activeOpacity={0.85}
-            onPress={() => playEpisode(currentEpisodes[0], 0)}
-          >
-            <FontAwesome5 name="play" size={14} color={colors.scene} solid />
-            <Text style={styles.playText}>{playLabel}</Text>
-          </TouchableOpacity>
-        </View>
+        {currentEpisodes.length > 0 && (
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={styles.playButton}
+              activeOpacity={0.85}
+              onPress={() => playEpisode(currentEpisodes[0], 0)}
+            >
+              <FontAwesome5 name="play" size={14} color={colors.scene} solid />
+              <Text style={styles.playText}>{playLabel}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── Description ── */}
         {!!plot && (
@@ -554,6 +605,15 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           </View>
 
           <View style={styles.episodeList}>
+            {currentEpisodes.length === 0 && (
+              <CatalogStatus
+                kind="empty"
+                title="No episodes available"
+                message="This playlist did not return episodes for the selected season."
+                accent={ACCENT}
+                onRetry={handleRefresh}
+              />
+            )}
             {currentEpisodes.map((ep, index) => {
               const p = watchProgress[ep.id];
               const pct =
@@ -638,19 +698,46 @@ const styles = StyleSheet.create({
   scroll: {
     paddingBottom: 120,
   },
-  center: {
+  skeletonRoot: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.bg,
-    paddingHorizontal: 24,
   },
-  errorText: {
-    fontFamily: FONT,
-    color: colors.danger,
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 12,
+  skeletonHero: {
+    width: '100%',
+    aspectRatio: 16 / 11,
+    backgroundColor: colors.surface,
+  },
+  skeletonBody: {
+    padding: 20,
+    gap: 14,
+  },
+  skeletonLine: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.glass,
+  },
+  skeletonTitle: {
+    width: '68%',
+    height: 24,
+  },
+  skeletonMeta: {
+    width: '42%',
+  },
+  skeletonButton: {
+    width: 150,
+    height: 42,
+    borderRadius: radii.pill,
+    backgroundColor: `${ACCENT}18`,
+  },
+  skeletonCopy: {
+    width: '100%',
+  },
+  skeletonCopyShort: {
+    width: '76%',
+  },
+  skeletonEpisode: {
+    height: 86,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
   },
 
   // hero

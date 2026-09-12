@@ -1,4 +1,8 @@
-import * as Keychain from 'react-native-keychain';
+import {
+  ACCESSIBLE,
+  getGenericPassword,
+  setGenericPassword,
+} from 'react-native-keychain';
 import {
   PlayerEngine,
   DEFAULT_PLAYER_ENGINE,
@@ -48,7 +52,7 @@ export function generatePlaylistId(): string {
   return `pl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function normalizeStore(raw: any): PlaylistStoreShape {
+export function normalizePlaylistStore(raw: any): PlaylistStoreShape {
   if (!raw || typeof raw !== 'object') {
     return { ...EMPTY_STORE };
   }
@@ -59,9 +63,7 @@ function normalizeStore(raw: any): PlaylistStoreShape {
     typeof raw.activeId === 'string' &&
     playlists.some(p => p.id === raw.activeId)
       ? raw.activeId
-      : playlists.length > 0
-        ? playlists[0].id
-        : null;
+      : null;
   // Migration: stores written before the multi-engine update only carry the
   // useVLC boolean — map true → 'vlc' (its successor engine), false → 'native'.
   const playerEngine: PlayerEngine = isPlayerEngine(raw.playerEngine)
@@ -87,13 +89,13 @@ async function readStore(): Promise<PlaylistStoreShape> {
     return pendingRead;
   }
 
-  pendingRead = Keychain.getGenericPassword({ service: PLAYLIST_SERVICE })
+  pendingRead = getGenericPassword({ service: PLAYLIST_SERVICE })
     .then(creds => {
       if (!creds) {
         return { ...EMPTY_STORE };
       }
       try {
-        return normalizeStore(JSON.parse(creds.password));
+        return normalizePlaylistStore(JSON.parse(creds.password));
       } catch {
         return { ...EMPTY_STORE };
       }
@@ -113,9 +115,9 @@ async function readStore(): Promise<PlaylistStoreShape> {
 async function writeStore(next: PlaylistStoreShape): Promise<PlaylistStoreShape> {
   cachedStore = next;
   try {
-    await Keychain.setGenericPassword(PLAYLIST_ACCOUNT, JSON.stringify(next), {
+    await setGenericPassword(PLAYLIST_ACCOUNT, JSON.stringify(next), {
       service: PLAYLIST_SERVICE,
-      accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      accessible: ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
     });
   } catch (error) {
     if (__DEV__) console.error('Error saving playlists:', error);
@@ -235,7 +237,7 @@ export async function migrateLegacyCredentials(): Promise<Playlist | null> {
   }
 
   try {
-    const legacy = await Keychain.getGenericPassword({ service: LEGACY_SERVICE });
+    const legacy = await getGenericPassword({ service: LEGACY_SERVICE });
     if (!legacy) {
       return null;
     }

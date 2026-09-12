@@ -1,10 +1,9 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, {
-  useEffect,
   useState,
   useRef,
   useMemo,
   useCallback,
+  useDeferredValue,
 } from 'react';
 import {
   View,
@@ -13,23 +12,37 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  RefreshControl,
   Dimensions,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FastImage from 'react-native-fast-image';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import LinearGradient from 'react-native-linear-gradient';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 
-import { RootState, AppDispatch } from '../store';
-import { fetchSeries, fetchSeriesByCategory } from '../store/slices/iptvSlice';
+import { RootState } from '../store';
+import {
+  getXtreamErrorMessage,
+  useXtreamCategories,
+  useXtreamCategoryContent,
+} from '../services/xtream/xtreamQueries';
+import type {
+  XtreamCategory,
+  XtreamSeriesItem,
+  XtreamSession,
+} from '../services/xtream/xtreamService';
 import { proxyStreamUrl } from '../utils/proxy';
 import { colors, sectionAccents, radii } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 import CategoryDropdown from '../components/mirror/CategoryDropdown';
-import { useTmdbMatch } from '../hooks/useTmdbMatch';
+import {
+  CatalogGridSkeleton,
+  CatalogStatus,
+} from '../components/catalog/CatalogStates';
+import { useCatalogViewState } from '../hooks/useCatalogViewState';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { getTenPointRating } from '../utils/rating';
 import type { TabScreenProps } from '../navigation/types';
 
@@ -43,53 +56,46 @@ const GUTTER = 12;
 const COLUMNS = 3;
 const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
 const POSTER_HEIGHT = ITEM_WIDTH * 1.5; // 2:3 portrait
+const EMPTY_CATEGORIES: XtreamCategory[] = [];
+const EMPTY_SERIES: XtreamSeriesItem[] = [];
+const seriesKeyExtractor = (item: XtreamSeriesItem) => String(item.series_id);
 
 // ─────────────────────────────────────────────────────────────
 // Series poster card — portrait 2:3, scrim title, rating badge
 // ─────────────────────────────────────────────────────────────
 const SeriesPoster = React.memo(
   ({
-    item,
-    onPress,
+    seriesId,
+    name,
+    cover,
+    yearValue,
+    ratingValue,
+    ratingFiveBased,
+    onPressSeries,
     useProxy,
   }: {
-    item: any;
-    onPress: () => void;
+    seriesId: string;
+    name: string;
+    cover?: string;
+    yearValue?: string | number;
+    ratingValue?: string | number;
+    ratingFiveBased?: string | number;
+    onPressSeries: (seriesId: string) => void;
     useProxy: boolean;
   }) => {
-    const yearSrc = item.year || item.releaseDate || item.release_date;
-    const yearMatch = yearSrc ? String(yearSrc).match(/\d{4}/) : null;
-    const xtreamYear = yearMatch ? parseInt(yearMatch[0], 10) : undefined;
-
-    const raw = item.cover?.trim();
-    const xtreamUri = raw ? proxyStreamUrl(raw, useProxy) : null;
-
-    // Only hit TMDB for items that lack Xtream artwork — avoids flooding
-    // TMDB with one search per visible row when the provider already has art.
-    const { media: tmdbMedia } = useTmdbMatch({
-      title: item.name,
-      year: xtreamYear,
-      type: 'series',
-      enabled: !xtreamUri,
-    });
-
-    const posterUri = xtreamUri || tmdbMedia?.poster || null;
-
-    const rating =
-      getTenPointRating(item.rating, item.rating_5based) ??
-      tmdbMedia?.rating ??
-      null;
-
-    const year =
-      yearMatch?.[0] ||
-      (tmdbMedia?.releaseDate
-        ? tmdbMedia.releaseDate.substring(0, 4)
-        : null);
+    const yearMatch = yearValue ? String(yearValue).match(/\d{4}/) : null;
+    const raw = cover?.trim();
+    const posterUri = raw ? proxyStreamUrl(raw, useProxy) : null;
+    const rating = getTenPointRating(ratingValue, ratingFiveBased);
+    const handlePress = useCallback(
+      () => onPressSeries(seriesId),
+      [onPressSeries, seriesId],
+    );
 
     return (
       <TouchableOpacity
-        style={[styles.card, { width: ITEM_WIDTH }]}
-        onPress={onPress}
+        style={styles.card}
+        onPress={handlePress}
         activeOpacity={0.85}
       >
         <View style={styles.poster}>
@@ -105,9 +111,9 @@ const SeriesPoster = React.memo(
             </View>
           )}
 
-          {!!year && (
+          {!!yearMatch?.[0] && (
             <View style={styles.yearBadge}>
-              <Text style={styles.yearText}>{year}</Text>
+              <Text style={styles.yearText}>{yearMatch[0]}</Text>
             </View>
           )}
 
@@ -124,7 +130,7 @@ const SeriesPoster = React.memo(
             pointerEvents="none"
           >
             <Text style={styles.posterTitle} numberOfLines={3}>
-              {item.name}
+              {name}
             </Text>
           </LinearGradient>
         </View>
@@ -134,63 +140,72 @@ const SeriesPoster = React.memo(
 );
 
 const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({ navigation }) => {
-  const dispatch = useDispatch<AppDispatch>();
   const searchRef = useRef<TextInput>(null);
 
-  const { username, password, serverDomain, serverPort, useProxy } =
+  const { playlistId, username, password, serverDomain, serverPort, useProxy } =
     useSelector((s: RootState) => s.user);
-  const {
-    seriesCategories,
-    seriesList,
-    loadingCategories,
-    loading,
-    error,
-  } = useSelector((s: RootState) => s.iptv);
+  const session = useMemo<XtreamSession | null>(
+    () =>
+      playlistId
+        ? {
+            playlistId,
+            username,
+            password,
+            domain: serverDomain,
+            port: serverPort,
+            useProxy,
+          }
+        : null,
+    [playlistId, username, password, serverDomain, serverPort, useProxy],
+  );
 
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [activeCategoryName, setActiveCategoryName] = useState<string>('');
 
-  // fetch categories once
-  useEffect(() => {
-    dispatch(
-      fetchSeries({
-        username,
-        password,
-        domain: serverDomain,
-        port: serverPort,
-        useProxy,
-      }),
-    );
-  }, [dispatch, username, password, serverDomain, serverPort, useProxy]);
-
-  // open first category once categories arrive
-  useEffect(() => {
-    if (!loadingCategories && seriesCategories.length && !activeCategory) {
-      const first = seriesCategories[0];
-      changeCategory(first.category_id, first.category_name);
-    }
-  }, [loadingCategories, seriesCategories]);
+  const categoriesQuery = useXtreamCategories(session, 'series');
+  const seriesCategories = categoriesQuery.data ?? EMPTY_CATEGORIES;
+  const {
+    activeCategoryId: activeCategory,
+    activeCategoryName,
+    selectCategory,
+    contentOffset,
+    onScroll,
+    listKey,
+  } = useCatalogViewState({
+    playlistId,
+    mediaType: 'series',
+    categories: seriesCategories,
+    categoriesReady: categoriesQuery.isSuccess,
+  });
+  const seriesQuery = useXtreamCategoryContent(
+    session,
+    'series',
+    activeCategory,
+  );
+  const seriesList = seriesQuery.data ?? EMPTY_SERIES;
+  const loadingCategories = categoriesQuery.isPending;
+  const loading = seriesQuery.isPending;
+  const error = getXtreamErrorMessage(
+    categoriesQuery.error ?? seriesQuery.error,
+  );
+  const { isOffline } = useNetworkStatus();
+  const {
+    isError: categoriesError,
+    isRefetching: refreshingCategories,
+    refetch: refetchCategories,
+  } = categoriesQuery;
+  const {
+    isError: seriesError,
+    isRefetching: refreshingSeries,
+    refetch: refetchSeries,
+  } = seriesQuery;
 
   const changeCategory = useCallback(
-    (categoryId: string, categoryName: string) => {
-      if (categoryId === activeCategory) return;
-      setActiveCategory(categoryId);
-      setActiveCategoryName(categoryName);
+    (categoryId: string) => {
+      selectCategory(categoryId);
       setSearch('');
-      dispatch(
-        fetchSeriesByCategory({
-          username,
-          password,
-          domain: serverDomain,
-          port: serverPort,
-          categoryId,
-          useProxy,
-        }),
-      );
     },
-    [dispatch, username, password, serverDomain, serverPort, activeCategory, useProxy],
+    [selectCategory],
   );
 
   const toggleSearch = useCallback(() => {
@@ -209,7 +224,8 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({ navigation }) =>
     () => (Array.isArray(seriesList) ? seriesList : []),
     [seriesList],
   );
-  const normalizedSearch = search.trim().toLowerCase();
+  const deferredSearch = useDeferredValue(search);
+  const normalizedSearch = deferredSearch.trim().toLowerCase();
   const filtered = useMemo(
     () =>
       normalizedSearch
@@ -220,21 +236,68 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({ navigation }) =>
     [seriesItems, normalizedSearch],
   );
 
+  const handleSeriesPress = useCallback(
+    (seriesId: string) => {
+      const item = seriesItems.find(series => series.series_id === seriesId);
+      if (!item) {
+        return;
+      }
+      navigation.navigate('SeriesDetail', {
+        seriesId: item.series_id,
+        seriesName: item.name,
+        baseInfo: item,
+      });
+    },
+    [navigation, seriesItems],
+  );
+
   const renderItem = useCallback(
-    ({ item }: { item: any }) => (
+    ({ item }: { item: XtreamSeriesItem }) => (
       <SeriesPoster
-        item={item}
+        seriesId={item.series_id}
+        name={item.name}
+        cover={item.cover}
+        yearValue={item.year || item.releaseDate || item.release_date}
+        ratingValue={item.rating}
+        ratingFiveBased={item.rating_5based}
         useProxy={useProxy}
-        onPress={() =>
-          navigation.navigate('SeriesDetail', {
-            seriesId: item.series_id,
-            seriesName: item.name,
-            baseInfo: item,
-          })
-        }
+        onPressSeries={handleSeriesPress}
       />
     ),
-    [navigation, useProxy],
+    [handleSeriesPress, useProxy],
+  );
+
+  const handleRefresh = useCallback(() => {
+    refetchCategories();
+    if (activeCategory) {
+      refetchSeries();
+    }
+  }, [activeCategory, refetchCategories, refetchSeries]);
+
+  const handleRetry = useCallback(() => {
+    if (categoriesError || seriesCategories.length === 0) {
+      refetchCategories();
+    }
+    if (activeCategory && (seriesError || seriesItems.length === 0)) {
+      refetchSeries();
+    }
+  }, [
+    activeCategory,
+    categoriesError,
+    refetchCategories,
+    refetchSeries,
+    seriesCategories,
+    seriesError,
+    seriesItems,
+  ]);
+
+  const handleListScroll = useCallback(
+    (event: Parameters<typeof onScroll>[0]) => {
+      if (!normalizedSearch) {
+        onScroll(event);
+      }
+    },
+    [normalizedSearch, onScroll],
   );
 
   const renderHeader = () => (
@@ -297,29 +360,68 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({ navigation }) =>
   );
 
   // ---------- render ---------- //
-  if (loadingCategories || !activeCategory) {
+  if (isOffline && seriesCategories.length === 0) {
     return (
       <View style={styles.root}>
         <AmbientGlow accent={ACCENT} />
         <SafeAreaView style={styles.centerSafe}>
-          <ActivityIndicator size="large" color={ACCENT} />
-          <Text style={styles.loadingText}>Loading categories…</Text>
+          <CatalogStatus
+            kind="offline"
+            title="You’re offline"
+            message="Reconnect to load series categories that are not cached yet."
+            accent={ACCENT}
+            onRetry={handleRetry}
+          />
         </SafeAreaView>
       </View>
     );
   }
 
-  if (error) {
+  if (categoriesError && seriesCategories.length === 0) {
     return (
       <View style={styles.root}>
         <AmbientGlow accent={ACCENT} />
         <SafeAreaView style={styles.centerSafe}>
-          <FontAwesome5
-            name="exclamation-circle"
-            size={36}
-            color={colors.danger}
+          <CatalogStatus
+            kind="error"
+            title="Couldn’t load series"
+            message={error}
+            accent={ACCENT}
+            onRetry={handleRetry}
           />
-          <Text style={styles.errorText}>{error}</Text>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (loadingCategories && seriesCategories.length === 0) {
+    return (
+      <View style={styles.root}>
+        <AmbientGlow accent={ACCENT} />
+        <SafeAreaView style={styles.safe}>
+          <CatalogGridSkeleton
+            accent={ACCENT}
+            itemWidth={ITEM_WIDTH}
+            itemHeight={POSTER_HEIGHT}
+            gutter={GUTTER}
+          />
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (categoriesQuery.isSuccess && seriesCategories.length === 0) {
+    return (
+      <View style={styles.root}>
+        <AmbientGlow accent={ACCENT} />
+        <SafeAreaView style={styles.centerSafe}>
+          <CatalogStatus
+            kind="empty"
+            title="No series categories"
+            message="This playlist did not return any series categories."
+            accent={ACCENT}
+            onRetry={handleRetry}
+          />
         </SafeAreaView>
       </View>
     );
@@ -330,30 +432,65 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({ navigation }) =>
       <AmbientGlow accent={ACCENT} />
       <SafeAreaView style={styles.safe}>
         {renderHeader()}
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={ACCENT} />
-          </View>
+        {loading && seriesItems.length === 0 ? (
+          <CatalogGridSkeleton
+            accent={ACCENT}
+            itemWidth={ITEM_WIDTH}
+            itemHeight={POSTER_HEIGHT}
+            gutter={GUTTER}
+          />
+        ) : seriesItems.length === 0 && (isOffline || seriesError) ? (
+          <CatalogStatus
+            kind={isOffline ? 'offline' : 'error'}
+            title={isOffline ? 'You’re offline' : 'Couldn’t load series'}
+            message={
+              isOffline
+                ? 'Reconnect or choose a category that is already cached.'
+                : error
+            }
+            accent={ACCENT}
+            onRetry={handleRetry}
+          />
         ) : (
           <FlatList
+            key={listKey}
             style={styles.grid}
             data={filtered}
-            keyExtractor={i => String(i.series_id)}
+            keyExtractor={seriesKeyExtractor}
             renderItem={renderItem}
             numColumns={COLUMNS}
             columnWrapperStyle={styles.columnWrapper}
             contentContainerStyle={styles.gridContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            contentOffset={contentOffset}
+            onScroll={handleListScroll}
+            scrollEventThrottle={200}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshingCategories || refreshingSeries}
+                onRefresh={handleRefresh}
+                tintColor={ACCENT}
+                colors={[ACCENT]}
+              />
+            }
             removeClippedSubviews
             maxToRenderPerBatch={12}
             windowSize={5}
             initialNumToRender={12}
             ListEmptyComponent={
-              <View style={styles.center}>
-                <FontAwesome5 name="tv" size={36} color={colors.fgSubtle} />
-                <Text style={styles.emptyText}>No series found</Text>
-              </View>
+              <CatalogStatus
+                kind="empty"
+                title={
+                  normalizedSearch ? 'No matching series' : 'No series found'
+                }
+                message={
+                  normalizedSearch
+                    ? 'Try a different search term.'
+                    : 'This category is currently empty.'
+                }
+                accent={ACCENT}
+              />
             }
           />
         )}
@@ -463,6 +600,7 @@ const styles = StyleSheet.create({
   },
   card: {
     alignItems: 'stretch',
+    width: ITEM_WIDTH,
   },
   poster: {
     width: '100%',

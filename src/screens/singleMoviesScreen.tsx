@@ -1,19 +1,19 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, {
   useEffect,
   useState,
   useRef,
   useMemo,
   useCallback,
+  useDeferredValue,
 } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
+  RefreshControl,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
   Dimensions,
   Modal,
   Alert,
@@ -23,20 +23,32 @@ import {
 import FastImage from 'react-native-fast-image';
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
-import { RootState, AppDispatch } from '../store';
+import { RootState } from '../store';
 import {
-  fetchMovieCategories,
-  fetchMoviesInCategory,
-} from '../store/slices/iptvSlice';
+  getXtreamErrorMessage,
+  useXtreamCategories,
+  useXtreamCategoryContent,
+} from '../services/xtream/xtreamQueries';
+import type {
+  XtreamCategory,
+  XtreamMovieStream,
+  XtreamSession,
+} from '../services/xtream/xtreamService';
 import { storage } from '../utils/storage';
 import { proxyStreamUrl } from '../utils/proxy';
 import { buildMovieStreamUrl } from '../utils/xtream';
 import { colors, sectionAccents, radii } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 import CategoryDropdown from '../components/mirror/CategoryDropdown';
+import {
+  CatalogGridSkeleton,
+  CatalogStatus,
+} from '../components/catalog/CatalogStates';
+import { useCatalogViewState } from '../hooks/useCatalogViewState';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { useTmdbDetails, useTmdbMatch } from '../hooks/useTmdbMatch';
 import { getTenPointRating } from '../utils/rating';
 import type { TabScreenProps } from '../navigation/types';
@@ -51,51 +63,50 @@ const GUTTER = 12;
 const COLUMNS = 3;
 const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
 const POSTER_HEIGHT = ITEM_WIDTH * 1.5; // 2:3 portrait
+const EMPTY_CATEGORIES: XtreamCategory[] = [];
+const EMPTY_MOVIES: XtreamMovieStream[] = [];
+const movieKeyExtractor = (item: XtreamMovieStream) => String(item.stream_id);
 
 // ─────────────────────────────────────────────────────────────
 // Movie poster card — portrait 2:3, scrim title, rating badge
 // ─────────────────────────────────────────────────────────────
 const MoviePoster = React.memo(
   ({
-    item,
-    onPress,
+    streamId,
+    name,
+    streamIcon,
+    releaseYear,
+    ratingValue,
+    onPressMovie,
     useProxy,
     progressPercent,
   }: {
-    item: any;
-    onPress: () => void;
+    streamId: number;
+    name: string;
+    streamIcon?: string;
+    releaseYear?: string | number;
+    ratingValue?: string | number;
+    onPressMovie: (streamId: number) => void;
     useProxy: boolean;
     progressPercent: number;
   }) => {
     const xtreamYear =
-      item.year && /^\d{4}$/.test(String(item.year)) ? String(item.year) : null;
+      releaseYear && /^\d{4}$/.test(String(releaseYear))
+        ? String(releaseYear)
+        : null;
 
-    const raw = item.stream_icon?.trim();
-    const xtreamUri = raw ? proxyStreamUrl(raw, useProxy) : null;
-
-    // Only hit TMDB for items that lack Xtream artwork — avoids flooding
-    // TMDB with one search per visible row when the provider already has art.
-    const { media: tmdbMedia } = useTmdbMatch({
-      title: item.name,
-      year: xtreamYear ? parseInt(xtreamYear, 10) : undefined,
-      type: 'movie',
-      enabled: !xtreamUri,
-    });
-
-    const posterUri = xtreamUri || tmdbMedia?.poster || null;
-
-    const rating = getTenPointRating(item.rating) ?? tmdbMedia?.rating ?? null;
-
-    const year =
-      xtreamYear ||
-      (tmdbMedia?.releaseDate
-        ? tmdbMedia.releaseDate.substring(0, 4)
-        : null);
+    const raw = streamIcon?.trim();
+    const posterUri = raw ? proxyStreamUrl(raw, useProxy) : null;
+    const rating = getTenPointRating(ratingValue);
+    const handlePress = useCallback(
+      () => onPressMovie(streamId),
+      [onPressMovie, streamId],
+    );
 
     return (
       <TouchableOpacity
-        style={[styles.card, { width: ITEM_WIDTH }]}
-        onPress={onPress}
+        style={styles.card}
+        onPress={handlePress}
         activeOpacity={0.85}
       >
         <View style={styles.poster}>
@@ -111,9 +122,9 @@ const MoviePoster = React.memo(
             </View>
           )}
 
-          {!!year && (
+          {!!xtreamYear && (
             <View style={styles.yearBadge}>
-              <Text style={styles.yearText}>{year}</Text>
+              <Text style={styles.yearText}>{xtreamYear}</Text>
             </View>
           )}
 
@@ -131,7 +142,7 @@ const MoviePoster = React.memo(
             pointerEvents="none"
           >
             <Text style={styles.posterTitle} numberOfLines={3}>
-              {item.name}
+              {name}
             </Text>
           </LinearGradient>
 
@@ -150,53 +161,68 @@ const MoviePoster = React.memo(
 );
 
 const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
-  const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
   const searchRef = useRef<TextInput>(null);
 
-  const { username, password, serverDomain, serverPort, useProxy } =
+  const { playlistId, username, password, serverDomain, serverPort, useProxy } =
     useSelector((s: RootState) => s.user);
-  const { movieCategories, movieList, loadingCategories, loadingMovies, error } =
-    useSelector((s: RootState) => s.iptv);
+  const session = useMemo<XtreamSession | null>(
+    () =>
+      playlistId
+        ? {
+            playlistId,
+            username,
+            password,
+            domain: serverDomain,
+            port: serverPort,
+            useProxy,
+          }
+        : null,
+    [playlistId, username, password, serverDomain, serverPort, useProxy],
+  );
 
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [activeCategoryName, setActiveCategoryName] = useState<string>('');
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<any>(null);
   const [watchProgress, setWatchProgress] = useState<Record<string, any>>({});
 
-  // fetch categories once
-  useEffect(() => {
-    dispatch(
-      fetchMovieCategories({
-        username,
-        password,
-        domain: serverDomain,
-        port: serverPort,
-        useProxy,
-      }),
-    );
-  }, [dispatch, username, password, serverDomain, serverPort]);
-
-  // open first category once categories arrive
-  useEffect(() => {
-    if (!loadingCategories && movieCategories.length && !activeCategory) {
-      const first = movieCategories[0];
-      setActiveCategory(first.category_id);
-      setActiveCategoryName(first.category_name);
-      dispatch(
-        fetchMoviesInCategory({
-          username,
-          password,
-          domain: serverDomain,
-          port: serverPort,
-          categoryId: first.category_id,
-          useProxy,
-        }),
-      );
-    }
-  }, [loadingCategories, movieCategories]);
+  const categoriesQuery = useXtreamCategories(session, 'movie');
+  const movieCategories = categoriesQuery.data ?? EMPTY_CATEGORIES;
+  const {
+    activeCategoryId: activeCategory,
+    activeCategoryName,
+    selectCategory,
+    contentOffset,
+    onScroll,
+    listKey,
+  } = useCatalogViewState({
+    playlistId,
+    mediaType: 'movie',
+    categories: movieCategories,
+    categoriesReady: categoriesQuery.isSuccess,
+  });
+  const moviesQuery = useXtreamCategoryContent(
+    session,
+    'movie',
+    activeCategory,
+  );
+  const movieList = moviesQuery.data ?? EMPTY_MOVIES;
+  const loadingCategories = categoriesQuery.isPending;
+  const loadingMovies = moviesQuery.isPending;
+  const error = getXtreamErrorMessage(
+    categoriesQuery.error ?? moviesQuery.error,
+  );
+  const { isOffline } = useNetworkStatus();
+  const {
+    isError: categoriesError,
+    isRefetching: refreshingCategories,
+    refetch: refetchCategories,
+  } = categoriesQuery;
+  const {
+    isError: moviesError,
+    isRefetching: refreshingMovies,
+    refetch: refetchMovies,
+  } = moviesQuery;
 
   // load watch progress for the current list
   useEffect(() => {
@@ -217,23 +243,11 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
   }, [movieList]);
 
   const handleCategorySelect = useCallback(
-    (categoryId: string, categoryName: string) => {
-      if (categoryId === activeCategory) return;
-      setActiveCategory(categoryId);
-      setActiveCategoryName(categoryName);
+    (categoryId: string) => {
+      selectCategory(categoryId);
       setSearch('');
-      dispatch(
-        fetchMoviesInCategory({
-          username,
-          password,
-          domain: serverDomain,
-          port: serverPort,
-          categoryId,
-          useProxy,
-        }),
-      );
     },
-    [dispatch, username, password, serverDomain, serverPort, activeCategory],
+    [selectCategory],
   );
 
   const toggleSearch = useCallback(() => {
@@ -252,7 +266,8 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
     () => (Array.isArray(movieList) ? movieList : []),
     [movieList],
   );
-  const normalizedSearch = search.trim().toLowerCase();
+  const deferredSearch = useDeferredValue(search);
+  const normalizedSearch = deferredSearch.trim().toLowerCase();
   const filteredMovies = useMemo(
     () =>
       normalizedSearch
@@ -261,8 +276,21 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
     [movies, normalizedSearch],
   );
 
+  const handleMoviePress = useCallback(
+    (streamId: number) => {
+      const movie = movies.find(item => item.stream_id === streamId);
+      if (!movie) {
+        if (__DEV__) console.warn('Movie stream_id is missing');
+        Alert.alert('Movie is unavailable');
+        return;
+      }
+      setSelectedMovie(movie);
+    },
+    [movies],
+  );
+
   const renderMovie = useCallback(
-    ({ item }: { item: any }) => {
+    ({ item }: { item: XtreamMovieStream }) => {
       const progress = watchProgress[item.stream_id];
       const progressPercent =
         progress && progress.totalDuration
@@ -274,21 +302,51 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
 
       return (
         <MoviePoster
-          item={item}
+          streamId={item.stream_id}
+          name={item.name}
+          streamIcon={item.stream_icon}
+          releaseYear={item.year}
+          ratingValue={item.rating}
           useProxy={useProxy}
           progressPercent={progressPercent}
-          onPress={() => {
-            if (!item.stream_id) {
-              if (__DEV__) console.warn('Movie stream_id is missing');
-              Alert.alert('Movie stream_id is missing');
-              return;
-            }
-            setSelectedMovie(item);
-          }}
+          onPressMovie={handleMoviePress}
         />
       );
     },
-    [useProxy, watchProgress],
+    [handleMoviePress, useProxy, watchProgress],
+  );
+
+  const handleRefresh = useCallback(() => {
+    refetchCategories();
+    if (activeCategory) {
+      refetchMovies();
+    }
+  }, [activeCategory, refetchCategories, refetchMovies]);
+
+  const handleRetry = useCallback(() => {
+    if (categoriesError || movieCategories.length === 0) {
+      refetchCategories();
+    }
+    if (activeCategory && (moviesError || movies.length === 0)) {
+      refetchMovies();
+    }
+  }, [
+    activeCategory,
+    categoriesError,
+    movieCategories,
+    movies,
+    moviesError,
+    refetchCategories,
+    refetchMovies,
+  ]);
+
+  const handleListScroll = useCallback(
+    (event: Parameters<typeof onScroll>[0]) => {
+      if (!normalizedSearch) {
+        onScroll(event);
+      }
+    },
+    [normalizedSearch, onScroll],
   );
 
   const playSelected = () => {
@@ -312,6 +370,8 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
       setSelectedMovie(null);
       navigation.navigate('VideoPlayer', {
         streamUrl: url,
+        streamId: movie.stream_id.toString(),
+        containerExtension: ext,
         isLive: false,
         title: movie.name || 'Unknown Movie',
         movieId: movie.stream_id.toString(),
@@ -433,29 +493,68 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
         : null);
 
   // ---------- render ---------- //
-  if (loadingCategories || !activeCategory) {
+  if (isOffline && movieCategories.length === 0) {
     return (
       <View style={styles.root}>
         <AmbientGlow accent={ACCENT} />
         <SafeAreaView style={styles.centerSafe}>
-          <ActivityIndicator size="large" color={ACCENT} />
-          <Text style={styles.loadingText}>Loading categories…</Text>
+          <CatalogStatus
+            kind="offline"
+            title="You’re offline"
+            message="Reconnect to load movie categories that are not cached yet."
+            accent={ACCENT}
+            onRetry={handleRetry}
+          />
         </SafeAreaView>
       </View>
     );
   }
 
-  if (error) {
+  if (categoriesError && movieCategories.length === 0) {
     return (
       <View style={styles.root}>
         <AmbientGlow accent={ACCENT} />
         <SafeAreaView style={styles.centerSafe}>
-          <FontAwesome5
-            name="exclamation-circle"
-            size={36}
-            color={colors.danger}
+          <CatalogStatus
+            kind="error"
+            title="Couldn’t load movies"
+            message={error}
+            accent={ACCENT}
+            onRetry={handleRetry}
           />
-          <Text style={styles.errorText}>{error}</Text>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (loadingCategories && movieCategories.length === 0) {
+    return (
+      <View style={styles.root}>
+        <AmbientGlow accent={ACCENT} />
+        <SafeAreaView style={styles.safe}>
+          <CatalogGridSkeleton
+            accent={ACCENT}
+            itemWidth={ITEM_WIDTH}
+            itemHeight={POSTER_HEIGHT}
+            gutter={GUTTER}
+          />
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (categoriesQuery.isSuccess && movieCategories.length === 0) {
+    return (
+      <View style={styles.root}>
+        <AmbientGlow accent={ACCENT} />
+        <SafeAreaView style={styles.centerSafe}>
+          <CatalogStatus
+            kind="empty"
+            title="No movie categories"
+            message="This playlist did not return any movie categories."
+            accent={ACCENT}
+            onRetry={handleRetry}
+          />
         </SafeAreaView>
       </View>
     );
@@ -466,30 +565,65 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
       <AmbientGlow accent={ACCENT} />
       <SafeAreaView style={styles.safe}>
         {renderHeader()}
-        {loadingMovies ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={ACCENT} />
-          </View>
+        {loadingMovies && movies.length === 0 ? (
+          <CatalogGridSkeleton
+            accent={ACCENT}
+            itemWidth={ITEM_WIDTH}
+            itemHeight={POSTER_HEIGHT}
+            gutter={GUTTER}
+          />
+        ) : movies.length === 0 && (isOffline || moviesError) ? (
+          <CatalogStatus
+            kind={isOffline ? 'offline' : 'error'}
+            title={isOffline ? 'You’re offline' : 'Couldn’t load movies'}
+            message={
+              isOffline
+                ? 'Reconnect or choose a category that is already cached.'
+                : error
+            }
+            accent={ACCENT}
+            onRetry={handleRetry}
+          />
         ) : (
           <FlatList
+            key={listKey}
             style={styles.grid}
             data={filteredMovies}
-            keyExtractor={i => String(i.stream_id)}
+            keyExtractor={movieKeyExtractor}
             renderItem={renderMovie}
             numColumns={COLUMNS}
             columnWrapperStyle={styles.columnWrapper}
             contentContainerStyle={styles.gridContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            contentOffset={contentOffset}
+            onScroll={handleListScroll}
+            scrollEventThrottle={200}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshingCategories || refreshingMovies}
+                onRefresh={handleRefresh}
+                tintColor={ACCENT}
+                colors={[ACCENT]}
+              />
+            }
             removeClippedSubviews
             maxToRenderPerBatch={12}
             windowSize={5}
             initialNumToRender={12}
             ListEmptyComponent={
-              <View style={styles.center}>
-                <FontAwesome5 name="film" size={36} color={colors.fgSubtle} />
-                <Text style={styles.emptyText}>No movies found</Text>
-              </View>
+              <CatalogStatus
+                kind="empty"
+                title={
+                  normalizedSearch ? 'No matching movies' : 'No movies found'
+                }
+                message={
+                  normalizedSearch
+                    ? 'Try a different search term.'
+                    : 'This category is currently empty.'
+                }
+                accent={ACCENT}
+              />
             }
           />
         )}
@@ -740,6 +874,7 @@ const styles = StyleSheet.create({
   },
   card: {
     alignItems: 'stretch',
+    width: ITEM_WIDTH,
   },
   poster: {
     width: '100%',
