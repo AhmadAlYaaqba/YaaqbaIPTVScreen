@@ -10,7 +10,6 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
   FlatList,
   RefreshControl,
   Dimensions,
@@ -46,6 +45,8 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { getTenPointRating } from '../utils/rating';
 import type { TabScreenProps } from '../navigation/types';
 import CachedRemoteImage from '../components/CachedRemoteImage';
+import TVTouchable from '../tv/TVTouchable';
+import { TV_NAV_RAIL_WIDTH } from '../tv/TVNavRail';
 
 // TV: pull-to-refresh is touch-only, and clipped (off-screen) cells can't
 // receive D-pad focus, so both are disabled on TV.
@@ -54,10 +55,13 @@ const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 
 const ACCENT = sectionAccents.series;
-const { width } = Dimensions.get('window');
-const H_PAD = 20;
-const GUTTER = 12;
-const COLUMNS = 3;
+const { width: WINDOW_WIDTH } = Dimensions.get('window');
+// TV: the nav rail takes part of the width, and a 10-foot grid shows more,
+// smaller posters (which also keeps image memory down on 2 GB devices).
+const width = WINDOW_WIDTH - (IS_TV ? TV_NAV_RAIL_WIDTH : 0);
+const H_PAD = IS_TV ? 32 : 20;
+const GUTTER = IS_TV ? 16 : 12;
+const COLUMNS = IS_TV ? 6 : 3;
 const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
 const POSTER_HEIGHT = ITEM_WIDTH * 1.5; // 2:3 portrait
 const EMPTY_CATEGORIES: XtreamCategory[] = [];
@@ -99,7 +103,7 @@ const SeriesPoster = React.memo(
     );
 
     return (
-      <TouchableOpacity
+      <TVTouchable
         style={styles.card}
         onPress={handlePress}
         activeOpacity={0.85}
@@ -143,7 +147,7 @@ const SeriesPoster = React.memo(
             </Text>
           </LinearGradient>
         </View>
-      </TouchableOpacity>
+      </TVTouchable>
     );
   },
 );
@@ -356,7 +360,7 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
               accessibilityLabel="Search series"
             />
             {!!search && (
-              <TouchableOpacity
+              <TVTouchable
                 style={styles.searchClearButton}
                 onPress={() => {
                   setSearch('');
@@ -366,7 +370,7 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
                 accessibilityRole="button"
                 accessibilityLabel="Clear series search">
                 <FontAwesome5 name="times" size={14} color={colors.fgMuted} />
-              </TouchableOpacity>
+              </TVTouchable>
             )}
           </View>
         </View>

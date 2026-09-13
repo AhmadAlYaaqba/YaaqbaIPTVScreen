@@ -11,7 +11,6 @@ import {
   StyleSheet,
   FlatList,
   RefreshControl,
-  TouchableOpacity,
   TextInput,
   Dimensions,
   Modal,
@@ -56,6 +55,8 @@ import { useTmdbDetails, useTmdbMatch } from '../hooks/useTmdbMatch';
 import { getTenPointRating } from '../utils/rating';
 import type { TabScreenProps } from '../navigation/types';
 import CachedRemoteImage from '../components/CachedRemoteImage';
+import TVTouchable from '../tv/TVTouchable';
+import { TV_NAV_RAIL_WIDTH } from '../tv/TVNavRail';
 
 // TV: pull-to-refresh is touch-only, and clipped (off-screen) cells can't
 // receive D-pad focus, so both are disabled on TV.
@@ -64,10 +65,13 @@ const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 
 const ACCENT = sectionAccents.movies;
-const { width } = Dimensions.get('window');
-const H_PAD = 20;
-const GUTTER = 12;
-const COLUMNS = 3;
+const { width: WINDOW_WIDTH } = Dimensions.get('window');
+// TV: the nav rail takes part of the width, and a 10-foot grid shows more,
+// smaller posters (which also keeps image memory down on 2 GB devices).
+const width = WINDOW_WIDTH - (IS_TV ? TV_NAV_RAIL_WIDTH : 0);
+const H_PAD = IS_TV ? 32 : 20;
+const GUTTER = IS_TV ? 16 : 12;
+const COLUMNS = IS_TV ? 6 : 3;
 const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
 const POSTER_HEIGHT = ITEM_WIDTH * 1.5; // 2:3 portrait
 const EMPTY_CATEGORIES: XtreamCategory[] = [];
@@ -113,7 +117,7 @@ const MoviePoster = React.memo(
     );
 
     return (
-      <TouchableOpacity
+      <TVTouchable
         style={styles.card}
         onPress={handlePress}
         activeOpacity={0.85}
@@ -170,7 +174,7 @@ const MoviePoster = React.memo(
             </View>
           )}
         </View>
-      </TouchableOpacity>
+      </TVTouchable>
     );
   },
 );
@@ -445,7 +449,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
               accessibilityLabel="Search movies"
             />
             {!!search && (
-              <TouchableOpacity
+              <TVTouchable
                 style={styles.searchClearButton}
                 onPress={() => {
                   setSearch('');
@@ -455,7 +459,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                 accessibilityRole="button"
                 accessibilityLabel="Clear movie search">
                 <FontAwesome5 name="times" size={14} color={colors.fgMuted} />
-              </TouchableOpacity>
+              </TVTouchable>
             )}
           </View>
         </View>
@@ -672,13 +676,13 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                 style={styles.modalCard}
                 accessibilityViewIsModal
                 accessibilityLabel={`${selectedMovie.name} details`}>
-                <TouchableOpacity
+                <TVTouchable
                   style={styles.modalClose}
                   onPress={() => setSelectedMovie(null)}
                   accessibilityRole="button"
                   accessibilityLabel="Close movie details">
                   <FontAwesome5 name="times" size={16} color={colors.fg} />
-                </TouchableOpacity>
+                </TVTouchable>
 
                 <CachedRemoteImage
                   uri={modalBackdropUri || modalPosterUri}
@@ -789,7 +793,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                   )}
                 </View>
 
-                <TouchableOpacity
+                <TVTouchable
                   style={[styles.playButton, { backgroundColor: ACCENT }]}
                   activeOpacity={0.85}
                   onPress={playSelected}
@@ -802,7 +806,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                     solid
                   />
                   <Text style={styles.playText}>Play Movie</Text>
-                </TouchableOpacity>
+                </TVTouchable>
               </View>
             )}
           </View>

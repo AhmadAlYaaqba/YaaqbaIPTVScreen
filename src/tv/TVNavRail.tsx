@@ -14,6 +14,9 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import FocusablePressable from './FocusablePressable';
 import { colors, radii, space } from '../theme/colors';
 
+/** Rail width in dp; screens subtract it when sizing content on TV. */
+export const TV_NAV_RAIL_WIDTH = 120;
+
 export interface TVNavRailProps extends BottomTabBarProps {
   getLabel: (routeName: string) => string;
   renderIcon: (
@@ -74,7 +77,7 @@ export default function TVNavRail({
 
 const styles = StyleSheet.create({
   rail: {
-    width: 120,
+    width: TV_NAV_RAIL_WIDTH,
     paddingVertical: space.s10,
     paddingHorizontal: space.s3,
     gap: space.s2,

@@ -11,7 +11,6 @@ import {
   StyleSheet,
   FlatList,
   RefreshControl,
-  TouchableOpacity,
   TextInput,
   Dimensions,
   Platform,
@@ -44,6 +43,8 @@ import type { CategoryDropdownViewport } from '../utils/categoryDropdownState';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import type { TabScreenProps } from '../navigation/types';
 import CachedRemoteImage from '../components/CachedRemoteImage';
+import TVTouchable from '../tv/TVTouchable';
+import { TV_NAV_RAIL_WIDTH } from '../tv/TVNavRail';
 
 // TV: pull-to-refresh is touch-only, and clipped (off-screen) cells can't
 // receive D-pad focus, so both are disabled on TV.
@@ -52,10 +53,13 @@ const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 
 const ACCENT = sectionAccents.live;
-const { width } = Dimensions.get('window');
-const H_PAD = 20;
-const GUTTER = 10;
-const COLUMNS = 3;
+const { width: WINDOW_WIDTH } = Dimensions.get('window');
+// TV: the nav rail takes part of the width, and a 10-foot grid shows more,
+// smaller cards (smaller logos also keep image memory down on 2 GB devices).
+const width = WINDOW_WIDTH - (IS_TV ? TV_NAV_RAIL_WIDTH : 0);
+const H_PAD = IS_TV ? 32 : 20;
+const GUTTER = IS_TV ? 16 : 10;
+const COLUMNS = IS_TV ? 6 : 3;
 const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
 const EMPTY_CATEGORIES: XtreamCategory[] = [];
 const EMPTY_CHANNELS: XtreamLiveStream[] = [];
@@ -74,6 +78,7 @@ const ChannelCard = React.memo(
     onPressChannel,
     useProxy,
     playlistId,
+    hasTVPreferredFocus,
   }: {
     streamId: number;
     name: string;
@@ -88,6 +93,7 @@ const ChannelCard = React.memo(
     ) => void;
     useProxy: boolean;
     playlistId: string | null;
+    hasTVPreferredFocus?: boolean;
   }) => {
     const icon = rawIcon ? proxyStreamUrl(rawIcon, useProxy) : null;
     const number = channelNumber != null ? String(channelNumber) : '';
@@ -97,9 +103,10 @@ const ChannelCard = React.memo(
     );
 
     return (
-      <TouchableOpacity
+      <TVTouchable
         style={styles.card}
         onPress={handlePress}
+        hasTVPreferredFocus={hasTVPreferredFocus}
         activeOpacity={0.8}
         accessibilityRole="button"
         accessibilityLabel={number ? `${name}, channel ${number}` : name}>
@@ -128,7 +135,7 @@ const ChannelCard = React.memo(
         <Text style={styles.cardTitle} numberOfLines={1}>
           {name}
         </Text>
-      </TouchableOpacity>
+      </TVTouchable>
     );
   },
 );
@@ -239,8 +246,10 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
   );
 
   const renderChannelCard = useCallback(
-    ({ item }: { item: XtreamLiveStream }) => (
+    ({ item, index }: { item: XtreamLiveStream; index: number }) => (
       <ChannelCard
+        // TV: land on the first channel instead of the nav rail.
+        hasTVPreferredFocus={IS_TV && index === 0}
         streamId={item.stream_id}
         name={item.name}
         rawIcon={item.stream_icon || item.icon}
@@ -335,7 +344,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
               accessibilityLabel="Search live channels"
             />
             {!!search && (
-              <TouchableOpacity
+              <TVTouchable
                 style={styles.searchClearButton}
                 onPress={() => {
                   setSearch('');
@@ -345,7 +354,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
                 accessibilityRole="button"
                 accessibilityLabel="Clear channel search">
                 <FontAwesome5 name="times" size={14} color={colors.fgMuted} />
-              </TouchableOpacity>
+              </TVTouchable>
             )}
           </View>
         </View>
