@@ -1,12 +1,14 @@
 // src/tv/remoteActions.ts
 // Maps raw react-native-tvos hardware key events to app-level remote actions.
 //
-// Notes from the fork's Android key map (ReactAndroidHWInputDeviceHelper.kt):
-// - Every key press is dispatched twice: ACTION_DOWN (eventKeyAction 0,
-//   repeated while held) and ACTION_UP (1). We act on DOWN only, so a press
-//   fires once and holding left/right auto-repeats (useful for seeking).
-// - The Back key is NOT part of this stream; it arrives via BackHandler.
-// - There is no long-select event.
+// Observed on the Google TV emulator (API 34, new architecture): only
+// ACTION_UP (eventKeyAction 1) reaches JS for D-pad, Select and media keys —
+// key-down is consumed natively (focus navigation) before the JS dispatch.
+// So we act on key-up, which fires exactly once per press. Holding a key does
+// not auto-repeat. Events with no phase (-1 / undefined) are accepted too.
+//
+// The Back key is NOT part of this stream; it arrives via BackHandler.
+// There is no long-select event.
 
 export type TVRemoteAction =
   | 'up'
@@ -43,8 +45,8 @@ const ACTIONS: ReadonlySet<string> = new Set<TVRemoteAction>([
   'channelDown',
 ]);
 
-const KEY_ACTION_DOWN = 0;
 const KEY_ACTION_UP = 1;
+const KEY_ACTION_UNKNOWN = -1;
 
 export interface RawTVKeyEvent {
   eventType: string;
@@ -52,17 +54,15 @@ export interface RawTVKeyEvent {
 }
 
 /**
- * Returns the remote action for a key-down (or unknown-phase) event, or null
- * for key-up events, focus/blur/pan events and unmapped keys.
+ * Returns the remote action for a key-up (or unknown-phase) event, or null for
+ * key-down events, focus/blur/pan events and unmapped keys.
  */
 export function toRemoteAction(event: RawTVKeyEvent): TVRemoteAction | null {
-  if (event.eventKeyAction === KEY_ACTION_UP) {
-    return null;
-  }
+  const phase = event.eventKeyAction;
   if (
-    event.eventKeyAction !== undefined &&
-    event.eventKeyAction !== KEY_ACTION_DOWN &&
-    event.eventKeyAction !== -1
+    phase !== undefined &&
+    phase !== KEY_ACTION_UP &&
+    phase !== KEY_ACTION_UNKNOWN
   ) {
     return null;
   }

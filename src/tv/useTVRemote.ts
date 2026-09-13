@@ -5,7 +5,7 @@ import { Platform, TVEventHandler } from 'react-native';
 import { toRemoteAction, type TVRemoteAction } from './remoteActions';
 
 /**
- * Calls `onAction` for each remote key press (key-down; held keys repeat).
+ * Calls `onAction` once per remote key press (on key-up; see remoteActions).
  * No-op on non-TV devices. The subscription is created once per `enabled`
  * change — the latest `onAction` is read through a ref, so inline callbacks
  * don't resubscribe on every render.
