@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
-import { AppState, View, StyleSheet, StatusBar } from 'react-native';
+import { AppState, View, StyleSheet, StatusBar, Platform } from 'react-native';
 import Orientation from 'react-native-orientation-locker';
 import { useFocusEffect } from '@react-navigation/native';
 import type { RootScreenProps } from '../navigation/types';
@@ -246,11 +246,16 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
     StatusBar.setHidden(true);
-    Orientation.lockToLandscape();
+    // TVs are always landscape; locking there is unnecessary.
+    if (!Platform.isTV) {
+      Orientation.lockToLandscape();
+    }
 
     return () => {
       StatusBar.setHidden(false);
-      Orientation.lockToPortrait();
+      if (!Platform.isTV) {
+        Orientation.lockToPortrait();
+      }
     };
   }, [navigation]);
 

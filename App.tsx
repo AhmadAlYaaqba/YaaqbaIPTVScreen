@@ -4,7 +4,7 @@ if (__DEV__) {
 }
 
 import React, {useEffect, useState} from 'react';
-import {StyleSheet} from 'react-native';
+import {Platform, StyleSheet} from 'react-native';
 import {Provider} from 'react-redux';
 import {store} from './src/store';
 import {NavigationContainer} from '@react-navigation/native';
@@ -26,8 +26,11 @@ const App = () => {
   // Portrait is the app-wide default; only the video player locks to landscape
   // (and restores portrait on exit). Without this, the locker defaults to
   // "all orientations" and non-player screens could rotate freely.
+  // TVs are always landscape, so orientation is never locked there.
   useEffect(() => {
-    Orientation.lockToPortrait();
+    if (!Platform.isTV) {
+      Orientation.lockToPortrait();
+    }
   }, []);
 
   useEffect(() => {
