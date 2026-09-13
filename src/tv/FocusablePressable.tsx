@@ -95,8 +95,10 @@ function FocusablePressable({
           focused &&
           focusScale !== 1 && { transform: [{ scale: focusScale }] },
         IS_TV && focused && focusedStyle,
-        disabled && styles.disabled,
-        pressed && styles.pressed,
+        // Pressed/disabled feedback is TV-only so phones render exactly the
+        // Pressable they had before.
+        IS_TV && disabled && styles.disabled,
+        IS_TV && pressed && styles.pressed,
       ]}>
       {({ pressed }) => (
         <>

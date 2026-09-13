@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
   TouchableWithoutFeedback,
   Dimensions,
   Platform,
@@ -18,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import CachedRemoteImage from './CachedRemoteImage';
+import TVTouchable from '../tv/TVTouchable';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PANEL_WIDTH = Math.round(SCREEN_WIDTH * 0.6);
@@ -80,7 +80,7 @@ const ChannelItem = React.memo(
     }, [extension, name, onSelect, streamId, thumbnail]);
 
     return (
-      <TouchableOpacity
+      <TVTouchable
         style={[
           styles.channelItem,
           IS_TV && styles.channelItemTV,
@@ -117,7 +117,7 @@ const ChannelItem = React.memo(
             <View style={styles.nowPlayingDot} />
           </View>
         )}
-      </TouchableOpacity>
+      </TVTouchable>
     );
   },
 );
@@ -249,13 +249,13 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Channels</Text>
-          <TouchableOpacity
+          <TVTouchable
             onPress={onClose}
             hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
             accessibilityRole="button"
             accessibilityLabel="Close channel list">
             <FontAwesome5 name="times" size={16} color="#aaa" />
-          </TouchableOpacity>
+          </TVTouchable>
         </View>
 
         {/* Cached channels remain usable while a refresh is in flight. */}
@@ -291,14 +291,14 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
                 : 'No channels in this category'}
             </Text>
             {(isOffline || error) && (
-              <TouchableOpacity
+              <TVTouchable
                 style={styles.retryButton}
                 onPress={onRetry}
                 activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel="Retry loading channels">
                 <Text style={styles.retryText}>Retry</Text>
-              </TouchableOpacity>
+              </TVTouchable>
             )}
           </View>
         )}
