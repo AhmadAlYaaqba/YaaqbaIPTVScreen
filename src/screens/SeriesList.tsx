@@ -82,6 +82,7 @@ const SeriesPoster = React.memo(
     onPressSeries,
     useProxy,
     playlistId,
+    hasTVPreferredFocus,
   }: {
     seriesId: string;
     name: string;
@@ -92,6 +93,7 @@ const SeriesPoster = React.memo(
     onPressSeries: (seriesId: string) => void;
     useProxy: boolean;
     playlistId: string | null;
+    hasTVPreferredFocus?: boolean;
   }) => {
     const yearMatch = yearValue ? String(yearValue).match(/\d{4}/) : null;
     const raw = cover?.trim();
@@ -107,6 +109,7 @@ const SeriesPoster = React.memo(
         style={styles.card}
         onPress={handlePress}
         activeOpacity={0.85}
+        hasTVPreferredFocus={hasTVPreferredFocus}
         accessibilityRole="button"
         accessibilityLabel={name}>
         <View style={styles.poster}>
@@ -273,8 +276,10 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: XtreamSeriesItem }) => (
+    ({ item, index }: { item: XtreamSeriesItem; index: number }) => (
       <SeriesPoster
+        // TV: land on the first poster instead of the nav rail.
+        hasTVPreferredFocus={IS_TV && index === 0}
         seriesId={item.series_id}
         name={item.name}
         cover={item.cover}

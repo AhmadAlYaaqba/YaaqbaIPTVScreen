@@ -92,6 +92,7 @@ const MoviePoster = React.memo(
     useProxy,
     progressPercent,
     playlistId,
+    hasTVPreferredFocus,
   }: {
     streamId: number;
     name: string;
@@ -102,6 +103,7 @@ const MoviePoster = React.memo(
     useProxy: boolean;
     progressPercent: number;
     playlistId: string | null;
+    hasTVPreferredFocus?: boolean;
   }) => {
     const xtreamYear =
       releaseYear && /^\d{4}$/.test(String(releaseYear))
@@ -121,6 +123,7 @@ const MoviePoster = React.memo(
         style={styles.card}
         onPress={handlePress}
         activeOpacity={0.85}
+        hasTVPreferredFocus={hasTVPreferredFocus}
         accessibilityRole="button"
         accessibilityLabel={
           progressPercent > 0
@@ -316,7 +319,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
   );
 
   const renderMovie = useCallback(
-    ({ item }: { item: XtreamMovieStream }) => {
+    ({ item, index }: { item: XtreamMovieStream; index: number }) => {
       const progress = watchProgress[item.stream_id];
       const progressPercent =
         progress && progress.totalDuration
@@ -328,6 +331,8 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
 
       return (
         <MoviePoster
+          // TV: land on the first poster instead of the nav rail.
+          hasTVPreferredFocus={IS_TV && index === 0}
           streamId={item.stream_id}
           name={item.name}
           streamIcon={item.stream_icon}
