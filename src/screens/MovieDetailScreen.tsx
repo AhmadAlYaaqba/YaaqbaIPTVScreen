@@ -1,6 +1,6 @@
 // src/screens/MovieDetailScreen.tsx
 import React from 'react';
-import { View, Text, StyleSheet, Image, Button } from 'react-native';
+import { View, Text, StyleSheet, Button } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LegacyStackParamList } from '../navigation/legacyTypes';
@@ -8,6 +8,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { proxyStreamUrl } from '../utils/proxy';
 import { buildMovieStreamUrl } from '../utils/xtream';
+import CachedRemoteImage from '../components/CachedRemoteImage';
 
 type MovieDetailRouteProp = RouteProp<LegacyStackParamList, 'MovieDetail'>;
 type MovieDetailNavProp = NativeStackNavigationProp<
@@ -25,7 +26,7 @@ const MovieDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const { movie } = route.params; // movie is an object from the list
   const { stream_id, name, stream_icon, container_extension } = movie;
 
-  const { username, password, serverDomain, serverPort, useProxy } =
+  const { playlistId, username, password, serverDomain, serverPort, useProxy } =
     useSelector((state: RootState) => state.user);
 
   // If you want to create a "movie URL" for playback:
@@ -53,7 +54,15 @@ const MovieDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   return (
     <View style={styles.container}>
       {stream_icon ? (
-        <Image source={{ uri: stream_icon }} style={styles.poster} />
+        <CachedRemoteImage
+          uri={stream_icon}
+          playlistId={playlistId}
+          contentId={stream_id}
+          variant="poster"
+          style={styles.poster}
+          displayWidth={200}
+          displayHeight={300}
+        />
       ) : null}
       <Text style={styles.title}>{name}</Text>
       <Text>Some other details (Year, Plot, etc.)...</Text>
@@ -74,7 +83,6 @@ const styles = StyleSheet.create({
     width: 200,
     height: 300,
     marginBottom: 16,
-    resizeMode: 'cover',
   },
   title: {
     fontSize: 20,

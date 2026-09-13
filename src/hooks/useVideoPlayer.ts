@@ -10,6 +10,7 @@ import {
   PLAYBACK_RETRY_DELAYS_MS,
   type PlaybackConnection,
 } from '../utils/playbackSources';
+import { getSanitizedPlaybackError } from '../utils/playbackDiagnostics';
 
 const LIVE_STALL_TIMEOUT_MS = 12000;
 
@@ -28,20 +29,17 @@ export interface PlaybackDebugEntry {
   id: number;
   at: string;
   label: string;
-  uri: string;
-  sourceIndex: number;
-  reconnectAttempt: number;
+  engine: PlayerEngine;
+  platform: string;
+  mediaKind: PlaybackRequest['kind'];
+  extension: string;
+  delivery: 'proxy' | 'direct';
+  sourceAttempt: number;
+  sourceCount: number;
+  retryAttempt: number;
   status: 'requesting' | 'loaded' | 'failed';
   error?: string;
-}
-
-function getPlaybackErrorMessage(error: any): string {
-  return (
-    error?.error?.errorString ||
-    error?.error?.message ||
-    error?.message ||
-    'Playback error occurred'
-  );
+  errorCode?: string;
 }
 
 function getInitialProgress(request: PlaybackRequest): number {
@@ -73,7 +71,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   );
   const requestKey = `${playlistId ?? 'none'}:${request.kind}:${
     request.streamId
-  }:${request.extension}:${useProxy}`;
+  }:${request.extension}:${useProxy}:${playerEngine}`;
   const initialProgress = getInitialProgress(request);
   const initialDuration = getInitialDuration(request);
 
@@ -108,11 +106,13 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   const lastRequestLogKeyRef = useRef('');
   const lastProgressSecondRef = useRef(Math.floor(initialProgress));
   const loadStartedAtRef = useRef(Date.now());
+  const completedSourceTokenRef = useRef<string | null>(null);
 
   const requestIsCurrent = activeRequestKey === requestKey;
   const effectiveSourceIndex = requestIsCurrent ? currentSourceIndex : 0;
   const effectiveCurrentTime = requestIsCurrent ? currentTime : initialProgress;
   const currentSource = sources[effectiveSourceIndex] ?? sources[0];
+  const sourceToken = `${requestKey}:${sourceRevision}`;
   sourceIndexRef.current = effectiveSourceIndex;
   isOfflineRef.current = isOffline;
 
@@ -131,7 +131,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   }, []);
 
   const pushDebugEntry = useCallback(
-    (entry: Omit<PlaybackDebugEntry, 'id' | 'at' | 'uri'>) => {
+    (entry: Omit<PlaybackDebugEntry, 'id' | 'at'>) => {
       if (!__DEV__) {
         return;
       }
@@ -140,7 +140,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         ...entry,
         id: ++debugEntryIdRef.current,
         at: new Date().toISOString(),
-        uri: '[redacted]',
       };
       setDebugEntries(previous => [nextEntry, ...previous].slice(0, 8));
     },
@@ -157,6 +156,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     sourceIndexRef.current = 0;
     retriesUsedRef.current = 0;
     cycleExhaustedRef.current = false;
+    completedSourceTokenRef.current = null;
     currentProgressRef.current = initialProgress;
     lastProgressSecondRef.current = Math.floor(initialProgress);
     setActiveRequestKey(requestKey);
@@ -193,14 +193,25 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     loadStartedAtRef.current = Date.now();
     console.info('[PlayerTiming]', {
       engine: playerEngine,
+      platform: Platform.OS,
+      mediaKind: request.kind,
       event: 'source-request',
-      source: currentSource.label,
-      attempt: reconnectAttempt,
+      extension: currentSource.extension,
+      delivery: currentSource.delivery,
+      sourceAttempt: effectiveSourceIndex + 1,
+      sourceCount: sources.length,
+      retryAttempt: reconnectAttempt,
     });
     pushDebugEntry({
       label: currentSource.label,
-      sourceIndex: effectiveSourceIndex,
-      reconnectAttempt,
+      engine: playerEngine,
+      platform: Platform.OS,
+      mediaKind: request.kind,
+      extension: currentSource.extension,
+      delivery: currentSource.delivery,
+      sourceAttempt: effectiveSourceIndex + 1,
+      sourceCount: sources.length,
+      retryAttempt: reconnectAttempt,
       status: 'requesting',
     });
   }, [
@@ -209,8 +220,10 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     pushDebugEntry,
     playerEngine,
     reconnectAttempt,
+    request.kind,
     requestKey,
     sourceRevision,
+    sources.length,
   ]);
 
   const handlePlaybackFailure = useCallback(
@@ -283,27 +296,55 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
 
   const onError = useCallback(
     (playerError: any) => {
-      const errorMessage = getPlaybackErrorMessage(playerError);
+      const diagnostic = getSanitizedPlaybackError(playerError, [
+        connection.username,
+        connection.password,
+      ]);
+      const errorMessage = diagnostic.message;
       if (__DEV__) {
         console.info('[PlayerTiming]', {
           engine: playerEngine,
+          platform: Platform.OS,
+          mediaKind: request.kind,
           event: 'source-failed',
-          source: currentSource?.label ?? 'unknown',
+          extension: currentSource?.extension ?? 'unknown',
+          delivery: currentSource?.delivery ?? 'unknown',
+          sourceAttempt: sourceIndexRef.current + 1,
+          sourceCount: sources.length,
+          retryAttempt: retriesUsedRef.current,
+          errorCode: diagnostic.code ?? 'unknown',
+          error: errorMessage,
           elapsedMs: Date.now() - loadStartedAtRef.current,
         });
       }
       if (currentSource) {
         pushDebugEntry({
           label: currentSource.label,
-          sourceIndex: sourceIndexRef.current,
-          reconnectAttempt: retriesUsedRef.current,
+          engine: playerEngine,
+          platform: Platform.OS,
+          mediaKind: request.kind,
+          extension: currentSource.extension,
+          delivery: currentSource.delivery,
+          sourceAttempt: sourceIndexRef.current + 1,
+          sourceCount: sources.length,
+          retryAttempt: retriesUsedRef.current,
           status: 'failed',
           error: errorMessage,
+          errorCode: diagnostic.code,
         });
       }
       handlePlaybackFailure(errorMessage);
     },
-    [currentSource, handlePlaybackFailure, playerEngine, pushDebugEntry],
+    [
+      connection.password,
+      connection.username,
+      currentSource,
+      handlePlaybackFailure,
+      playerEngine,
+      pushDebugEntry,
+      request.kind,
+      sources.length,
+    ],
   );
 
   const onLoad = useCallback(
@@ -324,8 +365,13 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       if (__DEV__) {
         console.info('[PlayerTiming]', {
           engine: playerEngine,
+          platform: Platform.OS,
+          mediaKind: request.kind,
           event: 'source-loaded',
-          source: currentSource?.label ?? 'unknown',
+          extension: currentSource?.extension ?? 'unknown',
+          delivery: currentSource?.delivery ?? 'unknown',
+          sourceAttempt: sourceIndexRef.current + 1,
+          sourceCount: sources.length,
           elapsedMs: Date.now() - loadStartedAtRef.current,
         });
       }
@@ -333,8 +379,14 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       if (currentSource) {
         pushDebugEntry({
           label: currentSource.label,
-          sourceIndex: sourceIndexRef.current,
-          reconnectAttempt: 0,
+          engine: playerEngine,
+          platform: Platform.OS,
+          mediaKind: request.kind,
+          extension: currentSource.extension,
+          delivery: currentSource.delivery,
+          sourceAttempt: sourceIndexRef.current + 1,
+          sourceCount: sources.length,
+          retryAttempt: 0,
           status: 'loaded',
         });
       }
@@ -346,6 +398,8 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       initialDuration,
       playerEngine,
       pushDebugEntry,
+      request.kind,
+      sources.length,
     ],
   );
 
@@ -370,13 +424,34 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         lastProgressSecondRef.current = wholeSecond;
         setCurrentTime(nextTime);
       }
-
-      if (duration > 0 && nextTime >= duration - 5) {
-        setIsCompleted(true);
-      }
     },
     [duration, isLive],
   );
+
+  const onEnd = useCallback(() => {
+    if (isLive || completedSourceTokenRef.current === sourceToken) {
+      return;
+    }
+
+    completedSourceTokenRef.current = sourceToken;
+    clearReconnectTimer();
+    clearBufferStallTimer();
+    setIsBuffering(false);
+    setIsReconnecting(false);
+
+    if (duration > 0) {
+      currentProgressRef.current = duration;
+      lastProgressSecondRef.current = Math.floor(duration);
+      setCurrentTime(duration);
+    }
+    setIsCompleted(true);
+  }, [
+    clearBufferStallTimer,
+    clearReconnectTimer,
+    duration,
+    isLive,
+    sourceToken,
+  ]);
 
   const recordSeek = useCallback(
     (time: number) => {
@@ -390,6 +465,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       currentProgressRef.current = nextTime;
       lastProgressSecondRef.current = Math.floor(nextTime);
       setCurrentTime(nextTime);
+      completedSourceTokenRef.current = null;
       setIsCompleted(false);
     },
     [duration, isLive],
@@ -423,6 +499,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     sourceIndexRef.current = 0;
     retriesUsedRef.current = 0;
     cycleExhaustedRef.current = false;
+    completedSourceTokenRef.current = null;
     setCurrentSourceIndex(0);
     setReconnectAttempt(0);
     setError(null);
@@ -433,6 +510,16 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       setSourceRevision(previous => previous + 1);
     }
   }, [clearBufferStallTimer, clearReconnectTimer]);
+
+  const setPlaybackCompleted = useCallback(
+    (completed: boolean) => {
+      if (!completed) {
+        completedSourceTokenRef.current = null;
+      }
+      setIsCompleted(completed);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (isOffline) {
@@ -518,7 +605,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     currentProgressRef,
     currentSource,
     currentSourceIndex: effectiveSourceIndex,
-    sourceToken: `${requestKey}:${sourceRevision}`,
+    sourceToken,
     isReconnecting,
     reconnectAttempt,
     maxRetries: PLAYBACK_RETRY_DELAYS_MS.length,
@@ -541,11 +628,12 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     onLoad,
     onProgress,
     onBuffer,
+    onEnd,
     recordSeek,
     togglePlayPause,
     retry,
     setIsPaused,
     setDuration,
-    setIsCompleted,
+    setIsCompleted: setPlaybackCompleted,
   };
 }

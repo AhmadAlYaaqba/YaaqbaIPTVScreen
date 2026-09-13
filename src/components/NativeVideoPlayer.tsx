@@ -48,6 +48,7 @@ const NativeVideoPlayer = forwardRef<PlayerAdapter, NativeVideoPlayerProps>(
       onError,
       onProgress,
       onBuffer,
+      onEnd,
       resumePosition,
     },
     ref,
@@ -121,6 +122,7 @@ const NativeVideoPlayer = forwardRef<PlayerAdapter, NativeVideoPlayerProps>(
         onProgress={onProgress}
         progressUpdateInterval={1000}
         onBuffer={onBuffer}
+        onEnd={onEnd}
         playInBackground={false}
         playWhenInactive={false}
         ignoreSilentSwitch="ignore"

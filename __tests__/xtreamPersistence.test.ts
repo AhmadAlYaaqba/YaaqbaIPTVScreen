@@ -7,6 +7,7 @@ import { xtreamQueryKeys } from '../src/services/xtream/xtreamQueries';
 import {
   createXtreamSnapshot,
   hydrateXtreamQueryCache,
+  isPersistableXtreamCatalogKey,
   persistXtreamQueryCache,
   removeXtreamPlaylistCache,
   utf8ByteLength,
@@ -92,6 +93,9 @@ describe('Xtream query persistence', () => {
     const key = xtreamQueryKeys.categories('playlist-a', 'movie');
     source.setQueryData(key, [{ category_id: '1' }], { updatedAt });
     source.setQueryData(['tmdb', 'movie', '1'], { title: 'Not persisted' });
+    source.setQueryData(xtreamQueryKeys.account('playlist-a'), {
+      planName: 'Private account data',
+    });
     await source.prefetchQuery({
       queryKey: xtreamQueryKeys.categories('failed-playlist', 'series'),
       queryFn: () => Promise.reject(new Error('expected test failure')),
@@ -105,10 +109,43 @@ describe('Xtream query persistence', () => {
     expect(target.getQueryState(key)?.dataUpdatedAt).toBe(updatedAt);
     expect(target.getQueryData(['tmdb', 'movie', '1'])).toBeUndefined();
     expect(
+      target.getQueryData(xtreamQueryKeys.account('playlist-a')),
+    ).toBeUndefined();
+    expect(
       target.getQueryData(
         xtreamQueryKeys.categories('failed-playlist', 'series'),
       ),
     ).toBeUndefined();
+  });
+
+  it('accepts only catalog categories, content, and series details', () => {
+    expect(
+      isPersistableXtreamCatalogKey(
+        xtreamQueryKeys.categories('playlist-a', 'movie'),
+      ),
+    ).toBe(true);
+    expect(
+      isPersistableXtreamCatalogKey(
+        xtreamQueryKeys.categoryContent('playlist-a', 'live', 'news'),
+      ),
+    ).toBe(true);
+    expect(
+      isPersistableXtreamCatalogKey(
+        xtreamQueryKeys.seriesDetails('playlist-a', 'series-1'),
+      ),
+    ).toBe(true);
+    expect(
+      isPersistableXtreamCatalogKey(xtreamQueryKeys.account('playlist-a')),
+    ).toBe(false);
+    expect(
+      createXtreamSnapshot([
+        {
+          queryKey: xtreamQueryKeys.account('playlist-a'),
+          data: { planName: 'Must stay in memory' },
+          dataUpdatedAt: Date.now(),
+        },
+      ]),
+    ).toBeNull();
   });
 
   it('removes only the deleted playlist from memory and disk', async () => {

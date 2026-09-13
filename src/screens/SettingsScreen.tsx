@@ -239,7 +239,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                 await removePlaylist(playlist.id);
                 await storage.clearPlaylistData(playlist.id);
                 await removeXtreamPlaylistCache(queryClient, playlist.id);
-                clearCatalogViewState(playlist.id);
+                await clearCatalogViewState(playlist.id);
 
                 if (wasActive) {
                   dispatch(resetIptv());

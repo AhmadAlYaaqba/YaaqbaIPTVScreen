@@ -1,11 +1,9 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { unwrapProxyUrl } from '../utils/proxy';
 import type { PlaybackDebugEntry } from '../hooks/useVideoPlayer';
 
 interface DevStreamDebugOverlayProps {
     playerName: string;
-    requestUrl: string;
     sourceLabel?: string;
     isBuffering: boolean;
     isReconnecting: boolean;
@@ -27,7 +25,6 @@ const getStatusColor = (status: PlaybackDebugEntry['status']) => {
 
 const DevStreamDebugOverlay: React.FC<DevStreamDebugOverlayProps> = ({
     playerName,
-    requestUrl,
     sourceLabel,
     isBuffering,
     isReconnecting,
@@ -35,9 +32,6 @@ const DevStreamDebugOverlay: React.FC<DevStreamDebugOverlayProps> = ({
     lastFailureReason,
     debugEntries,
 }) => {
-    const upstreamUrl = unwrapProxyUrl(requestUrl);
-    const isProxied = upstreamUrl !== requestUrl;
-
     return (
         <View pointerEvents="none" style={styles.container}>
             <Text style={styles.title}>DEV STREAM DEBUG</Text>
@@ -47,20 +41,6 @@ const DevStreamDebugOverlay: React.FC<DevStreamDebugOverlayProps> = ({
                 {isBuffering ? ' | buffering' : ''}
                 {isReconnecting ? ` | reconnecting #${reconnectAttempt + 1}` : ''}
             </Text>
-
-            <Text style={styles.label}>Requested URL</Text>
-            <Text selectable style={styles.value}>
-                {requestUrl}
-            </Text>
-
-            {isProxied && (
-                <>
-                    <Text style={styles.label}>Upstream URL</Text>
-                    <Text selectable style={styles.value}>
-                        {upstreamUrl}
-                    </Text>
-                </>
-            )}
 
             <Text style={styles.label}>Last Failure</Text>
             <Text style={[styles.value, lastFailureReason ? styles.failedText : styles.okText]}>
@@ -78,13 +58,16 @@ const DevStreamDebugOverlay: React.FC<DevStreamDebugOverlayProps> = ({
                                 [{entry.status.toUpperCase()}]
                             </Text>
                             <Text style={styles.entryMeta}>
-                                {entry.label} | try {entry.reconnectAttempt + 1}
-                            </Text>
-                            <Text selectable style={styles.entryUrl}>
-                                {entry.uri}
+                                {entry.engine} | {entry.platform} | {entry.mediaKind} |{' '}
+                                {entry.extension.toUpperCase()} {entry.delivery} | source{' '}
+                                {entry.sourceAttempt}/{entry.sourceCount} | retry{' '}
+                                {entry.retryAttempt}
                             </Text>
                             {entry.error ? (
-                                <Text style={styles.entryError}>{entry.error}</Text>
+                                <Text style={styles.entryError}>
+                                    {entry.errorCode ? `[${entry.errorCode}] ` : ''}
+                                    {entry.error}
+                                </Text>
                             ) : null}
                         </View>
                     ))
@@ -157,11 +140,6 @@ const styles = StyleSheet.create({
     },
     entryMeta: {
         color: '#cbd5e1',
-        fontSize: 10,
-        marginTop: 2,
-    },
-    entryUrl: {
-        color: '#e2e8f0',
         fontSize: 10,
         marginTop: 2,
     },

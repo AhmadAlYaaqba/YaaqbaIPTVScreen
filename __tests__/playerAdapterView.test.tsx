@@ -101,6 +101,7 @@ function renderAdapter(
       onError={jest.fn()}
       onProgress={jest.fn()}
       onBuffer={jest.fn()}
+      onEnd={jest.fn()}
     />
   );
 }

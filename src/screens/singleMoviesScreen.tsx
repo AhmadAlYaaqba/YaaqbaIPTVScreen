@@ -19,7 +19,6 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import FastImage from 'react-native-fast-image';
 import LinearGradient from 'react-native-linear-gradient';
 import {
   SafeAreaView,
@@ -51,10 +50,12 @@ import {
   CatalogStatus,
 } from '../components/catalog/CatalogStates';
 import { useCatalogViewState } from '../hooks/useCatalogViewState';
+import type { CategoryDropdownViewport } from '../utils/categoryDropdownState';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { useTmdbDetails, useTmdbMatch } from '../hooks/useTmdbMatch';
 import { getTenPointRating } from '../utils/rating';
 import type { TabScreenProps } from '../navigation/types';
+import CachedRemoteImage from '../components/CachedRemoteImage';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
@@ -83,6 +84,7 @@ const MoviePoster = React.memo(
     onPressMovie,
     useProxy,
     progressPercent,
+    playlistId,
   }: {
     streamId: number;
     name: string;
@@ -92,6 +94,7 @@ const MoviePoster = React.memo(
     onPressMovie: (streamId: number) => void;
     useProxy: boolean;
     progressPercent: number;
+    playlistId: string | null;
   }) => {
     const xtreamYear =
       releaseYear && /^\d{4}$/.test(String(releaseYear))
@@ -118,17 +121,20 @@ const MoviePoster = React.memo(
             : name
         }>
         <View style={styles.poster}>
-          {posterUri ? (
-            <FastImage
-              style={StyleSheet.absoluteFill}
-              source={{ uri: posterUri, priority: FastImage.priority.normal }}
-              resizeMode={FastImage.resizeMode.cover}
-            />
-          ) : (
-            <View style={styles.posterPlaceholder}>
-              <FontAwesome5 name="film" size={26} color={colors.fgSubtle} />
-            </View>
-          )}
+          <CachedRemoteImage
+            uri={posterUri}
+            playlistId={playlistId}
+            contentId={streamId}
+            variant="poster"
+            style={StyleSheet.absoluteFill}
+            displayWidth={ITEM_WIDTH}
+            displayHeight={POSTER_HEIGHT}
+            fallback={
+              <View style={styles.posterPlaceholder}>
+                <FontAwesome5 name="film" size={26} color={colors.fgSubtle} />
+              </View>
+            }
+          />
 
           {!!xtreamYear && (
             <View style={styles.yearBadge}>
@@ -200,6 +206,8 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
     activeCategoryId: activeCategory,
     activeCategoryName,
     selectCategory,
+    dropdownState,
+    commitDropdownViewport,
     contentOffset,
     onScroll,
     listKey,
@@ -250,8 +258,12 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
   );
 
   const handleCategorySelect = useCallback(
-    (categoryId: string) => {
-      selectCategory(categoryId);
+    (
+      categoryId: string,
+      _categoryName: string,
+      viewport: CategoryDropdownViewport,
+    ) => {
+      selectCategory(categoryId, viewport);
       setSearch('');
     },
     [selectCategory],
@@ -315,12 +327,13 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
           releaseYear={item.year}
           ratingValue={item.rating}
           useProxy={useProxy}
+          playlistId={playlistId}
           progressPercent={progressPercent}
           onPressMovie={handleMoviePress}
         />
       );
     },
-    [handleMoviePress, useProxy, watchProgress],
+    [handleMoviePress, playlistId, useProxy, watchProgress],
   );
 
   const handleRefresh = useCallback(() => {
@@ -401,6 +414,8 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
         activeCategoryId={activeCategory}
         activeCategoryName={activeCategoryName}
         onSelect={handleCategorySelect}
+        restorationState={dropdownState}
+        onPositionCommit={commitDropdownViewport}
         onSearchToggle={toggleSearch}
         searchActive={searchOpen}
         searchPlaceholder="Search categories"
@@ -660,33 +675,26 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                   <FontAwesome5 name="times" size={16} color={colors.fg} />
                 </TouchableOpacity>
 
-                {modalBackdropUri ? (
-                  <FastImage
-                    style={styles.modalPoster}
-                    source={{
-                      uri: modalBackdropUri,
-                      priority: FastImage.priority.high,
-                    }}
-                    resizeMode={FastImage.resizeMode.cover}
-                  />
-                ) : modalPosterUri ? (
-                  <FastImage
-                    style={styles.modalPoster}
-                    source={{
-                      uri: modalPosterUri,
-                      priority: FastImage.priority.high,
-                    }}
-                    resizeMode={FastImage.resizeMode.cover}
-                  />
-                ) : (
-                  <View style={[styles.modalPoster, styles.posterPlaceholder]}>
-                    <FontAwesome5
-                      name="film"
-                      size={40}
-                      color={colors.fgSubtle}
-                    />
-                  </View>
-                )}
+                <CachedRemoteImage
+                  uri={modalBackdropUri || modalPosterUri}
+                  playlistId={playlistId}
+                  contentId={selectedMovie.stream_id}
+                  variant={modalBackdropUri ? 'backdrop' : 'poster'}
+                  style={styles.modalPoster}
+                  priority="high"
+                  displayWidth={width}
+                  displayHeight={320}
+                  fallback={
+                    <View
+                      style={[styles.modalPoster, styles.posterPlaceholder]}>
+                      <FontAwesome5
+                        name="film"
+                        size={40}
+                        color={colors.fgSubtle}
+                      />
+                    </View>
+                  }
+                />
 
                 <View style={styles.modalBody}>
                   <Text style={styles.modalTitle}>{selectedMovie.name}</Text>
@@ -748,20 +756,24 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                         contentContainerStyle={styles.castRow}>
                         {modalCast.map(member => (
                           <View key={member.id} style={styles.castChip}>
-                            {member.profile ? (
-                              <FastImage
-                                source={{ uri: member.profile }}
-                                style={styles.castAvatar}
-                              />
-                            ) : (
-                              <View style={styles.castAvatarPlaceholder}>
-                                <FontAwesome5
-                                  name="user"
-                                  size={14}
-                                  color={colors.fgSubtle}
-                                />
-                              </View>
-                            )}
+                            <CachedRemoteImage
+                              uri={member.profile}
+                              playlistId={playlistId}
+                              contentId={member.id}
+                              variant="cast"
+                              style={styles.castAvatar}
+                              displayWidth={56}
+                              displayHeight={56}
+                              fallback={
+                                <View style={styles.castAvatarPlaceholder}>
+                                  <FontAwesome5
+                                    name="user"
+                                    size={14}
+                                    color={colors.fgSubtle}
+                                  />
+                                </View>
+                              }
+                            />
                             <Text style={styles.castName} numberOfLines={1}>
                               {member.name}
                             </Text>

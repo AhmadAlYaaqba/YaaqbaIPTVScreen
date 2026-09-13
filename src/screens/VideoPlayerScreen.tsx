@@ -14,6 +14,7 @@ import { RootState } from '../store';
 import { storage } from '../utils/storage';
 import {
   buildDirectPlaybackUrl,
+  createVlcFallbackRequest,
   switchLivePlaybackRequest,
 } from '../utils/playbackSources';
 import { getMediaDurationSeconds } from '../utils/playbackTime';
@@ -29,7 +30,11 @@ import type {
 import PlayerControls from '../components/PlayerControls';
 import ChannelSwitcher from '../components/ChannelSwitcher';
 import PlayerAdapterView from '../components/PlayerAdapterView';
-import type { PlaybackRequest, PlayerAdapter } from '../types/player';
+import type {
+  PlaybackRequest,
+  PlayerAdapter,
+  PlayerEngine,
+} from '../types/player';
 // import DevStreamDebugOverlay from '../components/DevStreamDebugOverlay';
 
 // Hooks
@@ -47,10 +52,6 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     route.params.request,
   );
 
-  useEffect(() => {
-    setPlaybackRequest(route.params.request);
-  }, [route.params.request]);
-
   const {
     playlistId,
     playerEngine,
@@ -60,6 +61,13 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     serverDomain,
     serverPort,
   } = useSelector((state: RootState) => state.user);
+  const [sessionPlayerEngine, setSessionPlayerEngine] =
+    useState<PlayerEngine>(playerEngine);
+
+  useEffect(() => {
+    setPlaybackRequest(route.params.request);
+    setSessionPlayerEngine(playerEngine);
+  }, [playerEngine, route.params.request]);
   const connection = useMemo(
     () => ({
       domain: serverDomain,
@@ -134,13 +142,27 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     request: playbackRequest,
     connection,
     playlistId,
-    playerEngine,
+    playerEngine: sessionPlayerEngine,
     isOffline,
     useProxy,
     autoReconnect: true,
   });
   const playerRef = useRef<PlayerAdapter>(null);
   const recordSeek = player.recordSeek;
+
+  const handleTryWithVlc = useCallback(() => {
+    if (playbackRequest.kind === 'live') {
+      return;
+    }
+    setPlaybackRequest(current =>
+      createVlcFallbackRequest(
+        current,
+        player.currentProgressRef.current,
+        player.duration,
+      ),
+    );
+    setSessionPlayerEngine('vlc');
+  }, [playbackRequest.kind, player.currentProgressRef, player.duration]);
 
   // --- Controls auto-hide logic ---
   const resetControlsTimeout = useCallback(() => {
@@ -527,7 +549,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     <View style={styles.container}>
       <PlayerAdapterView
         ref={playerRef}
-        engine={playerEngine}
+        engine={sessionPlayerEngine}
         source={player.currentSource}
         sourceToken={player.sourceToken}
         isLive={isLive}
@@ -538,6 +560,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         onError={player.onError}
         onProgress={player.onProgress}
         onBuffer={player.onBuffer}
+        onEnd={player.onEnd}
       />
 
       <PlayerControls
@@ -563,6 +586,20 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         onSeekInteractionStart={pauseControlsTimeout}
         onSeekInteractionEnd={resetControlsTimeout}
         onRetry={player.retry}
+        fallbackActionLabel={
+          player.error &&
+          !isLive &&
+          sessionPlayerEngine === 'expo-video'
+            ? 'Try with VLC'
+            : undefined
+        }
+        onFallbackAction={
+          player.error &&
+          !isLive &&
+          sessionPlayerEngine === 'expo-video'
+            ? handleTryWithVlc
+            : undefined
+        }
         onToggleVisibility={toggleControls}
         onDoubleTap={isLive ? undefined : handleDoubleTap}
         onToggleChannelSwitcher={isLive ? toggleChannelSwitcher : undefined}
@@ -574,6 +611,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
       {/* Channel switcher panel (live only) */}
       {isLive && (
         <ChannelSwitcher
+          playlistId={playlistId}
           visible={channelSwitcherVisible}
           channels={liveChannels}
           activeStreamId={currentStreamId}

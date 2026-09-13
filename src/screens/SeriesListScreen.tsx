@@ -9,7 +9,7 @@ import {
   FlatList,
   Dimensions,
 } from 'react-native';
-import FastImage from 'react-native-fast-image'; // 1) Import FastImage
+import CachedRemoteImage from '../components/CachedRemoteImage';
 import { useDispatch, useSelector } from 'react-redux';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,7 +18,10 @@ import { fetchSeriesByCategory } from '../store/slices/iptvSlice';
 import { LegacyStackParamList } from '../navigation/legacyTypes';
 
 type SeriesListRouteProp = RouteProp<LegacyStackParamList, 'SeriesList'>;
-type SeriesListNavProp = NativeStackNavigationProp<LegacyStackParamList, 'SeriesList'>;
+type SeriesListNavProp = NativeStackNavigationProp<
+  LegacyStackParamList,
+  'SeriesList'
+>;
 
 interface Props {
   route: SeriesListRouteProp;
@@ -28,10 +31,11 @@ interface Props {
 const SeriesListScreen: React.FC<Props> = ({ route, navigation }) => {
   const { categoryId, categoryName } = route.params;
   const dispatch = useDispatch<AppDispatch>();
-  const { username, password, serverDomain, serverPort } = useSelector(
-    (state: RootState) => state.user
+  const { playlistId, username, password, serverDomain, serverPort } =
+    useSelector((state: RootState) => state.user);
+  const { seriesList, loading, error } = useSelector(
+    (state: RootState) => state.iptv,
   );
-  const { seriesList, loading, error } = useSelector((state: RootState) => state.iptv);
 
   useEffect(() => {
     navigation.setOptions({ title: categoryName || 'Series' });
@@ -42,9 +46,18 @@ const SeriesListScreen: React.FC<Props> = ({ route, navigation }) => {
         domain: serverDomain,
         port: serverPort,
         categoryId,
-      })
+      }),
     );
-  }, [categoryId, categoryName, dispatch, navigation, password, serverDomain, serverPort, username]);
+  }, [
+    categoryId,
+    categoryName,
+    dispatch,
+    navigation,
+    password,
+    serverDomain,
+    serverPort,
+    username,
+  ]);
 
   if (loading) {
     return (
@@ -71,15 +84,15 @@ const SeriesListScreen: React.FC<Props> = ({ route, navigation }) => {
             seriesId: item.series_id,
             seriesName: item.name,
           });
-        }}
-      >
-        <FastImage
+        }}>
+        <CachedRemoteImage
+          uri={item.cover}
+          playlistId={playlistId}
+          contentId={item.series_id ?? item.name}
+          variant="poster"
           style={styles.poster}
-          source={{
-            uri: item.cover, // or item.stream_icon if your server uses that
-            priority: FastImage.priority.normal,
-          }}
-          resizeMode={FastImage.resizeMode.cover}
+          displayWidth={ITEM_WIDTH}
+          displayHeight={ITEM_WIDTH * 1.5}
         />
         <Text style={styles.title} numberOfLines={1}>
           {item.name}

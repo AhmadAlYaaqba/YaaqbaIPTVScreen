@@ -13,10 +13,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import Animated, {
-  FadeInDown,
-} from 'react-native-reanimated';
-import FastImage from 'react-native-fast-image';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import CachedRemoteImage from '../components/CachedRemoteImage';
 
 import { RootState, AppDispatch } from '../store';
 import {
@@ -37,9 +35,11 @@ const MovieCard = React.memo(
   ({
     item,
     onPress,
+    playlistId,
   }: {
     item: any;
     onPress: () => void;
+    playlistId: string | null;
   }) => {
     const rawIcon = item.stream_icon || item.icon || null;
     return (
@@ -47,16 +47,22 @@ const MovieCard = React.memo(
         style={styles.movieCard}
         onPress={onPress}
         activeOpacity={0.7}>
-        <View style={rawIcon ? styles.cardGlowingBorder : styles.cardGlowingBorderPlaceholder}>
+        <View
+          style={
+            rawIcon
+              ? styles.cardGlowingBorder
+              : styles.cardGlowingBorderPlaceholder
+          }>
           {rawIcon ? (
             <View style={styles.cardImageContainer}>
-              <FastImage
-                source={{
-                  uri: rawIcon,
-                  priority: FastImage.priority.normal,
-                }}
+              <CachedRemoteImage
+                uri={rawIcon}
+                playlistId={playlistId}
+                contentId={item.stream_id ?? item.name}
+                variant="poster"
                 style={styles.cardImage}
-                resizeMode={FastImage.resizeMode.cover}
+                displayWidth={CARD_WIDTH}
+                displayHeight={CARD_HEIGHT}
               />
             </View>
           ) : (
@@ -75,13 +81,13 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
 
   // credentials
-  const { username, password, serverDomain, serverPort } = useSelector(
-    (state: RootState) => state.user,
-  );
+  const { playlistId, username, password, serverDomain, serverPort } =
+    useSelector((state: RootState) => state.user);
 
   // IPTV slice state
-  const { movieCategories, movieList, loading, error } =
-    useSelector((state: RootState) => state.iptv);
+  const { movieCategories, movieList, loading, error } = useSelector(
+    (state: RootState) => state.iptv,
+  );
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeCategoryName, setActiveCategoryName] = useState<string>('');
@@ -122,7 +128,15 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
         }),
       );
     }
-  }, [activeCategory, dispatch, password, safeMovieCategories, serverDomain, serverPort, username]);
+  }, [
+    activeCategory,
+    dispatch,
+    password,
+    safeMovieCategories,
+    serverDomain,
+    serverPort,
+    username,
+  ]);
 
   // fetch movies when category changes (after initial)
   const handleCategorySelect = useCallback(
@@ -149,6 +163,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
       return (
         <MovieCard
           item={item}
+          playlistId={playlistId}
           onPress={() =>
             navigation.navigate('MovieDetail', {
               movie: item,
@@ -157,7 +172,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
         />
       );
     },
-    [navigation],
+    [navigation, playlistId],
   );
 
   const movies = Array.isArray(movieList) ? movieList : [];
@@ -216,8 +231,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
     <ImageBackground
       source={backgroundImage}
       style={styles.backgroundImage}
-      resizeMode="cover"
-    >
+      resizeMode="cover">
       <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>

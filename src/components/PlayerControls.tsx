@@ -48,6 +48,8 @@ interface PlayerControlsProps {
   onSeekInteractionStart?: () => void;
   onSeekInteractionEnd?: () => void;
   onRetry: () => void;
+  fallbackActionLabel?: string;
+  onFallbackAction?: () => void;
   onToggleChannelSwitcher?: () => void;
   onToggleVisibility: () => void;
   onDoubleTap?: (x: number) => void;
@@ -80,6 +82,8 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   onSeekInteractionStart,
   onSeekInteractionEnd,
   onRetry,
+  fallbackActionLabel,
+  onFallbackAction,
   onToggleChannelSwitcher,
   onToggleVisibility,
   onDoubleTap,
@@ -322,14 +326,26 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
           accessibilityLiveRegion="assertive">
           <FontAwesome5 name="exclamation-triangle" size={36} color="#FF6B6B" />
           <Text style={styles.errorText}>{error}</Text>
-          <Pressable
-            style={styles.retryButton}
-            onPress={onRetry}
-            accessibilityRole="button"
-            accessibilityLabel="Retry playback">
-            <FontAwesome5 name="redo" size={14} color="#fff" />
-            <Text style={styles.retryText}>Retry</Text>
-          </Pressable>
+          <View style={styles.errorActions}>
+            <Pressable
+              style={styles.retryButton}
+              onPress={onRetry}
+              accessibilityRole="button"
+              accessibilityLabel="Retry playback">
+              <FontAwesome5 name="redo" size={14} color="#fff" />
+              <Text style={styles.retryText}>Retry</Text>
+            </Pressable>
+            {fallbackActionLabel && onFallbackAction ? (
+              <Pressable
+                style={[styles.retryButton, styles.fallbackButton]}
+                onPress={onFallbackAction}
+                accessibilityRole="button"
+                accessibilityLabel={fallbackActionLabel}>
+                <FontAwesome5 name="play-circle" size={14} color="#fff" />
+                <Text style={styles.retryText}>{fallbackActionLabel}</Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
       )}
 
@@ -713,6 +729,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     minHeight: 44,
+  },
+  errorActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  fallbackButton: {
+    backgroundColor: '#7C3AED',
   },
   retryText: {
     color: '#fff',

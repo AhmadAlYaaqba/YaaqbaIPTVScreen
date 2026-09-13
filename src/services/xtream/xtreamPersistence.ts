@@ -19,8 +19,30 @@ interface PersistedXtreamSnapshot {
   entries: PersistedXtreamQuery[];
 }
 
-function isXtreamKey(queryKey: QueryKey): boolean {
-  return queryKey[0] === xtreamQueryKeys.all[0];
+export function isPersistableXtreamCatalogKey(queryKey: QueryKey): boolean {
+  if (
+    queryKey[0] !== xtreamQueryKeys.all[0] ||
+    typeof queryKey[1] !== 'string'
+  ) {
+    return false;
+  }
+
+  const mediaType = queryKey[2];
+  const scope = queryKey[3];
+  const isMediaType = ['live', 'movie', 'series'].includes(String(mediaType));
+
+  if (queryKey.length === 4) {
+    return isMediaType && scope === 'categories';
+  }
+  if (queryKey.length === 5 && isMediaType && scope === 'category') {
+    return typeof queryKey[4] === 'string';
+  }
+  return (
+    queryKey.length === 5 &&
+    mediaType === 'series' &&
+    scope === 'details' &&
+    typeof queryKey[4] === 'string'
+  );
 }
 
 export function utf8ByteLength(value: string): number {
@@ -49,6 +71,7 @@ export function createXtreamSnapshot(
   const serializedEntries = entries
     .filter(
       entry =>
+        isPersistableXtreamCatalogKey(entry.queryKey) &&
         entry.dataUpdatedAt > 0 &&
         now - entry.dataUpdatedAt <= XTREAM_PERSISTENCE_MAX_AGE_MS,
     )
@@ -82,7 +105,9 @@ export function createXtreamSnapshot(
     return null;
   }
 
-  return `${prefix}${serializedEntries.map(item => item.json).join(',')}${suffix}`;
+  return `${prefix}${serializedEntries
+    .map(item => item.json)
+    .join(',')}${suffix}`;
 }
 
 function getSuccessfulXtreamQueries(
@@ -92,7 +117,9 @@ function getSuccessfulXtreamQueries(
     .getQueryCache()
     .getAll()
     .filter(
-      query => isXtreamKey(query.queryKey) && query.state.status === 'success',
+      query =>
+        isPersistableXtreamCatalogKey(query.queryKey) &&
+        query.state.status === 'success',
     )
     .map(query => ({
       queryKey: query.queryKey,
@@ -104,7 +131,9 @@ function getSuccessfulXtreamQueries(
 export async function persistXtreamQueryCache(
   queryClient: QueryClient,
 ): Promise<void> {
-  const snapshot = createXtreamSnapshot(getSuccessfulXtreamQueries(queryClient));
+  const snapshot = createXtreamSnapshot(
+    getSuccessfulXtreamQueries(queryClient),
+  );
   if (snapshot) {
     await AsyncStorage.setItem(XTREAM_PERSISTENCE_KEY, snapshot);
   } else {
@@ -134,7 +163,7 @@ export async function hydrateXtreamQueryCache(
     const validEntries = parsed.entries.filter(
       entry =>
         Array.isArray(entry?.queryKey) &&
-        isXtreamKey(entry.queryKey) &&
+        isPersistableXtreamCatalogKey(entry.queryKey) &&
         typeof entry.dataUpdatedAt === 'number' &&
         now - entry.dataUpdatedAt <= XTREAM_PERSISTENCE_MAX_AGE_MS,
     );
@@ -168,7 +197,7 @@ export function subscribeToXtreamQueryPersistence(
   let writeChain = Promise.resolve();
 
   const unsubscribe = queryClient.getQueryCache().subscribe(event => {
-    if (!event?.query || !isXtreamKey(event.query.queryKey)) {
+    if (!event?.query || !isPersistableXtreamCatalogKey(event.query.queryKey)) {
       return;
     }
     if (timer) {

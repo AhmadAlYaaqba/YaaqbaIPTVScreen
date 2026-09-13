@@ -1,11 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   FlatList,
-  Image,
   Pressable,
   Platform,
   Animated,
@@ -25,36 +30,25 @@ import Svg, {
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector } from 'react-redux';
-import axios from 'axios';
 import { useIsFocused } from '@react-navigation/native';
 
 import type { TabParamList, TabScreenProps } from '../navigation/types';
 import { RootState } from '../store';
 import { storage, type LatestWatched } from '../utils/storage';
-import { proxyStreamUrl } from '../utils/proxy';
-import { buildPlayerApiUrl } from '../utils/xtream';
 import { colors, sectionAccents, radii, gradients } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
+import CachedRemoteImage from '../components/CachedRemoteImage';
+import { useXtreamAccountInfo } from '../services/xtream/xtreamQueries';
+import type { XtreamSession } from '../services/xtream/xtreamService';
+import {
+  createSubscriptionSummary,
+  type SubscriptionSummary,
+} from '../utils/subscription';
 
 type HomeScreenProps = TabScreenProps<'Home'>;
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
-
-const MONTHS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
 
 // ─────────────────────────────────────────────────────────────
 // Faint grid backdrop — fades out toward the edges
@@ -135,21 +129,13 @@ function Header({
 // ─────────────────────────────────────────────────────────────
 // Subscription card
 // ─────────────────────────────────────────────────────────────
-interface SubInfo {
-  daysLeft: number | null;
-  totalDays: number;
-  plan: string;
-  expiresOn: string;
-  status: 'active' | 'trial' | 'expired';
-}
-
-function SubscriptionCard({ sub }: { sub: SubInfo | null }) {
-  const rawDays = sub?.daysLeft ?? null;
+function SubscriptionCard({ sub }: { sub: SubscriptionSummary }) {
+  const rawDays = sub.daysLeft;
   // Far-future expiry (panels often set ~year 2099 for non-expiring) reads as unlimited.
   const unlimited = rawDays != null && rawDays > 3650;
   const daysLeft = unlimited ? null : rawDays;
-  const totalDays = sub?.totalDays ?? 90;
-  const isTrial = sub?.status === 'trial';
+  const totalDays = sub.totalDays;
+  const isTrial = sub.status === 'trial';
   const isWarning = daysLeft != null && daysLeft <= 7 && daysLeft >= 0;
   const accent = isTrial
     ? colors.cyan
@@ -163,10 +149,10 @@ function SubscriptionCard({ sub }: { sub: SubInfo | null }) {
     : colors.success;
   const statusLabel = isTrial
     ? 'trial'
-    : sub?.status === 'expired'
+    : sub.status === 'expired'
     ? 'expired'
     : 'active';
-  const plan = sub?.plan ?? 'Premium';
+  const plan = sub.plan;
   const pct =
     daysLeft == null
       ? 100
@@ -246,7 +232,7 @@ function SubscriptionCard({ sub }: { sub: SubInfo | null }) {
 
       <View style={styles.subFooter}>
         <Text style={styles.subFooterText}>
-          {unlimited ? 'No expiry date' : `Expires ${sub?.expiresOn ?? '—'}`}
+          {unlimited ? 'No expiry date' : `Expires ${sub.expiresOn}`}
         </Text>
         <Text style={styles.subFooterText}>
           {unlimited ? 'Unlimited' : `${totalDays}d plan`}
@@ -268,6 +254,56 @@ function SubscriptionCard({ sub }: { sub: SubInfo | null }) {
     </View>
   );
 }
+
+const SubscriptionLoadingCard = React.memo(() => (
+  <View
+    style={styles.subCard}
+    accessible
+    accessibilityLabel="Loading subscription information">
+    <View
+      style={[styles.subscriptionSkeleton, styles.subscriptionSkeletonTag]}
+    />
+    <View
+      style={[styles.subscriptionSkeleton, styles.subscriptionSkeletonValue]}
+    />
+    <View
+      style={[styles.subscriptionSkeleton, styles.subscriptionSkeletonBar]}
+    />
+    <View
+      style={[styles.subscriptionSkeleton, styles.subscriptionSkeletonMeta]}
+    />
+  </View>
+));
+
+const SubscriptionRetryCard = React.memo(
+  ({ onRetry }: { onRetry: () => void }) => (
+    <View style={styles.subCard}>
+      <View style={styles.subscriptionErrorRow}>
+        <FontAwesome5
+          name="exclamation-circle"
+          size={18}
+          color={colors.warning}
+        />
+        <View style={styles.subscriptionErrorCopy}>
+          <Text style={styles.subscriptionErrorTitle}>
+            Subscription information unavailable
+          </Text>
+          <Text style={styles.subscriptionErrorMessage}>
+            Check your connection and try again.
+          </Text>
+        </View>
+      </View>
+      <Pressable
+        style={styles.subscriptionRetryButton}
+        onPress={onRetry}
+        accessibilityRole="button"
+        accessibilityLabel="Retry subscription information">
+        <FontAwesome5 name="redo" size={12} color={colors.fg} />
+        <Text style={styles.subscriptionRetryText}>Retry</Text>
+      </Pressable>
+    </View>
+  ),
+);
 
 // ─────────────────────────────────────────────────────────────
 // Section tiles — Live / Movies / Series
@@ -427,9 +463,11 @@ function LivePulse({ color }: { color: string }) {
 const ContinueCard = React.memo(function ContinueCard({
   item,
   onPressItem,
+  playlistId,
 }: {
   item: LatestWatched;
   onPressItem: (item: LatestWatched) => void;
+  playlistId: string | null;
 }) {
   const type = item.type;
   const accent = TYPE_ACCENT[type] || colors.indigo;
@@ -478,20 +516,23 @@ const ContinueCard = React.memo(function ContinueCard({
       accessibilityRole="button"
       accessibilityLabel={`Continue ${accessibilityLabel}`}>
       <View style={styles.posterWrap}>
-        {item.thumbnail ? (
-          <Image
-            source={{ uri: item.thumbnail }}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
-          />
-        ) : (
-          <LinearGradient
-            colors={POSTER_GRADIENTS[type] || POSTER_GRADIENTS.movie}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-        )}
+        <CachedRemoteImage
+          uri={item.thumbnail}
+          playlistId={playlistId}
+          contentId={continueKeyExtractor(item)}
+          variant="continue-watching"
+          style={StyleSheet.absoluteFill}
+          displayWidth={180}
+          displayHeight={112.5}
+          fallback={
+            <LinearGradient
+              colors={POSTER_GRADIENTS[type] || POSTER_GRADIENTS.movie}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          }
+        />
 
         {/* play badge */}
         <View style={styles.playBadge}>
@@ -565,11 +606,28 @@ function EmptyContinue() {
 // ─────────────────────────────────────────────────────────────
 export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
   const isFocused = useIsFocused();
-  const { username, password, serverDomain, serverPort, useProxy } =
+  const { playlistId, username, password, serverDomain, serverPort, useProxy } =
     useSelector((s: RootState) => s.user);
+  const session = useMemo<XtreamSession | null>(
+    () =>
+      playlistId
+        ? {
+            playlistId,
+            username,
+            password,
+            domain: serverDomain,
+            port: serverPort,
+            useProxy,
+          }
+        : null,
+    [playlistId, username, password, serverDomain, serverPort, useProxy],
+  );
+  const accountQuery = useXtreamAccountInfo(session, isFocused);
+  const subscription = accountQuery.data
+    ? createSubscriptionSummary(accountQuery.data)
+    : null;
 
   const [recentWatches, setRecentWatches] = useState<LatestWatched[]>([]);
-  const [sub, setSub] = useState<SubInfo | null>(null);
 
   // Load recent watches
   useEffect(() => {
@@ -580,68 +638,10 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
     if (isFocused) load();
   }, [isFocused]);
 
-  // Fetch subscription (user_info) once per focus
-  useEffect(() => {
-    let cancelled = false;
-    const loadSub = async () => {
-      if (!serverDomain || !username) return;
-      try {
-        const original = buildPlayerApiUrl({
-          domain: serverDomain,
-          port: serverPort,
-          username,
-          password,
-          action: '',
-        });
-        const url = proxyStreamUrl(original, useProxy);
-        const res = await axios.get(url);
-        const info = res?.data?.user_info;
-        if (!info || cancelled) return;
-
-        const expUnix = Number(info.exp_date);
-        const hasExp = !!expUnix && !Number.isNaN(expUnix);
-        const expMs = hasExp ? expUnix * 1000 : 0;
-        const dayMs = 86400000;
-        const daysLeft = hasExp
-          ? Math.max(0, Math.ceil((expMs - Date.now()) / dayMs))
-          : null;
-
-        const createdUnix = Number(info.created_at);
-        const hasCreated = !!createdUnix && !Number.isNaN(createdUnix);
-        const totalDays =
-          hasCreated && hasExp
-            ? Math.max(1, Math.ceil((expMs - createdUnix * 1000) / dayMs))
-            : Math.max(daysLeft ?? 90, 90);
-
-        const isTrial = String(info.is_trial) === '1';
-        const rawStatus = String(info.status || '').toLowerCase();
-        const status: SubInfo['status'] = isTrial
-          ? 'trial'
-          : rawStatus.includes('expire')
-          ? 'expired'
-          : 'active';
-
-        let expiresOn = '—';
-        if (hasExp) {
-          const d = new Date(expMs);
-          expiresOn = `${MONTHS[d.getMonth()]} ${String(d.getDate()).padStart(
-            2,
-            '0',
-          )}, ${d.getFullYear()}`;
-        }
-
-        const plan = isTrial ? 'Trial access' : 'Premium 4K';
-
-        setSub({ daysLeft, totalDays, plan, expiresOn, status });
-      } catch {
-        // graceful: leave card in loading/fallback state
-      }
-    };
-    if (isFocused) loadSub();
-    return () => {
-      cancelled = true;
-    };
-  }, [isFocused, serverDomain, serverPort, username, password, useProxy]);
+  const refetchAccount = accountQuery.refetch;
+  const handleSubscriptionRetry = useCallback(() => {
+    refetchAccount();
+  }, [refetchAccount]);
 
   const openContinueItem = useCallback(
     (item: LatestWatched) => {
@@ -702,9 +702,13 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
   );
   const renderContinueItem = useCallback(
     ({ item }: { item: LatestWatched }) => (
-      <ContinueCard item={item} onPressItem={openContinueItem} />
+      <ContinueCard
+        item={item}
+        playlistId={playlistId}
+        onPressItem={openContinueItem}
+      />
     ),
-    [openContinueItem],
+    [openContinueItem, playlistId],
   );
 
   return (
@@ -717,7 +721,13 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
           contentContainerStyle={styles.scrollContent}>
           <Header subId={username || 'SUB-—'} onSettings={openSettings} />
 
-          <SubscriptionCard sub={sub} />
+          {subscription ? (
+            <SubscriptionCard sub={subscription} />
+          ) : accountQuery.isPending ? (
+            <SubscriptionLoadingCard />
+          ) : (
+            <SubscriptionRetryCard onRetry={handleSubscriptionRetry} />
+          )}
 
           <View style={styles.sectionsBlock}>
             {SECTIONS.map(s => (
@@ -832,6 +842,69 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.panel,
     overflow: 'hidden',
+  },
+  subscriptionSkeleton: {
+    borderRadius: radii.pill,
+    backgroundColor: colors.glass,
+  },
+  subscriptionSkeletonTag: {
+    width: 132,
+    height: 22,
+  },
+  subscriptionSkeletonValue: {
+    width: 92,
+    height: 34,
+    marginTop: 18,
+  },
+  subscriptionSkeletonBar: {
+    width: '100%',
+    height: 4,
+    marginTop: 14,
+  },
+  subscriptionSkeletonMeta: {
+    width: '48%',
+    height: 10,
+    marginTop: 12,
+  },
+  subscriptionErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  subscriptionErrorCopy: {
+    flex: 1,
+  },
+  subscriptionErrorTitle: {
+    fontFamily: FONT,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.fg,
+  },
+  subscriptionErrorMessage: {
+    marginTop: 3,
+    fontFamily: FONT,
+    fontSize: 12,
+    color: colors.fgMuted,
+  },
+  subscriptionRetryButton: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.glass,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  subscriptionRetryText: {
+    fontFamily: FONT,
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.fg,
   },
   subHalo: {
     position: 'absolute',

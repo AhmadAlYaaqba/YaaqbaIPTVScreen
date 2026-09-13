@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   Dimensions,
-  Image,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -17,6 +16,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import CachedRemoteImage from './CachedRemoteImage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PANEL_WIDTH = Math.round(SCREEN_WIDTH * 0.6);
@@ -31,6 +31,7 @@ interface Channel {
 }
 
 interface ChannelSwitcherProps {
+  playlistId: string | null;
   visible: boolean;
   channels: Channel[];
   activeStreamId: string;
@@ -55,6 +56,7 @@ const ChannelItem = React.memo(
     extension,
     isActive,
     onSelect,
+    playlistId,
   }: {
     streamId: number;
     name: string;
@@ -67,6 +69,7 @@ const ChannelItem = React.memo(
       thumbnail?: string,
       extension?: string,
     ) => void;
+    playlistId: string | null;
   }) => {
     const handlePress = useCallback(() => {
       onSelect(streamId, name, thumbnail, extension);
@@ -80,17 +83,21 @@ const ChannelItem = React.memo(
         accessibilityRole="button"
         accessibilityState={{ selected: isActive }}
         accessibilityLabel={`${name}${isActive ? ', now playing' : ''}`}>
-        {thumbnail ? (
-          <Image
-            source={{ uri: thumbnail }}
-            style={styles.channelIcon}
-            resizeMode="contain"
-          />
-        ) : (
-          <View style={styles.channelIconPlaceholder}>
-            <FontAwesome5 name="tv" size={14} color="#666" />
-          </View>
-        )}
+        <CachedRemoteImage
+          uri={thumbnail}
+          playlistId={playlistId}
+          contentId={streamId}
+          variant="channel-logo"
+          style={styles.channelIcon}
+          contentFit="contain"
+          displayWidth={32}
+          displayHeight={32}
+          fallback={
+            <View style={styles.channelIconPlaceholder}>
+              <FontAwesome5 name="tv" size={14} color="#666" />
+            </View>
+          }
+        />
         <Text
           style={[styles.channelName, isActive && styles.channelNameActive]}
           numberOfLines={2}>
@@ -118,6 +125,7 @@ const ChannelListSkeleton = React.memo(() => (
 ));
 
 const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
+  playlistId,
   visible,
   channels,
   activeStreamId,
@@ -183,10 +191,11 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
         thumbnail={item.stream_icon || item.icon}
         extension={item.container_extension}
         isActive={String(item.stream_id) === activeStreamId}
+        playlistId={playlistId}
         onSelect={handleSelect}
       />
     ),
-    [activeStreamId, handleSelect],
+    [activeStreamId, handleSelect, playlistId],
   );
 
   const keyExtractor = useCallback(

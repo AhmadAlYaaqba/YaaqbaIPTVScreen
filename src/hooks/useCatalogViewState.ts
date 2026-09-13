@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type {
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-} from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
 import type {
   XtreamCategory,
   XtreamMediaType,
 } from '../services/xtream/xtreamService';
+import {
+  CategoryDropdownState,
+  CategoryDropdownViewport,
+  loadCategoryDropdownState,
+  removeCategoryDropdownStateForPlaylist,
+  resetCategoryDropdownStateForTests,
+  saveCategoryDropdownState,
+} from '../utils/categoryDropdownState';
 
 const categorySelections = new Map<string, string>();
 const scrollOffsets = new Map<string, number>();
@@ -63,7 +68,7 @@ export function saveCatalogScrollOffset(
   }
 }
 
-export function clearCatalogViewState(playlistId: string): void {
+export async function clearCatalogViewState(playlistId: string): Promise<void> {
   const prefix = `${playlistId}:`;
   [...categorySelections.keys()].forEach(key => {
     if (key.startsWith(prefix)) {
@@ -75,11 +80,47 @@ export function clearCatalogViewState(playlistId: string): void {
       scrollOffsets.delete(key);
     }
   });
+  await removeCategoryDropdownStateForPlaylist(playlistId);
 }
 
 export function resetCatalogViewStateForTests(): void {
   categorySelections.clear();
   scrollOffsets.clear();
+  resetCategoryDropdownStateForTests();
+}
+
+type HydratedDropdownState = {
+  contextKey: string | null;
+  ready: boolean;
+  value: CategoryDropdownState | null;
+};
+
+function dropdownStatesEqual(
+  first: CategoryDropdownState | null,
+  second: CategoryDropdownState | null,
+): boolean {
+  return (
+    first?.selectedCategoryId === second?.selectedCategoryId &&
+    first?.anchorCategoryId === second?.anchorCategoryId &&
+    (first?.visibleCategoryIds.length ?? 0) ===
+      (second?.visibleCategoryIds.length ?? 0) &&
+    (first?.visibleCategoryIds.every(
+      (categoryId, index) => categoryId === second?.visibleCategoryIds[index],
+    ) ??
+      true)
+  );
+}
+
+function persistDropdownState(
+  playlistId: string,
+  mediaType: XtreamMediaType,
+  state: CategoryDropdownState,
+): void {
+  saveCategoryDropdownState(playlistId, mediaType, state).catch(error => {
+    if (__DEV__) {
+      console.error('Could not save category dropdown state:', error);
+    }
+  });
 }
 
 export function useCatalogViewState({
@@ -94,59 +135,169 @@ export function useCatalogViewState({
   categoriesReady: boolean;
 }) {
   const contextKey = playlistId ? catalogKey(playlistId, mediaType) : null;
-  const storedSelection = playlistId
-    ? getCatalogCategorySelection(playlistId, mediaType)
-    : null;
   const [selection, setSelection] = useState<{
     contextKey: string | null;
     categoryId: string | null;
-  }>(() => ({
-    contextKey,
-    categoryId: storedSelection,
-  }));
+  }>({ contextKey: null, categoryId: null });
+  const [hydratedDropdown, setHydratedDropdown] =
+    useState<HydratedDropdownState>({
+      contextKey: null,
+      ready: false,
+      value: null,
+    });
   const activeCategoryId =
-    selection.contextKey === contextKey
-      ? selection.categoryId
-      : storedSelection;
+    selection.contextKey === contextKey ? selection.categoryId : null;
+  const dropdownReady =
+    hydratedDropdown.contextKey === contextKey && hydratedDropdown.ready;
+  const dropdownState = dropdownReady ? hydratedDropdown.value : null;
 
   useEffect(() => {
-    if (!categoriesReady || !playlistId) {
+    let cancelled = false;
+
+    if (!playlistId || !contextKey) {
+      setSelection({ contextKey: null, categoryId: null });
+      setHydratedDropdown({ contextKey, ready: true, value: null });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setSelection({ contextKey, categoryId: null });
+    setHydratedDropdown({ contextKey, ready: false, value: null });
+
+    loadCategoryDropdownState(playlistId, mediaType)
+      .then(savedState => {
+        if (cancelled) {
+          return;
+        }
+        const sessionSelection = getCatalogCategorySelection(
+          playlistId,
+          mediaType,
+        );
+        const value = sessionSelection
+          ? {
+              selectedCategoryId: sessionSelection,
+              anchorCategoryId: savedState?.anchorCategoryId ?? null,
+              visibleCategoryIds: savedState?.visibleCategoryIds ?? [],
+            }
+          : savedState;
+        setHydratedDropdown({ contextKey, ready: true, value });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHydratedDropdown({ contextKey, ready: true, value: null });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [contextKey, mediaType, playlistId]);
+
+  useEffect(() => {
+    if (!categoriesReady || !playlistId || !contextKey || !dropdownReady) {
       return;
     }
 
-    const candidate = activeCategoryId;
-    const nextCategoryId = categories.some(
-      category => category.category_id === candidate,
-    )
-      ? candidate
-      : categories[0]?.category_id ?? null;
+    const availableIds = new Set(
+      categories.map(category => String(category.category_id)),
+    );
+    const sessionSelection = getCatalogCategorySelection(playlistId, mediaType);
+    const candidate =
+      activeCategoryId ?? sessionSelection ?? dropdownState?.selectedCategoryId;
+    const nextCategoryId =
+      candidate && availableIds.has(candidate)
+        ? candidate
+        : categories[0]
+        ? String(categories[0].category_id)
+        : null;
 
-    if (nextCategoryId && nextCategoryId !== storedSelection) {
+    if (nextCategoryId) {
       saveCatalogCategorySelection(playlistId, mediaType, nextCategoryId);
+    } else {
+      categorySelections.delete(contextKey);
     }
     setSelection(current =>
-      current.contextKey === contextKey &&
-      current.categoryId === nextCategoryId
+      current.contextKey === contextKey && current.categoryId === nextCategoryId
         ? current
         : { contextKey, categoryId: nextCategoryId },
     );
+
+    const normalizedDropdown: CategoryDropdownState = {
+      selectedCategoryId: nextCategoryId,
+      anchorCategoryId:
+        dropdownState?.anchorCategoryId &&
+        availableIds.has(dropdownState.anchorCategoryId)
+          ? dropdownState.anchorCategoryId
+          : null,
+      visibleCategoryIds:
+        dropdownState?.visibleCategoryIds.filter(categoryId =>
+          availableIds.has(categoryId),
+        ) ?? [],
+    };
+
+    if (!dropdownStatesEqual(dropdownState, normalizedDropdown)) {
+      setHydratedDropdown({
+        contextKey,
+        ready: true,
+        value: normalizedDropdown,
+      });
+      persistDropdownState(playlistId, mediaType, normalizedDropdown);
+    }
   }, [
     activeCategoryId,
     categories,
     categoriesReady,
     contextKey,
+    dropdownReady,
+    dropdownState,
     mediaType,
     playlistId,
-    storedSelection,
   ]);
 
   const selectCategory = useCallback(
-    (categoryId: string) => {
-      if (!playlistId || categoryId === activeCategoryId) {
+    (categoryId: string, viewport?: CategoryDropdownViewport) => {
+      if (!playlistId || !contextKey || !categoryId) {
         return;
       }
       saveCatalogCategorySelection(playlistId, mediaType, categoryId);
       setSelection({ contextKey, categoryId });
+
+      const nextDropdown: CategoryDropdownState = {
+        selectedCategoryId: categoryId,
+        anchorCategoryId:
+          viewport?.anchorCategoryId ?? dropdownState?.anchorCategoryId ?? null,
+        visibleCategoryIds:
+          viewport?.visibleCategoryIds ??
+          dropdownState?.visibleCategoryIds ??
+          [],
+      };
+      setHydratedDropdown({
+        contextKey,
+        ready: true,
+        value: nextDropdown,
+      });
+      persistDropdownState(playlistId, mediaType, nextDropdown);
+    },
+    [contextKey, dropdownState, mediaType, playlistId],
+  );
+
+  const commitDropdownViewport = useCallback(
+    (viewport: CategoryDropdownViewport) => {
+      if (!playlistId || !contextKey || !activeCategoryId) {
+        return;
+      }
+      const nextDropdown: CategoryDropdownState = {
+        selectedCategoryId: activeCategoryId,
+        anchorCategoryId: viewport.anchorCategoryId,
+        visibleCategoryIds: viewport.visibleCategoryIds,
+      };
+      setHydratedDropdown({
+        contextKey,
+        ready: true,
+        value: nextDropdown,
+      });
+      persistDropdownState(playlistId, mediaType, nextDropdown);
     },
     [activeCategoryId, contextKey, mediaType, playlistId],
   );
@@ -156,14 +307,13 @@ export function useCatalogViewState({
       ?.category_name ?? '';
 
   const contentOffset = useMemo(
-    () =>
-      ({
-        x: 0,
-        y:
-          playlistId && activeCategoryId
-            ? getCatalogScrollOffset(playlistId, mediaType, activeCategoryId)
-            : 0,
-      }),
+    () => ({
+      x: 0,
+      y:
+        playlistId && activeCategoryId
+          ? getCatalogScrollOffset(playlistId, mediaType, activeCategoryId)
+          : 0,
+    }),
     [activeCategoryId, mediaType, playlistId],
   );
 
@@ -185,8 +335,12 @@ export function useCatalogViewState({
     activeCategoryId,
     activeCategoryName,
     selectCategory,
+    dropdownState,
+    commitDropdownViewport,
     contentOffset,
     onScroll,
-    listKey: `${playlistId ?? 'no-playlist'}:${mediaType}:${activeCategoryId ?? 'none'}`,
+    listKey: `${playlistId ?? 'no-playlist'}:${mediaType}:${
+      activeCategoryId ?? 'none'
+    }`,
   };
 }

@@ -1,6 +1,8 @@
 import {
   buildPlaybackSources,
+  createVlcFallbackRequest,
   decidePlaybackFailure,
+  getExpoPlaybackContentType,
   getPlaybackResumePosition,
   switchLivePlaybackRequest,
 } from '../src/utils/playbackSources';
@@ -14,6 +16,13 @@ const connection = {
 };
 
 describe('playback source generation', () => {
+  it('lets Expo auto-detect non-manifest VOD containers', () => {
+    expect(getExpoPlaybackContentType({ type: 'm3u8' })).toBe('hls');
+    expect(getExpoPlaybackContentType({ type: 'mpd' })).toBe('dash');
+    expect(getExpoPlaybackContentType({ type: 'mp4' })).toBe('auto');
+    expect(getExpoPlaybackContentType({ type: undefined })).toBe('auto');
+  });
+
   it('builds proxied requested/alternate sources before direct live sources', () => {
     const request: PlaybackRequest = {
       kind: 'live',
@@ -54,6 +63,23 @@ describe('playback source generation', () => {
     ]);
     expect(sources[0].uri).toBe(
       'http://example.com:8080/series/user/pass/99.mkv',
+    );
+  });
+
+  it('does not allow malformed extensions into URLs or diagnostics', () => {
+    const request: PlaybackRequest = {
+      kind: 'episode',
+      streamId: '99',
+      extension: 'mkv?password=secret',
+      title: 'Episode 1',
+      seriesId: 'series-1',
+    };
+
+    const sources = buildPlaybackSources(request, connection, false);
+
+    expect(sources[0].extension).toBe('mp4');
+    expect(sources[0].uri).toBe(
+      'http://example.com:8080/series/user/pass/99.mp4',
     );
   });
 });
@@ -108,6 +134,22 @@ describe('playback fallback decisions', () => {
   it('retains the furthest VOD position across reconnects', () => {
     expect(getPlaybackResumePosition(120, 95)).toBe(120);
     expect(getPlaybackResumePosition(120, 145)).toBe(145);
+  });
+
+  it('preserves VOD progress when switching the session to VLC', () => {
+    const request: PlaybackRequest = {
+      kind: 'episode',
+      streamId: 'episode-1',
+      extension: 'mkv',
+      title: 'Episode 1',
+      seriesId: 'series-1',
+      resume: { progress: 120, totalDuration: 900 },
+    };
+
+    expect(createVlcFallbackRequest(request, 145, 1000)).toEqual({
+      ...request,
+      resume: { progress: 145, totalDuration: 1000 },
+    });
   });
 
   it('switches live channel identity while preserving the category', () => {

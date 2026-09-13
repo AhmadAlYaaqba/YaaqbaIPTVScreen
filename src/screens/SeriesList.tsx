@@ -17,7 +17,6 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import FastImage from 'react-native-fast-image';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSelector } from 'react-redux';
@@ -42,9 +41,11 @@ import {
   CatalogStatus,
 } from '../components/catalog/CatalogStates';
 import { useCatalogViewState } from '../hooks/useCatalogViewState';
+import type { CategoryDropdownViewport } from '../utils/categoryDropdownState';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { getTenPointRating } from '../utils/rating';
 import type { TabScreenProps } from '../navigation/types';
+import CachedRemoteImage from '../components/CachedRemoteImage';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
@@ -73,6 +74,7 @@ const SeriesPoster = React.memo(
     ratingFiveBased,
     onPressSeries,
     useProxy,
+    playlistId,
   }: {
     seriesId: string;
     name: string;
@@ -82,6 +84,7 @@ const SeriesPoster = React.memo(
     ratingFiveBased?: string | number;
     onPressSeries: (seriesId: string) => void;
     useProxy: boolean;
+    playlistId: string | null;
   }) => {
     const yearMatch = yearValue ? String(yearValue).match(/\d{4}/) : null;
     const raw = cover?.trim();
@@ -100,17 +103,20 @@ const SeriesPoster = React.memo(
         accessibilityRole="button"
         accessibilityLabel={name}>
         <View style={styles.poster}>
-          {posterUri ? (
-            <FastImage
-              style={StyleSheet.absoluteFill}
-              source={{ uri: posterUri, priority: FastImage.priority.normal }}
-              resizeMode={FastImage.resizeMode.cover}
-            />
-          ) : (
-            <View style={styles.posterPlaceholder}>
-              <FontAwesome5 name="tv" size={26} color={colors.fgSubtle} />
-            </View>
-          )}
+          <CachedRemoteImage
+            uri={posterUri}
+            playlistId={playlistId}
+            contentId={seriesId}
+            variant="poster"
+            style={StyleSheet.absoluteFill}
+            displayWidth={ITEM_WIDTH}
+            displayHeight={POSTER_HEIGHT}
+            fallback={
+              <View style={styles.posterPlaceholder}>
+                <FontAwesome5 name="tv" size={26} color={colors.fgSubtle} />
+              </View>
+            }
+          />
 
           {!!yearMatch?.[0] && (
             <View style={styles.yearBadge}>
@@ -170,6 +176,8 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
     activeCategoryId: activeCategory,
     activeCategoryName,
     selectCategory,
+    dropdownState,
+    commitDropdownViewport,
     contentOffset,
     onScroll,
     listKey,
@@ -203,8 +211,12 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
   } = seriesQuery;
 
   const changeCategory = useCallback(
-    (categoryId: string) => {
-      selectCategory(categoryId);
+    (
+      categoryId: string,
+      _categoryName: string,
+      viewport: CategoryDropdownViewport,
+    ) => {
+      selectCategory(categoryId, viewport);
       setSearch('');
     },
     [selectCategory],
@@ -263,10 +275,11 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
         ratingValue={item.rating}
         ratingFiveBased={item.rating_5based}
         useProxy={useProxy}
+        playlistId={playlistId}
         onPressSeries={handleSeriesPress}
       />
     ),
-    [handleSeriesPress, useProxy],
+    [handleSeriesPress, playlistId, useProxy],
   );
 
   const handleRefresh = useCallback(() => {
@@ -312,6 +325,8 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
         activeCategoryId={activeCategory}
         activeCategoryName={activeCategoryName}
         onSelect={changeCategory}
+        restorationState={dropdownState}
+        onPositionCommit={commitDropdownViewport}
         onSearchToggle={toggleSearch}
         searchActive={searchOpen}
         searchPlaceholder="Search categories"

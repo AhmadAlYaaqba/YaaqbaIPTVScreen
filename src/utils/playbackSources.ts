@@ -24,6 +24,8 @@ export interface LiveChannelSelection {
   thumbnail?: string;
 }
 
+export type ExpoPlaybackContentType = 'hls' | 'dash' | 'auto';
+
 export const PLAYBACK_RETRY_DELAYS_MS = [1000, 2000] as const;
 
 export type PlaybackFailureDecision =
@@ -33,7 +35,8 @@ export type PlaybackFailureDecision =
   | { kind: 'exhausted' };
 
 function normalizeExtension(extension: string, fallback: string): string {
-  return extension.trim().replace(/^\./, '').toLowerCase() || fallback;
+  const candidate = extension.trim().replace(/^\./, '').toLowerCase();
+  return /^[a-z0-9]{1,10}$/.test(candidate) ? candidate : fallback;
 }
 
 function getRequestedAndAlternateExtensions(
@@ -156,6 +159,45 @@ export function getPlaybackResumePosition(
   currentProgress: number,
 ): number {
   return Math.max(0, initialProgress, currentProgress);
+}
+
+export function getExpoPlaybackContentType(
+  source: Pick<PlaybackSource, 'type'>,
+): ExpoPlaybackContentType {
+  if (source.type === 'm3u8') {
+    return 'hls';
+  }
+  if (source.type === 'mpd') {
+    return 'dash';
+  }
+  return 'auto';
+}
+
+export function createVlcFallbackRequest(
+  request: PlaybackRequest,
+  currentProgress: number,
+  currentDuration: number,
+): PlaybackRequest {
+  if (request.kind === 'live') {
+    return request;
+  }
+
+  const progress = getPlaybackResumePosition(
+    request.resume?.progress ?? 0,
+    currentProgress,
+  );
+  const totalDuration =
+    currentDuration > 0
+      ? currentDuration
+      : request.resume?.totalDuration ?? request.expectedDuration;
+
+  return {
+    ...request,
+    resume: {
+      progress,
+      ...(totalDuration && totalDuration > 0 ? { totalDuration } : {}),
+    },
+  };
 }
 
 export function switchLivePlaybackRequest(

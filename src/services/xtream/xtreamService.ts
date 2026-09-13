@@ -1,10 +1,7 @@
 import axios from 'axios';
 
 import { proxyApiUrl } from '../../utils/proxy';
-import {
-  buildPlayerApiUrl,
-  XTREAM_REQUEST_HEADERS,
-} from '../../utils/xtream';
+import { buildPlayerApiUrl, XTREAM_REQUEST_HEADERS } from '../../utils/xtream';
 
 export type XtreamMediaType = 'live' | 'movie' | 'series';
 
@@ -75,6 +72,17 @@ export interface XtreamSeriesDetails {
   episodes?: Record<string, XtreamEpisode[]>;
   seasons?: unknown[];
   [key: string]: unknown;
+}
+
+export interface XtreamAccountInfo {
+  status: string;
+  isTrial: boolean;
+  expiresAt?: number;
+  createdAt?: number;
+  activeConnections?: number;
+  maxConnections?: number;
+  planName?: string;
+  allowedOutputFormats: string[];
 }
 
 export type XtreamContentByMedia = {
@@ -177,4 +185,62 @@ export async function getXtreamSeriesDetails(
   return data && typeof data === 'object'
     ? (data as XtreamSeriesDetails)
     : { info: {}, episodes: {} };
+}
+
+function optionalAccountString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function optionalAccountNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') {
+    return undefined;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export async function getXtreamAccountInfo(
+  connection: XtreamConnection,
+  signal?: AbortSignal,
+): Promise<XtreamAccountInfo> {
+  const data = await requestXtream<unknown>(connection, {
+    action: '',
+    signal,
+  });
+  const response =
+    data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
+  const raw =
+    response?.user_info && typeof response.user_info === 'object'
+      ? (response.user_info as Record<string, unknown>)
+      : null;
+
+  if (!raw) {
+    throw new Error('Xtream account response did not include user information');
+  }
+
+  const planName = [
+    raw.plan_name,
+    raw.package_name,
+    raw.subscription_name,
+    raw.bouquet_name,
+    raw.package,
+  ]
+    .map(optionalAccountString)
+    .find(Boolean);
+  const formats = Array.isArray(raw.allowed_output_formats)
+    ? raw.allowed_output_formats
+        .map(optionalAccountString)
+        .filter((value): value is string => Boolean(value))
+    : [];
+
+  return {
+    status: optionalAccountString(raw.status)?.toLowerCase() || 'active',
+    isTrial: raw.is_trial === true || String(raw.is_trial) === '1',
+    expiresAt: optionalAccountNumber(raw.exp_date),
+    createdAt: optionalAccountNumber(raw.created_at),
+    activeConnections: optionalAccountNumber(raw.active_cons),
+    maxConnections: optionalAccountNumber(raw.max_connections),
+    planName,
+    allowedOutputFormats: formats,
+  };
 }

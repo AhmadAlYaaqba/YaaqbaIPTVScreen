@@ -1,4 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   View,
   Text,
@@ -8,10 +15,19 @@ import {
   FlatList,
   Platform,
   Modal,
+  type ListRenderItemInfo,
+  type ViewToken,
 } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
 import { colors, radii } from '../../theme/colors';
+import {
+  CATEGORY_DROPDOWN_ROW_HEIGHT,
+  CategoryDropdownState,
+  CategoryDropdownViewport,
+  getCategoryDropdownFallbackOffset,
+  resolveCategoryDropdownScrollTarget,
+} from '../../utils/categoryDropdownState';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 
@@ -25,7 +41,13 @@ interface CategoryDropdownProps {
   categories: DropdownCategory[];
   activeCategoryId: string | null;
   activeCategoryName: string;
-  onSelect: (categoryId: string, categoryName: string) => void;
+  onSelect: (
+    categoryId: string,
+    categoryName: string,
+    viewport: CategoryDropdownViewport,
+  ) => void;
+  restorationState?: CategoryDropdownState | null;
+  onPositionCommit?: (viewport: CategoryDropdownViewport) => void;
   accent?: string;
   icon?: string;
   searchPlaceholder?: string;
@@ -33,6 +55,47 @@ interface CategoryDropdownProps {
   searchActive?: boolean;
   onBack?: () => void;
 }
+
+const EMPTY_VIEWPORT: CategoryDropdownViewport = {
+  anchorCategoryId: null,
+  visibleCategoryIds: [],
+};
+
+const CategoryRow = memo(
+  ({
+    item,
+    active,
+    accent,
+    onSelect,
+  }: {
+    item: DropdownCategory;
+    active: boolean;
+    accent: string;
+    onSelect: (category: DropdownCategory) => void;
+  }) => {
+    const handlePress = useCallback(() => onSelect(item), [item, onSelect]);
+    const activeStyle = useMemo(
+      () => (active ? { backgroundColor: `${accent}1f` } : null),
+      [accent, active],
+    );
+
+    return (
+      <Pressable
+        onPress={handlePress}
+        style={[styles.row, activeStyle]}
+        accessibilityRole="button"
+        accessibilityLabel={item.category_name}
+        accessibilityState={{ selected: active }}>
+        <Text
+          style={[styles.rowText, active && styles.rowTextActive]}
+          numberOfLines={1}>
+          {item.category_name}
+        </Text>
+        {active && <FontAwesome5 name="check" size={13} color={accent} />}
+      </Pressable>
+    );
+  },
+);
 
 // ─────────────────────────────────────────────────────────────
 // Reusable Mirror category switcher — header trigger + searchable
@@ -44,6 +107,8 @@ export default function CategoryDropdown({
   activeCategoryId,
   activeCategoryName,
   onSelect,
+  restorationState = null,
+  onPositionCommit,
   accent = colors.magentaOnAir,
   icon = 'layer-group',
   searchPlaceholder = 'Search categories',
@@ -55,10 +120,35 @@ export default function CategoryDropdown({
   const [query, setQuery] = useState('');
   const [panelTop, setPanelTop] = useState(0);
   const headerRef = useRef<View>(null);
+  const listRef = useRef<FlatList<DropdownCategory>>(null);
+  const queryRef = useRef('');
+  const normalViewportRef = useRef<CategoryDropdownViewport>(EMPTY_VIEWPORT);
+  const failedScrollRetriedRef = useRef(false);
+  const suppressViewabilityRef = useRef(false);
+  const restorationViewportRef =
+    useRef<CategoryDropdownViewport>(EMPTY_VIEWPORT);
+  const lastScrollTargetRef = useRef<{
+    index: number;
+    viewPosition: 0 | 0.5;
+  } | null>(null);
 
   useEffect(() => {
-    if (!open) setQuery('');
+    if (!open) {
+      queryRef.current = '';
+      setQuery('');
+    }
   }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      normalViewportRef.current = restorationState
+        ? {
+            anchorCategoryId: restorationState.anchorCategoryId,
+            visibleCategoryIds: [...restorationState.visibleCategoryIds],
+          }
+        : EMPTY_VIEWPORT;
+    }
+  }, [open, restorationState]);
 
   const safeCategories = useMemo(
     () => (Array.isArray(categories) ? categories : []),
@@ -76,21 +166,176 @@ export default function CategoryDropdown({
     [normalized, safeCategories],
   );
 
-  const toggleOpen = () => {
+  const commitPosition = useCallback(() => {
+    onPositionCommit?.({
+      anchorCategoryId: normalViewportRef.current.anchorCategoryId,
+      visibleCategoryIds: [...normalViewportRef.current.visibleCategoryIds],
+    });
+  }, [onPositionCommit]);
+
+  const closeDropdown = useCallback(() => {
+    commitPosition();
+    setOpen(false);
+  }, [commitPosition]);
+
+  const toggleOpen = useCallback(() => {
     if (open) {
-      setOpen(false);
+      closeDropdown();
       return;
     }
     headerRef.current?.measureInWindow((_x, y, _w, h) => {
+      failedScrollRetriedRef.current = false;
+      suppressViewabilityRef.current = true;
+      restorationViewportRef.current = {
+        anchorCategoryId: normalViewportRef.current.anchorCategoryId,
+        visibleCategoryIds: [...normalViewportRef.current.visibleCategoryIds],
+      };
       setPanelTop(y + h + 2);
       setOpen(true);
     });
-  };
+  }, [closeDropdown, open]);
 
-  const handleSelect = (c: DropdownCategory) => {
-    onSelect(c.category_id, c.category_name);
-    setOpen(false);
-  };
+  const handleSelect = useCallback(
+    (category: DropdownCategory) => {
+      onSelect(category.category_id, category.category_name, {
+        anchorCategoryId: normalViewportRef.current.anchorCategoryId,
+        visibleCategoryIds: [...normalViewportRef.current.visibleCategoryIds],
+      });
+      setOpen(false);
+    },
+    [onSelect],
+  );
+
+  const handleQueryChange = useCallback((value: string) => {
+    const wasSearching = Boolean(queryRef.current.trim());
+    const willSearch = Boolean(value.trim());
+    if (wasSearching && !willSearch) {
+      suppressViewabilityRef.current = true;
+      restorationViewportRef.current = {
+        anchorCategoryId: normalViewportRef.current.anchorCategoryId,
+        visibleCategoryIds: [...normalViewportRef.current.visibleCategoryIds],
+      };
+    }
+    queryRef.current = value;
+    setQuery(value);
+  }, []);
+
+  const handleViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (queryRef.current.trim() || suppressViewabilityRef.current) {
+        return;
+      }
+      const visibleCategoryIds = viewableItems
+        .filter(token => token.isViewable && token.item)
+        .sort((first, second) => (first.index ?? 0) - (second.index ?? 0))
+        .map(token => String((token.item as DropdownCategory).category_id));
+
+      normalViewportRef.current = {
+        anchorCategoryId: visibleCategoryIds[0] ?? null,
+        visibleCategoryIds,
+      };
+    },
+  ).current;
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
+
+  const restoreListPosition = useCallback(() => {
+    if (!open || normalized || safeCategories.length === 0) {
+      return;
+    }
+    const target = resolveCategoryDropdownScrollTarget(
+      safeCategories,
+      activeCategoryId,
+      {
+        selectedCategoryId: activeCategoryId,
+        anchorCategoryId: restorationViewportRef.current.anchorCategoryId,
+        visibleCategoryIds: restorationViewportRef.current.visibleCategoryIds,
+      },
+    );
+    if (!target) {
+      suppressViewabilityRef.current = false;
+      return;
+    }
+    const index = safeCategories.findIndex(
+      category => category.category_id === target.categoryId,
+    );
+    if (index < 0) {
+      suppressViewabilityRef.current = false;
+      return;
+    }
+    lastScrollTargetRef.current = {
+      index,
+      viewPosition: target.viewPosition,
+    };
+    listRef.current?.scrollToIndex({
+      index,
+      animated: false,
+      viewPosition: target.viewPosition,
+    });
+    requestAnimationFrame(() => {
+      suppressViewabilityRef.current = false;
+    });
+  }, [activeCategoryId, normalized, open, safeCategories]);
+
+  useEffect(() => {
+    if (!open || normalized) {
+      return;
+    }
+    const frame = requestAnimationFrame(restoreListPosition);
+    return () => cancelAnimationFrame(frame);
+  }, [normalized, open, restoreListPosition]);
+
+  const handleScrollToIndexFailed = useCallback(
+    ({ index }: { index: number }) => {
+      listRef.current?.scrollToOffset({
+        animated: false,
+        offset: getCategoryDropdownFallbackOffset(index),
+      });
+      if (failedScrollRetriedRef.current) {
+        return;
+      }
+      failedScrollRetriedRef.current = true;
+      requestAnimationFrame(() => {
+        const target = lastScrollTargetRef.current;
+        if (!target) {
+          return;
+        }
+        listRef.current?.scrollToIndex({
+          index: target.index,
+          animated: false,
+          viewPosition: target.viewPosition,
+        });
+      });
+    },
+    [],
+  );
+
+  const renderCategory = useCallback(
+    ({ item }: ListRenderItemInfo<DropdownCategory>) => (
+      <CategoryRow
+        item={item}
+        active={item.category_id === activeCategoryId}
+        accent={accent}
+        onSelect={handleSelect}
+      />
+    ),
+    [accent, activeCategoryId, handleSelect],
+  );
+
+  const keyExtractor = useCallback(
+    (item: DropdownCategory) => String(item.category_id),
+    [],
+  );
+
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<DropdownCategory> | null | undefined, index: number) => ({
+      length: CATEGORY_DROPDOWN_ROW_HEIGHT,
+      offset: CATEGORY_DROPDOWN_ROW_HEIGHT * index,
+      index,
+    }),
+    [],
+  );
 
   return (
     <View style={styles.root}>
@@ -169,10 +414,10 @@ export default function CategoryDropdown({
         transparent
         animationType="none"
         statusBarTranslucent
-        onRequestClose={() => setOpen(false)}>
+        onRequestClose={closeDropdown}>
         <Pressable
           style={styles.scrim}
-          onPress={() => setOpen(false)}
+          onPress={closeDropdown}
           accessible={false}
         />
         <View
@@ -182,7 +427,7 @@ export default function CategoryDropdown({
             <FontAwesome5 name="search" size={14} color={colors.fgSubtle} />
             <TextInput
               value={query}
-              onChangeText={setQuery}
+              onChangeText={handleQueryChange}
               placeholder={searchPlaceholder}
               placeholderTextColor={colors.fgSubtle}
               style={styles.panelSearchInput}
@@ -194,38 +439,25 @@ export default function CategoryDropdown({
           </View>
 
           <FlatList
+            ref={listRef}
             data={filtered}
-            keyExtractor={item => String(item.category_id)}
+            keyExtractor={keyExtractor}
+            renderItem={renderCategory}
+            getItemLayout={getItemLayout}
+            onViewableItemsChanged={handleViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            onScrollToIndexFailed={handleScrollToIndexFailed}
+            onLayout={restoreListPosition}
             keyboardShouldPersistTaps="always"
             showsVerticalScrollIndicator={false}
             style={styles.panelList}
             contentContainerStyle={styles.panelListContent}
+            initialNumToRender={12}
+            maxToRenderPerBatch={12}
+            windowSize={7}
             ListEmptyComponent={
               <Text style={styles.emptyText}>No categories found</Text>
             }
-            renderItem={({ item }) => {
-              const active = item.category_id === activeCategoryId;
-              return (
-                <Pressable
-                  onPress={() => handleSelect(item)}
-                  style={[
-                    styles.row,
-                    active && { backgroundColor: `${accent}1f` },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel={item.category_name}
-                  accessibilityState={{ selected: active }}>
-                  <Text
-                    style={[styles.rowText, active && styles.rowTextActive]}
-                    numberOfLines={1}>
-                    {item.category_name}
-                  </Text>
-                  {active && (
-                    <FontAwesome5 name="check" size={13} color={accent} />
-                  )}
-                </Pressable>
-              );
-            }}
           />
         </View>
       </Modal>
@@ -364,11 +596,12 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
   },
   row: {
+    height: CATEGORY_DROPDOWN_ROW_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    paddingVertical: 12,
+    paddingVertical: 0,
     paddingHorizontal: 10,
     borderRadius: 12,
     minHeight: 48,

@@ -2,9 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 
 import {
   getXtreamCategories,
+  getXtreamAccountInfo,
   getXtreamCategoryContent,
   getXtreamSeriesDetails,
   XtreamContentByMedia,
+  XtreamAccountInfo,
   XtreamMediaType,
   XtreamSession,
 } from './xtreamService';
@@ -12,6 +14,8 @@ import {
 export const XTREAM_CATEGORY_STALE_TIME_MS = 12 * 60 * 60 * 1000;
 export const XTREAM_CONTENT_STALE_TIME_MS = 30 * 60 * 1000;
 export const XTREAM_SERIES_DETAILS_STALE_TIME_MS = 60 * 60 * 1000;
+export const XTREAM_ACCOUNT_STALE_TIME_MS = 15 * 60 * 1000;
+export const XTREAM_ACCOUNT_GC_TIME_MS = 60 * 60 * 1000;
 export const XTREAM_CACHE_GC_TIME_MS = 24 * 60 * 60 * 1000;
 
 export const xtreamQueryKeys = {
@@ -26,9 +30,12 @@ export const xtreamQueryKeys = {
   ) => ['xtream', playlistId, mediaType, 'category', categoryId] as const,
   seriesDetails: (playlistId: string, seriesId: string) =>
     ['xtream', playlistId, 'series', 'details', seriesId] as const,
+  account: (playlistId: string) => ['xtream', playlistId, 'account'] as const,
 };
 
-function isSessionReady(session: XtreamSession | null): session is XtreamSession {
+function isSessionReady(
+  session: XtreamSession | null,
+): session is XtreamSession {
   return Boolean(
     session?.playlistId &&
       session.username &&
@@ -87,6 +94,22 @@ export function useXtreamSeriesDetails(
     enabled: isSessionReady(session) && Boolean(seriesId),
     staleTime: XTREAM_SERIES_DETAILS_STALE_TIME_MS,
     gcTime: XTREAM_CACHE_GC_TIME_MS,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+  });
+}
+
+export function useXtreamAccountInfo(
+  session: XtreamSession | null,
+  enabled = true,
+) {
+  const playlistId = session?.playlistId ?? 'no-playlist';
+  return useQuery<XtreamAccountInfo>({
+    queryKey: xtreamQueryKeys.account(playlistId),
+    queryFn: ({ signal }) => getXtreamAccountInfo(session!, signal),
+    enabled: enabled && isSessionReady(session),
+    staleTime: XTREAM_ACCOUNT_STALE_TIME_MS,
+    gcTime: XTREAM_ACCOUNT_GC_TIME_MS,
     refetchOnMount: true,
     refetchOnReconnect: true,
   });

@@ -12,7 +12,6 @@ import {
   FlatList,
   RefreshControl,
   TouchableOpacity,
-  Image,
   TextInput,
   Dimensions,
   Platform,
@@ -41,8 +40,10 @@ import {
   CatalogStatus,
 } from '../components/catalog/CatalogStates';
 import { useCatalogViewState } from '../hooks/useCatalogViewState';
+import type { CategoryDropdownViewport } from '../utils/categoryDropdownState';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import type { TabScreenProps } from '../navigation/types';
+import CachedRemoteImage from '../components/CachedRemoteImage';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
@@ -69,6 +70,7 @@ const ChannelCard = React.memo(
     channelNumber,
     onPressChannel,
     useProxy,
+    playlistId,
   }: {
     streamId: number;
     name: string;
@@ -82,6 +84,7 @@ const ChannelCard = React.memo(
       extension?: string,
     ) => void;
     useProxy: boolean;
+    playlistId: string | null;
   }) => {
     const icon = rawIcon ? proxyStreamUrl(rawIcon, useProxy) : null;
     const number = channelNumber != null ? String(channelNumber) : '';
@@ -98,17 +101,21 @@ const ChannelCard = React.memo(
         accessibilityRole="button"
         accessibilityLabel={number ? `${name}, channel ${number}` : name}>
         <View style={styles.logoTile}>
-          {icon ? (
-            <Image
-              source={{ uri: icon }}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          ) : (
-            <View style={styles.logoFallback}>
-              <FontAwesome5 name="tv" size={26} color={colors.fgSubtle} />
-            </View>
-          )}
+          <CachedRemoteImage
+            uri={icon}
+            playlistId={playlistId}
+            contentId={streamId}
+            variant="channel-logo"
+            style={styles.logoImage}
+            contentFit="contain"
+            displayWidth={ITEM_WIDTH * 0.78}
+            displayHeight={ITEM_WIDTH * 0.78}
+            fallback={
+              <View style={styles.logoFallback}>
+                <FontAwesome5 name="tv" size={26} color={colors.fgSubtle} />
+              </View>
+            }
+          />
         </View>
         {!!number && (
           <Text style={styles.cardNumber} numberOfLines={1}>
@@ -151,6 +158,8 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
     activeCategoryId: activeCategory,
     activeCategoryName,
     selectCategory,
+    dropdownState,
+    commitDropdownViewport,
     contentOffset,
     onScroll,
     listKey,
@@ -184,8 +193,12 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
   } = channelsQuery;
 
   const handleCategorySelect = useCallback(
-    (categoryId: string) => {
-      selectCategory(categoryId);
+    (
+      categoryId: string,
+      _categoryName: string,
+      viewport: CategoryDropdownViewport,
+    ) => {
+      selectCategory(categoryId, viewport);
       setSearch('');
     },
     [selectCategory],
@@ -231,10 +244,11 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
         extension={item.container_extension}
         channelNumber={item.num}
         useProxy={useProxy}
+        playlistId={playlistId}
         onPressChannel={handleChannelPress}
       />
     ),
-    [handleChannelPress, useProxy],
+    [handleChannelPress, playlistId, useProxy],
   );
 
   const deferredSearch = useDeferredValue(search);
@@ -290,6 +304,8 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
         activeCategoryId={activeCategory}
         activeCategoryName={activeCategoryName}
         onSelect={handleCategorySelect}
+        restorationState={dropdownState}
+        onPositionCommit={commitDropdownViewport}
         onSearchToggle={toggleSearch}
         searchActive={searchOpen}
         searchPlaceholder="Search categories"

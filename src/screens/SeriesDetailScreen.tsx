@@ -1,16 +1,23 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  FlatList,
+  type ListRenderItem,
   Dimensions,
   Platform,
   Pressable,
   RefreshControl,
 } from 'react-native';
-import FastImage from 'react-native-fast-image';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
@@ -23,7 +30,10 @@ import {
   getXtreamErrorMessage,
   useXtreamSeriesDetails,
 } from '../services/xtream/xtreamQueries';
-import type { XtreamSession } from '../services/xtream/xtreamService';
+import type {
+  XtreamEpisode,
+  XtreamSession,
+} from '../services/xtream/xtreamService';
 import { storage, type WatchProgress } from '../utils/storage';
 import { proxyStreamUrl } from '../utils/proxy';
 import {
@@ -40,6 +50,7 @@ import { colors, sectionAccents, radii } from '../theme/colors';
 import { getTenPointRating } from '../utils/rating';
 import { CatalogStatus } from '../components/catalog/CatalogStates';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import CachedRemoteImage from '../components/CachedRemoteImage';
 
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
@@ -52,6 +63,22 @@ export type SeriesDetailNavProp = Props['navigation'];
 
 const { width } = Dimensions.get('window');
 const THUMB_W = 124;
+
+interface EpisodeRowData {
+  key: string;
+  imageContentId: string;
+  index: number;
+  title: string;
+  image: string | null;
+  duration: string | null;
+  synopsis: string;
+  remaining: string | null;
+  progressPercent: number;
+}
+
+interface EpisodeRowProps extends Omit<EpisodeRowData, 'key'> {
+  onPressEpisode: (index: number) => void;
+}
 
 const SeriesDetailSkeleton = React.memo(() => (
   <View style={styles.skeletonRoot}>
@@ -87,6 +114,111 @@ function formatRemaining(p?: WatchProgress) {
     : `Continue · ${min}m left`;
 }
 
+const CastListItem = React.memo(
+  ({
+    memberId,
+    name,
+    profile,
+    playlistId,
+  }: Pick<CastMember, 'name' | 'profile'> & {
+    memberId: string;
+    playlistId: string | null;
+  }) => (
+    <View style={styles.castItem}>
+      <CachedRemoteImage
+        uri={profile}
+        playlistId={playlistId}
+        contentId={memberId}
+        variant="cast"
+        style={styles.castAvatar}
+        displayWidth={60}
+        displayHeight={60}
+        fallback={
+          <View style={styles.castAvatarFallback}>
+            <Text style={styles.castInitials}>{initials(name)}</Text>
+          </View>
+        }
+      />
+      <Text style={styles.castName} numberOfLines={2}>
+        {name}
+      </Text>
+    </View>
+  ),
+);
+
+const EpisodeListItem = React.memo(
+  ({
+    index,
+    imageContentId,
+    title,
+    image,
+    duration,
+    synopsis,
+    remaining,
+    progressPercent,
+    onPressEpisode,
+    playlistId,
+  }: EpisodeRowProps & { playlistId: string | null }) => {
+    const handlePress = useCallback(() => {
+      onPressEpisode(index);
+    }, [index, onPressEpisode]);
+
+    return (
+      <TouchableOpacity
+        style={styles.episodeRow}
+        activeOpacity={0.8}
+        onPress={handlePress}
+        accessibilityRole="button"
+        accessibilityLabel={[
+          title,
+          duration ? `duration ${duration}` : null,
+          remaining,
+        ]
+          .filter(Boolean)
+          .join(', ')}>
+        <View style={styles.epThumb}>
+          <CachedRemoteImage
+            uri={image}
+            playlistId={playlistId}
+            contentId={imageContentId}
+            variant="episode-still"
+            style={StyleSheet.absoluteFill}
+            displayWidth={THUMB_W}
+            displayHeight={(THUMB_W * 9) / 16}
+            fallback={
+              <View style={[StyleSheet.absoluteFill, styles.heroPlaceholder]} />
+            }
+          />
+          <View style={styles.epPlay}>
+            <FontAwesome5 name="play" size={11} color={colors.fg} solid />
+          </View>
+          {progressPercent > 0 && (
+            <View style={styles.epProgressTrack}>
+              <View
+                style={[
+                  styles.epProgressFill,
+                  { width: `${progressPercent}%` },
+                ]}
+              />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.epBody}>
+          <Text style={styles.epTitle}>{title}</Text>
+          {!!duration && <Text style={styles.epDuration}>{duration}</Text>}
+          {!!synopsis && (
+            <Text style={styles.epSynopsis} numberOfLines={2}>
+              {synopsis}
+            </Text>
+          )}
+          {!!remaining && <Text style={styles.epContinue}>{remaining}</Text>}
+        </View>
+      </TouchableOpacity>
+    );
+  },
+);
+
 const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const { seriesId, seriesName, baseInfo } = route.params;
   const insets = useSafeAreaInsets();
@@ -119,6 +251,8 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [seasonOpen, setSeasonOpen] = useState(false);
+  const episodeListRef = useRef<FlatList<EpisodeRowData>>(null);
+  const shouldRestoreEpisodeSectionRef = useRef(false);
 
   const xtreamYear = baseInfo?.releaseDate
     ? String(baseInfo.releaseDate).substring(0, 4)
@@ -237,70 +371,188 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const genres =
     xtreamGenres.length > 0 ? xtreamGenres : tmdbDetails?.genres ?? [];
 
-  const xtreamCastArr: string[] = info.cast
-    ? String(info.cast)
-        .split(',')
-        .map((n: string) => n.trim())
-        .filter(Boolean)
-    : [];
-  const castMembers: CastMember[] = tmdbDetails?.cast?.length
-    ? tmdbDetails.cast
-    : xtreamCastArr.map((name, index) => ({
-        id: String(index),
-        name,
-      }));
+  const castMembers = useMemo<CastMember[]>(() => {
+    if (tmdbDetails?.cast?.length) {
+      return tmdbDetails.cast;
+    }
+    return info.cast
+      ? String(info.cast)
+          .split(',')
+          .map((name: string, index: number) => ({
+            id: String(index),
+            name: name.trim(),
+          }))
+          .filter(member => Boolean(member.name))
+      : [];
+  }, [info.cast, tmdbDetails?.cast]);
 
-  const getEpisodeStill = (ep: any, index: number): string | null => {
-    const episodeNumber = ep.episode_num ?? ep.episode ?? index + 1;
-    const tmdbEpisode = seasonEpisodes.find(
-      item => item.episodeNumber === Number(episodeNumber),
+  const episodeRows = useMemo<EpisodeRowData[]>(() => {
+    const tmdbByEpisodeNumber = new Map(
+      seasonEpisodes.map(episode => [episode.episodeNumber, episode]),
     );
-    if (tmdbEpisode?.still) {
-      return tmdbEpisode.still;
-    }
-    if (ep.info?.movie_image) {
-      return proxyStreamUrl(ep.info.movie_image, useProxy);
-    }
-    if (heroImg) {
-      return heroImg;
-    }
-    return null;
-  };
 
-  const getEpisodeSynopsis = (ep: any, index: number): string => {
-    const episodeNumber = ep.episode_num ?? ep.episode ?? index + 1;
-    const tmdbEpisode = seasonEpisodes.find(
-      item => item.episodeNumber === Number(episodeNumber),
-    );
-    return ep.info?.plot || tmdbEpisode?.overview || '';
-  };
+    return currentEpisodes.map((episode: XtreamEpisode, index: number) => {
+      const episodeNumber = Number(
+        episode.episode_num ?? episode.episode ?? index + 1,
+      );
+      const tmdbEpisode = tmdbByEpisodeNumber.get(episodeNumber);
+      const progress = watchProgress[String(episode.id)];
+      const rawDuration = episode.info?.duration;
+      const duration =
+        rawDuration && /[1-9]/.test(String(rawDuration))
+          ? String(rawDuration)
+          : null;
+      const image = tmdbEpisode?.still
+        ? tmdbEpisode.still
+        : episode.info?.movie_image
+        ? proxyStreamUrl(String(episode.info.movie_image), useProxy)
+        : heroImg;
+      const progressPercent =
+        progress?.totalDuration && progress.totalDuration > 0
+          ? Math.max(
+              0,
+              Math.min(100, (progress.progress / progress.totalDuration) * 100),
+            )
+          : 0;
 
-  const playEpisode = (ep: any, index: number) => {
-    if (!ep) return;
-    const savedProgress = watchProgress[ep.id];
-    const fallbackRuntimeMinutes =
-      parseRuntimeMinutes(info.episode_run_time) ?? tmdbDetails?.runtime;
-
-    navigation.navigate('VideoPlayer', {
-      request: {
-        kind: 'episode',
-        streamId: String(ep.id),
-        extension: ep.container_extension || 'mp4',
-        title: ep.title || 'Episode',
-        expectedDuration: getMediaDurationSeconds(ep, fallbackRuntimeMinutes),
-        seriesId,
-        episodeList: currentEpisodes,
-        currentEpisodeIndex: index,
-        resume: savedProgress
-          ? {
-              progress: savedProgress.progress,
-              totalDuration: savedProgress.totalDuration,
-            }
-          : undefined,
-        thumbnail: info.backdrop_path?.[0] || info.cover,
-      },
+      return {
+        key: `${selectedSeason ?? 'season'}:${String(episode.id)}`,
+        imageContentId: `${seriesId}:${selectedSeason ?? 'season'}:${String(
+          episode.id,
+        )}`,
+        index,
+        title: episode.title || `Episode ${index + 1}`,
+        image: image || null,
+        duration,
+        synopsis: episode.info?.plot || tmdbEpisode?.overview || '',
+        remaining: formatRemaining(progress),
+        progressPercent,
+      };
     });
-  };
+  }, [
+    currentEpisodes,
+    heroImg,
+    seasonEpisodes,
+    selectedSeason,
+    seriesId,
+    useProxy,
+    watchProgress,
+  ]);
+
+  const playbackThumbnail = info.backdrop_path?.[0] || info.cover;
+  const fallbackRuntimeMinutes =
+    parseRuntimeMinutes(info.episode_run_time) ?? tmdbDetails?.runtime;
+
+  const playEpisodeAtIndex = useCallback(
+    (index: number) => {
+      const ep = currentEpisodes[index];
+      if (!ep) return;
+      const savedProgress = watchProgress[String(ep.id)];
+
+      navigation.navigate('VideoPlayer', {
+        request: {
+          kind: 'episode',
+          streamId: String(ep.id),
+          extension: ep.container_extension || 'mp4',
+          title: ep.title || 'Episode',
+          expectedDuration: getMediaDurationSeconds(ep, fallbackRuntimeMinutes),
+          seriesId,
+          episodeList: currentEpisodes,
+          currentEpisodeIndex: index,
+          resume: savedProgress
+            ? {
+                progress: savedProgress.progress,
+                totalDuration: savedProgress.totalDuration,
+              }
+            : undefined,
+          thumbnail: playbackThumbnail,
+        },
+      });
+    },
+    [
+      currentEpisodes,
+      fallbackRuntimeMinutes,
+      navigation,
+      playbackThumbnail,
+      seriesId,
+      watchProgress,
+    ],
+  );
+
+  const handlePlayFirstEpisode = useCallback(() => {
+    playEpisodeAtIndex(0);
+  }, [playEpisodeAtIndex]);
+
+  const handleSeasonSelect = useCallback((season: string) => {
+    shouldRestoreEpisodeSectionRef.current = true;
+    setSelectedSeason(season);
+    setSeasonOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!shouldRestoreEpisodeSectionRef.current) {
+      return;
+    }
+    shouldRestoreEpisodeSectionRef.current = false;
+    const frame = requestAnimationFrame(() => {
+      if (episodeRows.length > 0) {
+        episodeListRef.current?.scrollToIndex({
+          index: 0,
+          animated: true,
+          viewPosition: 0,
+        });
+      } else {
+        episodeListRef.current?.scrollToEnd({ animated: true });
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [episodeRows]);
+
+  const renderCastItem: ListRenderItem<CastMember> = useCallback(
+    ({ item }) => (
+      <CastListItem
+        memberId={item.id}
+        name={item.name}
+        profile={item.profile}
+        playlistId={playlistId}
+      />
+    ),
+    [playlistId],
+  );
+  const castKeyExtractor = useCallback((item: CastMember) => item.id, []);
+
+  const renderEpisode: ListRenderItem<EpisodeRowData> = useCallback(
+    ({ item }) => (
+      <EpisodeListItem
+        key={item.key}
+        index={item.index}
+        imageContentId={item.imageContentId}
+        title={item.title}
+        image={item.image}
+        duration={item.duration}
+        synopsis={item.synopsis}
+        remaining={item.remaining}
+        progressPercent={item.progressPercent}
+        playlistId={playlistId}
+        onPressEpisode={playEpisodeAtIndex}
+      />
+    ),
+    [playEpisodeAtIndex, playlistId],
+  );
+  const episodeKeyExtractor = useCallback(
+    (item: EpisodeRowData) => item.key,
+    [],
+  );
+  const handleScrollToEpisodeFailed = useCallback(() => {
+    episodeListRef.current?.scrollToEnd({ animated: false });
+    requestAnimationFrame(() => {
+      episodeListRef.current?.scrollToIndex({
+        index: 0,
+        animated: true,
+        viewPosition: 0,
+      });
+    });
+  }, []);
 
   const refetchSeriesDetails = seriesDetailsQuery.refetch;
   const handleRefresh = useCallback(() => {
@@ -346,9 +598,19 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <View style={styles.root}>
-      <ScrollView
+      <FlatList
+        ref={episodeListRef}
+        data={episodeRows}
+        renderItem={renderEpisode}
+        keyExtractor={episodeKeyExtractor}
+        onScrollToIndexFailed={handleScrollToEpisodeFailed}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
+        initialNumToRender={6}
+        maxToRenderPerBatch={8}
+        updateCellsBatchingPeriod={50}
+        windowSize={7}
+        removeClippedSubviews={Platform.OS === 'android'}
         refreshControl={
           <RefreshControl
             refreshing={seriesDetailsQuery.isRefetching}
@@ -356,350 +618,279 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             tintColor={ACCENT}
             colors={REFRESH_COLORS}
           />
-        }>
-        {/* ── Hero ── */}
-        <View style={styles.hero}>
-          {heroImg ? (
-            <FastImage
-              source={{ uri: heroImg }}
-              style={StyleSheet.absoluteFill}
-              resizeMode={FastImage.resizeMode.cover}
-            />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, styles.heroPlaceholder]} />
-          )}
-          <LinearGradient
-            colors={['transparent', 'rgba(7,11,21,0.6)', colors.bg]}
-            locations={[0, 0.55, 1]}
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
-          />
+        }
+        ListHeaderComponent={
+          <>
+            {/* ── Hero ── */}
+            <View style={styles.hero}>
+              <CachedRemoteImage
+                uri={heroImg}
+                playlistId={playlistId}
+                contentId={seriesId}
+                variant="backdrop"
+                style={StyleSheet.absoluteFill}
+                priority="high"
+                displayWidth={width}
+                displayHeight={(width * 11) / 16}
+                fallback={
+                  <View
+                    style={[StyleSheet.absoluteFill, styles.heroPlaceholder]}
+                  />
+                }
+              />
+              <LinearGradient
+                colors={['transparent', 'rgba(7,11,21,0.6)', colors.bg]}
+                locations={[0, 0.55, 1]}
+                style={StyleSheet.absoluteFill}
+                pointerEvents="none"
+              />
 
-          {/* top buttons */}
-          <View style={[styles.heroTopRow, { top: insets.top + 8 }]}>
-            <TouchableOpacity
-              style={styles.glassBtn}
-              activeOpacity={0.8}
-              onPress={handleGoBack}
-              accessibilityRole="button"
-              accessibilityLabel="Back to series">
-              <FontAwesome5 name="chevron-left" size={17} color={colors.fg} />
-            </TouchableOpacity>
-          </View>
-
-          {/* poster + title */}
-          <View style={styles.heroBottom}>
-            <View style={styles.poster}>
-              {posterImg ? (
-                <FastImage
-                  source={{ uri: posterImg }}
-                  style={StyleSheet.absoluteFill}
-                  resizeMode={FastImage.resizeMode.cover}
-                />
-              ) : (
-                <View style={[StyleSheet.absoluteFill, styles.heroPlaceholder]}>
-                  <FontAwesome5 name="tv" size={24} color={colors.fgSubtle} />
-                </View>
-              )}
-            </View>
-
-            <View style={styles.heroTextBlock}>
-              <Text style={styles.eyebrow}>SERIES</Text>
-              <Text style={styles.title} numberOfLines={2}>
-                {info.name || seriesName}
-              </Text>
-              <View style={styles.metaRow}>
-                {rating != null && (
-                  <View style={styles.metaItem}>
-                    <FontAwesome5
-                      name="star"
-                      size={11}
-                      color={colors.warning}
-                      solid
-                    />
-                    <Text style={styles.metaStrong}>{rating}</Text>
-                  </View>
-                )}
-                {!!year && (
-                  <>
-                    {rating != null && <Text style={styles.metaDot}>·</Text>}
-                    <Text style={styles.metaText}>{year}</Text>
-                  </>
-                )}
-                {seasons.length > 0 && (
-                  <>
-                    {(rating != null || !!year) && (
-                      <Text style={styles.metaDot}>·</Text>
-                    )}
-                    <Text style={styles.metaText}>
-                      {seasons.length} season{seasons.length === 1 ? '' : 's'}
-                    </Text>
-                  </>
-                )}
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* ── Genre chips ── */}
-        {genres.length > 0 && (
-          <View style={styles.genreRow}>
-            {genres.map((g, i) => (
-              <View key={`${g}-${i}`} style={styles.genreChip}>
-                <Text style={styles.genreText}>{g}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* ── Primary actions ── */}
-        {currentEpisodes.length > 0 && (
-          <View style={styles.actionsRow}>
-            <TouchableOpacity
-              style={styles.playButton}
-              activeOpacity={0.85}
-              onPress={() => playEpisode(currentEpisodes[0], 0)}
-              accessibilityRole="button"
-              accessibilityLabel={playLabel}>
-              <FontAwesome5 name="play" size={14} color={colors.scene} solid />
-              <Text style={styles.playText}>{playLabel}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ── Description ── */}
-        {!!plot && (
-          <View style={styles.descBlock}>
-            <Text
-              style={styles.descText}
-              numberOfLines={expanded ? undefined : 3}>
-              {plot}
-            </Text>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setExpanded(e => !e)}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={
-                expanded ? 'Show less' : 'Read full description'
-              }
-              accessibilityState={{ expanded }}>
-              <Text style={styles.readMore}>
-                {expanded ? 'Show less' : 'Read more'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ── Cast ── */}
-        {castMembers.length > 0 && (
-          <View style={styles.castBlock}>
-            <Text style={styles.sectionEyebrow}>CAST</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.castScroll}>
-              {castMembers.map(member => (
-                <View key={member.id} style={styles.castItem}>
-                  <View style={styles.castAvatar}>
-                    {member.profile ? (
-                      <FastImage
-                        source={{ uri: member.profile }}
-                        style={StyleSheet.absoluteFill}
-                        resizeMode={FastImage.resizeMode.cover}
-                      />
-                    ) : (
-                      <Text style={styles.castInitials}>
-                        {initials(member.name)}
-                      </Text>
-                    )}
-                  </View>
-                  <Text style={styles.castName} numberOfLines={2}>
-                    {member.name}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* ── Episodes ── */}
-        <View style={styles.episodesBlock}>
-          <View style={styles.episodesHeader}>
-            <Text style={styles.episodesTitle}>Episodes</Text>
-
-            {multiSeason ? (
-              <View style={styles.seasonWrap}>
+              <View style={[styles.heroTopRow, { top: insets.top + 8 }]}>
                 <TouchableOpacity
+                  style={styles.glassBtn}
                   activeOpacity={0.8}
-                  onPress={() => setSeasonOpen(o => !o)}
-                  style={[
-                    styles.seasonBtn,
-                    seasonOpen && { borderColor: `${ACCENT}66` },
-                  ]}
+                  onPress={handleGoBack}
                   accessibilityRole="button"
-                  accessibilityLabel={`Season ${selectedSeason}`}
-                  accessibilityState={{ expanded: seasonOpen }}>
-                  <Text style={styles.seasonBtnText}>
-                    Season {selectedSeason}
-                  </Text>
+                  accessibilityLabel="Back to series">
                   <FontAwesome5
-                    name={seasonOpen ? 'chevron-up' : 'chevron-down'}
-                    size={12}
-                    color={colors.fgMuted}
+                    name="chevron-left"
+                    size={17}
+                    color={colors.fg}
                   />
                 </TouchableOpacity>
-
-                {seasonOpen && (
-                  <>
-                    <Pressable
-                      style={styles.seasonScrim}
-                      onPress={() => setSeasonOpen(false)}
-                      accessible={false}
-                    />
-                    <View style={styles.seasonPanel}>
-                      <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        style={styles.seasonScroll}>
-                        {seasons.map(num => {
-                          const on = num === selectedSeason;
-                          return (
-                            <TouchableOpacity
-                              key={num}
-                              activeOpacity={0.7}
-                              onPress={() => {
-                                setSelectedSeason(num);
-                                setSeasonOpen(false);
-                              }}
-                              style={[
-                                styles.seasonRow,
-                                on && { backgroundColor: `${ACCENT}1f` },
-                              ]}
-                              accessibilityRole="button"
-                              accessibilityLabel={`Season ${num}, ${
-                                episodes[num]?.length || 0
-                              } episodes`}
-                              accessibilityState={{ selected: on }}>
-                              <Text
-                                style={[
-                                  styles.seasonRowText,
-                                  on && { color: colors.fg },
-                                ]}>
-                                Season {num}
-                              </Text>
-                              <Text style={styles.seasonRowCount}>
-                                {episodes[num]?.length || 0} ep
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </ScrollView>
-                    </View>
-                  </>
-                )}
               </View>
-            ) : (
-              <Text style={styles.episodesCount}>
-                {currentEpisodes.length} episodes
-              </Text>
-            )}
-          </View>
 
-          <View style={styles.episodeList}>
-            {currentEpisodes.length === 0 && (
-              <CatalogStatus
-                kind="empty"
-                title="No episodes available"
-                message="This playlist did not return episodes for the selected season."
-                accent={ACCENT}
-                onRetry={handleRefresh}
-              />
-            )}
-            {currentEpisodes.map((ep, index) => {
-              const p = watchProgress[ep.id];
-              const pct =
-                p && p.totalDuration
-                  ? Math.max(
-                      0,
-                      Math.min(100, (p.progress / p.totalDuration) * 100),
-                    )
-                  : 0;
-              const epImg = getEpisodeStill(ep, index);
-              const synopsis = getEpisodeSynopsis(ep, index);
-              const rawDuration = ep.info?.duration;
-              // Hide null/0/"00:00:00" durations — only show if it has a non-zero digit
-              const duration =
-                rawDuration && /[1-9]/.test(String(rawDuration))
-                  ? rawDuration
-                  : null;
-              const remaining = formatRemaining(p);
-
-              return (
-                <TouchableOpacity
-                  key={ep.id}
-                  style={styles.episodeRow}
-                  activeOpacity={0.8}
-                  onPress={() => playEpisode(ep, index)}
-                  accessibilityRole="button"
-                  accessibilityLabel={[
-                    ep.title || `Episode ${index + 1}`,
-                    duration ? `duration ${duration}` : null,
-                    remaining || null,
-                  ]
-                    .filter(Boolean)
-                    .join(', ')}>
-                  <View style={styles.epThumb}>
-                    {epImg ? (
-                      <FastImage
-                        source={{ uri: epImg }}
-                        style={StyleSheet.absoluteFill}
-                        resizeMode={FastImage.resizeMode.cover}
-                      />
-                    ) : (
+              <View style={styles.heroBottom}>
+                <View style={styles.poster}>
+                  <CachedRemoteImage
+                    uri={posterImg}
+                    playlistId={playlistId}
+                    contentId={seriesId}
+                    variant="poster"
+                    style={StyleSheet.absoluteFill}
+                    priority="high"
+                    displayWidth={92}
+                    displayHeight={138}
+                    fallback={
                       <View
                         style={[
                           StyleSheet.absoluteFill,
                           styles.heroPlaceholder,
-                        ]}
-                      />
-                    )}
-                    <View style={styles.epPlay}>
-                      <FontAwesome5
-                        name="play"
-                        size={11}
-                        color={colors.fg}
-                        solid
-                      />
-                    </View>
-                    {pct > 0 && (
-                      <View style={styles.epProgressTrack}>
-                        <View
-                          style={[styles.epProgressFill, { width: `${pct}%` }]}
+                        ]}>
+                        <FontAwesome5
+                          name="tv"
+                          size={24}
+                          color={colors.fgSubtle}
                         />
                       </View>
-                    )}
-                  </View>
+                    }
+                  />
+                </View>
 
-                  <View style={styles.epBody}>
-                    <Text style={styles.epTitle}>{ep.title}</Text>
-                    {!!duration && (
-                      <Text style={styles.epDuration}>{duration}</Text>
+                <View style={styles.heroTextBlock}>
+                  <Text style={styles.eyebrow}>SERIES</Text>
+                  <Text style={styles.title} numberOfLines={2}>
+                    {info.name || seriesName}
+                  </Text>
+                  <View style={styles.metaRow}>
+                    {rating != null && (
+                      <View style={styles.metaItem}>
+                        <FontAwesome5
+                          name="star"
+                          size={11}
+                          color={colors.warning}
+                          solid
+                        />
+                        <Text style={styles.metaStrong}>{rating}</Text>
+                      </View>
                     )}
-                    {!!synopsis && (
-                      <Text style={styles.epSynopsis} numberOfLines={2}>
-                        {synopsis}
-                      </Text>
+                    {!!year && (
+                      <>
+                        {rating != null && (
+                          <Text style={styles.metaDot}>·</Text>
+                        )}
+                        <Text style={styles.metaText}>{year}</Text>
+                      </>
                     )}
-                    {!!remaining && (
-                      <Text style={styles.epContinue}>{remaining}</Text>
+                    {seasons.length > 0 && (
+                      <>
+                        {(rating != null || !!year) && (
+                          <Text style={styles.metaDot}>·</Text>
+                        )}
+                        <Text style={styles.metaText}>
+                          {seasons.length} season
+                          {seasons.length === 1 ? '' : 's'}
+                        </Text>
+                      </>
                     )}
                   </View>
+                </View>
+              </View>
+            </View>
+
+            {genres.length > 0 && (
+              <View style={styles.genreRow}>
+                {genres.map((genre, index) => (
+                  <View key={`${genre}-${index}`} style={styles.genreChip}>
+                    <Text style={styles.genreText}>{genre}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {currentEpisodes.length > 0 && (
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  style={styles.playButton}
+                  activeOpacity={0.85}
+                  onPress={handlePlayFirstEpisode}
+                  accessibilityRole="button"
+                  accessibilityLabel={playLabel}>
+                  <FontAwesome5
+                    name="play"
+                    size={14}
+                    color={colors.scene}
+                    solid
+                  />
+                  <Text style={styles.playText}>{playLabel}</Text>
                 </TouchableOpacity>
-              );
-            })}
+              </View>
+            )}
+
+            {!!plot && (
+              <View style={styles.descBlock}>
+                <Text
+                  style={styles.descText}
+                  numberOfLines={expanded ? undefined : 3}>
+                  {plot}
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setExpanded(value => !value)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    expanded ? 'Show less' : 'Read full description'
+                  }
+                  accessibilityState={{ expanded }}>
+                  <Text style={styles.readMore}>
+                    {expanded ? 'Show less' : 'Read more'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {castMembers.length > 0 && (
+              <View style={styles.castBlock}>
+                <Text style={styles.sectionEyebrow}>CAST</Text>
+                <FlatList
+                  horizontal
+                  data={castMembers}
+                  renderItem={renderCastItem}
+                  keyExtractor={castKeyExtractor}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.castScroll}
+                  initialNumToRender={6}
+                  maxToRenderPerBatch={8}
+                  windowSize={5}
+                />
+              </View>
+            )}
+
+            <View style={styles.episodesBlock}>
+              <View style={styles.episodesHeader}>
+                <Text style={styles.episodesTitle}>Episodes</Text>
+
+                {multiSeason ? (
+                  <View style={styles.seasonWrap}>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => setSeasonOpen(open => !open)}
+                      style={[
+                        styles.seasonBtn,
+                        seasonOpen && { borderColor: `${ACCENT}66` },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Season ${selectedSeason}`}
+                      accessibilityState={{ expanded: seasonOpen }}>
+                      <Text style={styles.seasonBtnText}>
+                        Season {selectedSeason}
+                      </Text>
+                      <FontAwesome5
+                        name={seasonOpen ? 'chevron-up' : 'chevron-down'}
+                        size={12}
+                        color={colors.fgMuted}
+                      />
+                    </TouchableOpacity>
+
+                    {seasonOpen && (
+                      <>
+                        <Pressable
+                          style={styles.seasonScrim}
+                          onPress={() => setSeasonOpen(false)}
+                          accessible={false}
+                        />
+                        <View style={styles.seasonPanel}>
+                          <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            style={styles.seasonScroll}>
+                            {seasons.map(num => {
+                              const selected = num === selectedSeason;
+                              return (
+                                <TouchableOpacity
+                                  key={num}
+                                  activeOpacity={0.7}
+                                  onPress={() => handleSeasonSelect(num)}
+                                  style={[
+                                    styles.seasonRow,
+                                    selected && {
+                                      backgroundColor: `${ACCENT}1f`,
+                                    },
+                                  ]}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Season ${num}, ${
+                                    episodes[num]?.length || 0
+                                  } episodes`}
+                                  accessibilityState={{ selected }}>
+                                  <Text
+                                    style={[
+                                      styles.seasonRowText,
+                                      selected && { color: colors.fg },
+                                    ]}>
+                                    Season {num}
+                                  </Text>
+                                  <Text style={styles.seasonRowCount}>
+                                    {episodes[num]?.length || 0} ep
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </ScrollView>
+                        </View>
+                      </>
+                    )}
+                  </View>
+                ) : (
+                  <Text style={styles.episodesCount}>
+                    {currentEpisodes.length} episodes
+                  </Text>
+                )}
+              </View>
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyEpisodes}>
+            <CatalogStatus
+              kind="empty"
+              title="No episodes available"
+              message="This playlist did not return episodes for the selected season."
+              accent={ACCENT}
+              onRetry={handleRefresh}
+            />
           </View>
-        </View>
-      </ScrollView>
+        }
+      />
     </View>
   );
 };
@@ -951,6 +1142,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  castAvatarFallback: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface2,
+  },
   castInitials: {
     fontFamily: MONO,
     fontSize: 16,
@@ -975,7 +1172,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
     zIndex: 30,
   },
   episodesTitle: {
@@ -1060,13 +1256,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.fgSubtle,
   },
-  episodeList: {
-    gap: 14,
-  },
   episodeRow: {
     flexDirection: 'row',
     gap: 12,
     alignItems: 'flex-start',
+    marginHorizontal: 20,
+    marginBottom: 14,
+  },
+  emptyEpisodes: {
+    paddingHorizontal: 20,
   },
   epThumb: {
     width: THUMB_W,

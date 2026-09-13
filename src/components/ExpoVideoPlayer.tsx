@@ -17,15 +17,13 @@ import type {
   PlayerAdapter,
   PlayerAdapterProps,
 } from '../types/player';
+import { getExpoPlaybackContentType } from '../utils/playbackSources';
 
 function createExpoSource(source: PlaybackSource): VideoSource {
-  const contentType =
-    source.type === 'm3u8'
-      ? 'hls'
-      : source.type === 'mpd'
-      ? 'dash'
-      : 'progressive';
-  return { uri: source.uri, contentType };
+  return {
+    uri: source.uri,
+    contentType: getExpoPlaybackContentType(source),
+  };
 }
 
 const ExpoVideoPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
@@ -39,11 +37,13 @@ const ExpoVideoPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
       onError,
       onProgress,
       onBuffer,
+      onEnd,
       resumePosition,
     },
     ref,
   ) => {
     const durationRef = useRef(0);
+    const sourceReadyRef = useRef(false);
     const pendingResumeRef = useRef(resumePosition);
     const sourceRef = useRef(source);
     const generationRef = useRef(0);
@@ -54,6 +54,7 @@ const ExpoVideoPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
     const onErrorRef = useRef(onError);
     const onProgressRef = useRef(onProgress);
     const onBufferRef = useRef(onBuffer);
+    const onEndRef = useRef(onEnd);
 
     sourceRef.current = source;
     pendingResumeRef.current = resumePosition;
@@ -63,6 +64,7 @@ const ExpoVideoPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
     onErrorRef.current = onError;
     onProgressRef.current = onProgress;
     onBufferRef.current = onBuffer;
+    onEndRef.current = onEnd;
 
     // The player is created once. Sources are replaced through this instance.
     const player = useExpoVideoPlayer(null, nextPlayer => {
@@ -75,6 +77,7 @@ const ExpoVideoPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
         sourceRef.current = nextSource;
         pendingResumeRef.current = nextResumePosition;
         durationRef.current = 0;
+        sourceReadyRef.current = false;
         onBufferRef.current({ isBuffering: true });
 
         const replacement = replacementQueueRef.current
@@ -148,6 +151,7 @@ const ExpoVideoPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
         'sourceLoad',
         payload => {
           durationRef.current = payload.duration || 0;
+          sourceReadyRef.current = true;
           if (!isLiveRef.current && pendingResumeRef.current > 0) {
             player.currentTime = pendingResumeRef.current;
           }
@@ -173,6 +177,9 @@ const ExpoVideoPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
             currentTime: durationRef.current,
             seekableDuration: durationRef.current,
           });
+        }
+        if (!isLiveRef.current && sourceReadyRef.current) {
+          onEndRef.current();
         }
       });
 

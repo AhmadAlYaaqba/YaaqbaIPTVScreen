@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,33 +8,37 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import FastImage from 'react-native-fast-image'; // 1) Import FastImage
-import {RouteProp} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {LegacyStackParamList} from '../navigation/legacyTypes';
-import {useSelector, useDispatch} from 'react-redux';
-import {RootState, AppDispatch} from '../store';
-import {fetchMoviesInCategory} from '../store/slices/iptvSlice';
+import CachedRemoteImage from '../components/CachedRemoteImage';
+import { RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { LegacyStackParamList } from '../navigation/legacyTypes';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState, AppDispatch } from '../store';
+import { fetchMoviesInCategory } from '../store/slices/iptvSlice';
 
 type MovieListScreenRouteProp = RouteProp<LegacyStackParamList, 'MovieList'>;
-type MovieListScreenNavProp = NativeStackNavigationProp<LegacyStackParamList, 'MovieList'>;
+type MovieListScreenNavProp = NativeStackNavigationProp<
+  LegacyStackParamList,
+  'MovieList'
+>;
 
 interface Props {
   route: MovieListScreenRouteProp;
   navigation: MovieListScreenNavProp;
 }
 
-const MovieListScreen: React.FC<Props> = ({route, navigation}) => {
-  const {categoryId, categoryName} = route.params;
+const MovieListScreen: React.FC<Props> = ({ route, navigation }) => {
+  const { categoryId, categoryName } = route.params;
   const dispatch = useDispatch<AppDispatch>();
 
-  const {username, password, serverDomain, serverPort} = useSelector(
-    (state: RootState) => state.user
+  const { playlistId, username, password, serverDomain, serverPort } =
+    useSelector((state: RootState) => state.user);
+  const { movieList, loading, error } = useSelector(
+    (state: RootState) => state.iptv,
   );
-  const {movieList, loading, error} = useSelector((state: RootState) => state.iptv);
 
   useEffect(() => {
-    navigation.setOptions({title: categoryName || 'Movies'});
+    navigation.setOptions({ title: categoryName || 'Movies' });
     dispatch(
       fetchMoviesInCategory({
         username,
@@ -44,7 +48,16 @@ const MovieListScreen: React.FC<Props> = ({route, navigation}) => {
         categoryId,
       }),
     );
-  }, [categoryId, categoryName, dispatch, navigation, password, serverDomain, serverPort, username]);
+  }, [
+    categoryId,
+    categoryName,
+    dispatch,
+    navigation,
+    password,
+    serverDomain,
+    serverPort,
+    username,
+  ]);
 
   if (loading) {
     return (
@@ -61,22 +74,21 @@ const MovieListScreen: React.FC<Props> = ({route, navigation}) => {
     );
   }
 
-  const renderMovie = ({item}: {item: any}) => {
+  const renderMovie = ({ item }: { item: any }) => {
     return (
       <TouchableOpacity
         style={styles.itemContainer}
         onPress={() => {
-          navigation.navigate('MovieDetail', {movie: item});
+          navigation.navigate('MovieDetail', { movie: item });
         }}>
-        {/* 2) Use FastImage instead of Image */}
-        <FastImage
+        <CachedRemoteImage
+          uri={item.stream_icon}
+          playlistId={playlistId}
+          contentId={item.stream_id ?? item.name}
+          variant="poster"
           style={styles.poster}
-          source={{
-            uri: item.stream_icon, // or wherever your poster URL is
-            priority: FastImage.priority.normal, // optional
-            cache: FastImage.cacheControl.immutable, // optional
-          }}
-          resizeMode={FastImage.resizeMode.cover}
+          displayWidth={ITEM_WIDTH}
+          displayHeight={ITEM_WIDTH * 1.5}
         />
         <Text style={styles.title} numberOfLines={1}>
           {item.name}
@@ -102,7 +114,7 @@ const MovieListScreen: React.FC<Props> = ({route, navigation}) => {
 
 export default MovieListScreen;
 
-const {width} = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const ITEM_MARGIN = 4;
 // 3 columns: subtract margins from total width, then divide
 const ITEM_WIDTH = (width - ITEM_MARGIN * 8) / 3;

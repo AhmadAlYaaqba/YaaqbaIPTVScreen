@@ -84,6 +84,7 @@ export interface PlayerAdapterProps {
   onError: (error: unknown) => void;
   onProgress: (data: PlayerProgressEvent) => void;
   onBuffer: (data: PlayerBufferEvent) => void;
+  onEnd: () => void;
 }
 
 // Default when the user hasn't picked an engine: VLC on iOS, Standard on Android.
