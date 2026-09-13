@@ -1,3 +1,9 @@
+# react-native is aliased to react-native-tvos. Its prebuilt React core must come
+# from the tvos Maven group, but pod install can silently reuse a cached upstream
+# tarball (same '0.84.1' name). Build React core from source so iOS always links
+# the fork's own code. Export RCT_USE_PREBUILT_RNCORE=1 to override.
+ENV['RCT_USE_PREBUILT_RNCORE'] ||= '0'
+
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
 # Resolve react_native_pods.rb with node to allow for hoisting
 require Pod::Executable.execute_command('node', ['-p',
