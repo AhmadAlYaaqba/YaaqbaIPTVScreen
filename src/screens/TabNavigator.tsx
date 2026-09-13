@@ -15,6 +15,7 @@ import LiveTVScreen from './LiveTVScreen';
 import MoviesScreen from './singleMoviesScreen';
 import SeriesHomeScreen from './SeriesList';
 import SettingsScreen from './SettingsScreen';
+import TVNavRail from '../tv/TVNavRail';
 import type { TabParamList } from '../navigation/types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -104,11 +105,27 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-const renderTabBar = (props: BottomTabBarProps) => <CustomTabBar {...props} />;
+const getTabLabel = (routeName: string) =>
+  TAB_LABELS[routeName as keyof TabParamList] ?? routeName;
+const renderTabIcon = (routeName: string, color: string, size: number) =>
+  getIcon(routeName as keyof TabParamList, color, size);
+
+// TV gets a left focus rail; phones keep the floating bottom bar.
+const renderTabBar = (props: BottomTabBarProps) =>
+  Platform.isTV ? (
+    <TVNavRail {...props} getLabel={getTabLabel} renderIcon={renderTabIcon} />
+  ) : (
+    <CustomTabBar {...props} />
+  );
+
+const SCREEN_OPTIONS = {
+  headerShown: false,
+  tabBarPosition: Platform.isTV ? 'left' : 'bottom',
+} as const;
 
 export default function TabNavigator() {
   return (
-    <Tab.Navigator tabBar={renderTabBar} screenOptions={{ headerShown: false }}>
+    <Tab.Navigator tabBar={renderTabBar} screenOptions={SCREEN_OPTIONS}>
       <Tab.Screen name="Home" component={HomeScreenBrand} />
       <Tab.Screen name="LiveTV" component={LiveTVScreen} />
       <Tab.Screen name="Movies" component={MoviesScreen} />
