@@ -29,6 +29,9 @@ import type {
 
 import PlayerControls from '../components/PlayerControls';
 import ChannelSwitcher from '../components/ChannelSwitcher';
+import { useTVRemote } from '../tv/useTVRemote';
+import { useBackHandler } from '../tv/useBackHandler';
+import type { TVRemoteAction } from '../tv/remoteActions';
 import PlayerAdapterView from '../components/PlayerAdapterView';
 import type {
   PlaybackRequest,
@@ -549,6 +552,143 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     flushProgress();
     navigation.goBack();
   }, [flushProgress, navigation]);
+
+  // --- TV remote (no-op on phones) ---
+  // Select while controls are hidden is handled natively by PlayerControls'
+  // focus-holder Pressable. While controls are visible the D-pad moves focus
+  // between buttons, so here we only keep the auto-hide timer alive.
+  const revealControls = useCallback(() => {
+    setControlsVisible(true);
+    resetControlsTimeout();
+  }, [resetControlsTimeout]);
+
+  const seekBy = useCallback(
+    (seconds: number) => {
+      if (isLive) {
+        return;
+      }
+      const target = player.currentTime + seconds;
+      handleSeek(
+        Math.max(
+          0,
+          player.duration > 0 ? Math.min(player.duration, target) : target,
+        ),
+      );
+      revealControls();
+    },
+    [handleSeek, isLive, player.currentTime, player.duration, revealControls],
+  );
+
+  const switchAdjacentChannel = useCallback(
+    (step: 1 | -1) => {
+      const count = liveChannels.length;
+      if (!isLive || count === 0) {
+        return;
+      }
+      const index = liveChannels.findIndex(
+        channel => String(channel.stream_id) === currentStreamId,
+      );
+      const nextIndex =
+        index < 0
+          ? step === 1
+            ? 0
+            : count - 1
+          : (index + step + count) % count;
+      const next = liveChannels[nextIndex];
+      handleChannelSwitch(
+        String(next.stream_id),
+        next.name,
+        (next.container_extension || 'm3u8').replace(/^\./, '') || 'm3u8',
+        next.stream_icon,
+      );
+      revealControls();
+    },
+    [currentStreamId, handleChannelSwitch, isLive, liveChannels, revealControls],
+  );
+
+  const handleRemoteAction = useCallback(
+    (action: TVRemoteAction) => {
+      if (channelSwitcherVisible) {
+        return; // the channel list owns focus; Back closes it
+      }
+      switch (action) {
+        case 'playPause':
+          player.togglePlayPause();
+          revealControls();
+          return;
+        case 'rewind':
+          seekBy(-30);
+          return;
+        case 'fastForward':
+          seekBy(30);
+          return;
+        case 'channelUp':
+        case 'next':
+          switchAdjacentChannel(1);
+          return;
+        case 'channelDown':
+        case 'previous':
+          switchAdjacentChannel(-1);
+          return;
+      }
+      if (controlsVisible) {
+        resetControlsTimeout();
+        return;
+      }
+      switch (action) {
+        case 'left':
+          seekBy(-10);
+          return;
+        case 'right':
+          seekBy(10);
+          return;
+        case 'up':
+        case 'down':
+          if (isLive) {
+            setChannelSwitcherVisible(true);
+          } else {
+            revealControls();
+          }
+          return;
+        case 'info':
+        case 'menu':
+          revealControls();
+          return;
+      }
+    },
+    [
+      channelSwitcherVisible,
+      controlsVisible,
+      isLive,
+      player,
+      resetControlsTimeout,
+      revealControls,
+      seekBy,
+      switchAdjacentChannel,
+    ],
+  );
+  useTVRemote(handleRemoteAction);
+
+  // Back closes the channel list, then hides controls, then leaves (saving
+  // progress). TV only for now; phones keep their current back behavior.
+  useBackHandler(() => {
+    if (channelSwitcherVisible) {
+      setChannelSwitcherVisible(false);
+      return true;
+    }
+    if (
+      controlsVisible &&
+      !player.isPaused &&
+      !player.error &&
+      !player.isReconnecting
+    ) {
+      pauseControlsTimeout();
+      setControlsVisible(false);
+      return true;
+    }
+    handleGoBack();
+    return true;
+  }, Platform.isTV);
 
   return (
     <View style={styles.container}>

@@ -1,5 +1,5 @@
 // src/components/ChannelSwitcher.tsx
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   Dimensions,
+  Platform,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -21,6 +22,9 @@ import CachedRemoteImage from './CachedRemoteImage';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PANEL_WIDTH = Math.round(SCREEN_WIDTH * 0.6);
 const CHANNEL_SKELETON_ITEMS = Array.from({ length: 10 }, (_, index) => index);
+const IS_TV = Platform.isTV;
+// Fixed row height on TV so the list can open scrolled to the playing channel.
+const TV_ITEM_HEIGHT = 60;
 
 interface Channel {
   stream_id: number;
@@ -77,8 +81,13 @@ const ChannelItem = React.memo(
 
     return (
       <TouchableOpacity
-        style={[styles.channelItem, isActive && styles.channelItemActive]}
+        style={[
+          styles.channelItem,
+          IS_TV && styles.channelItemTV,
+          isActive && styles.channelItemActive,
+        ]}
         onPress={handlePress}
+        hasTVPreferredFocus={IS_TV && isActive}
         activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityState={{ selected: isActive }}
@@ -100,7 +109,7 @@ const ChannelItem = React.memo(
         />
         <Text
           style={[styles.channelName, isActive && styles.channelNameActive]}
-          numberOfLines={2}>
+          numberOfLines={IS_TV ? 1 : 2}>
           {name}
         </Text>
         {isActive && (
@@ -203,6 +212,23 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
     [],
   );
 
+  const activeIndex = useMemo(
+    () =>
+      IS_TV
+        ? channels.findIndex(item => String(item.stream_id) === activeStreamId)
+        : -1,
+    [activeStreamId, channels],
+  );
+
+  const getItemLayout = useCallback(
+    (_data: unknown, index: number) => ({
+      length: TV_ITEM_HEIGHT,
+      offset: TV_ITEM_HEIGHT * index,
+      index,
+    }),
+    [],
+  );
+
   if (!visible) return null;
 
   return (
@@ -243,7 +269,10 @@ const ChannelSwitcher: React.FC<ChannelSwitcherProps> = ({
             initialNumToRender={15}
             maxToRenderPerBatch={10}
             windowSize={7}
-            removeClippedSubviews
+            // Clipped rows can't take focus on Android TV, breaking D-pad travel.
+            removeClippedSubviews={!IS_TV}
+            getItemLayout={IS_TV ? getItemLayout : undefined}
+            initialScrollIndex={activeIndex > 0 ? activeIndex : undefined}
           />
         ) : isLoading ? (
           <ChannelListSkeleton />
@@ -379,6 +408,10 @@ const styles = StyleSheet.create({
   },
   channelItemActive: {
     backgroundColor: 'rgba(74,144,226,0.15)',
+  },
+  channelItemTV: {
+    height: TV_ITEM_HEIGHT,
+    paddingVertical: 0,
   },
   channelIcon: {
     width: 32,

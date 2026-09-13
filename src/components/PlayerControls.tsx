@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  Platform,
   ActivityIndicator,
   LayoutChangeEvent,
   type AccessibilityActionEvent,
@@ -24,6 +25,8 @@ import {
   formatPlaybackTime,
   getSeekTimeFromPosition,
 } from '../utils/playbackTime';
+
+const IS_TV = Platform.isTV;
 
 interface PlayerControlsProps {
   visible: boolean;
@@ -364,9 +367,17 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
           Background tap target — fills gaps between buttons.
           Tapping empty areas hides controls.
         */}
+        {/*
+          TV: this is the focus holder while controls are hidden. Android only
+          routes remote keys into React when a view inside it has focus, and
+          Select on it reveals the controls. Hidden buttons are unfocusable so
+          focus never lands on something invisible.
+        */}
         <Pressable
           onPress={onToggleVisibility}
           style={StyleSheet.absoluteFill}
+          focusable={IS_TV ? !visible : undefined}
+          hasTVPreferredFocus={IS_TV && !visible}
           accessibilityRole="button"
           accessibilityLabel="Hide playback controls"
         />
@@ -376,6 +387,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
           <Pressable
             onPress={onGoBack}
             style={styles.backButton}
+            focusable={IS_TV ? visible : undefined}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Close player">
@@ -401,6 +413,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             <Pressable
               onPress={() => onSeek?.(Math.max(0, currentTime - 10))}
               style={styles.seekButton}
+              focusable={IS_TV ? visible : undefined}
               accessibilityRole="button"
               accessibilityLabel="Go back 10 seconds">
               <FontAwesome5 name="backward" size={20} color="#fff" />
@@ -409,6 +422,8 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
           <Pressable
             onPress={onTogglePlayPause}
             style={styles.playButton}
+            focusable={IS_TV ? visible : undefined}
+            hasTVPreferredFocus={IS_TV && visible}
             accessibilityRole="button"
             accessibilityLabel={isPaused ? 'Play' : 'Pause'}
             accessibilityState={{ selected: !isPaused }}>
@@ -422,6 +437,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             <Pressable
               onPress={() => onSeek?.(Math.min(duration, currentTime + 10))}
               style={styles.seekButton}
+              focusable={IS_TV ? visible : undefined}
               accessibilityRole="button"
               accessibilityLabel="Go forward 10 seconds">
               <FontAwesome5 name="forward" size={20} color="#fff" />
@@ -474,6 +490,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             <Pressable
               onPress={onToggleChannelSwitcher}
               style={styles.channelSwitchButton}
+              focusable={IS_TV ? visible : undefined}
               accessibilityRole="button"
               accessibilityLabel="Open channel list">
               <FontAwesome5 name="list" size={16} color="#fff" />
