@@ -88,6 +88,8 @@ const ChannelItem = React.memo(
         ]}
         onPress={handlePress}
         hasTVPreferredFocus={IS_TV && isActive}
+        // Full-width rows: ring only; scaling would push them past the panel edge.
+        focusScale={1}
         activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityState={{ selected: isActive }}

@@ -21,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
+import FocusablePressable from '../tv/FocusablePressable';
 import {
   formatPlaybackTime,
   getSeekTimeFromPosition,
@@ -384,7 +385,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
 
         {/* Top bar */}
         <View style={styles.topBar}>
-          <Pressable
+          <FocusablePressable
             onPress={onGoBack}
             style={styles.backButton}
             focusable={IS_TV ? visible : undefined}
@@ -392,7 +393,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             accessibilityRole="button"
             accessibilityLabel="Close player">
             <FontAwesome5 name="arrow-left" size={18} color="#fff" />
-          </Pressable>
+          </FocusablePressable>
           <View style={styles.titleContainer}>
             <Text style={styles.channelName} numberOfLines={1}>
               {channelName || ''}
@@ -410,16 +411,16 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
         {/* Center controls */}
         <View style={styles.centerControls} pointerEvents="box-none">
           {!isLive && (
-            <Pressable
+            <FocusablePressable
               onPress={() => onSeek?.(Math.max(0, currentTime - 10))}
               style={styles.seekButton}
               focusable={IS_TV ? visible : undefined}
               accessibilityRole="button"
               accessibilityLabel="Go back 10 seconds">
               <FontAwesome5 name="backward" size={20} color="#fff" />
-            </Pressable>
+            </FocusablePressable>
           )}
-          <Pressable
+          <FocusablePressable
             onPress={onTogglePlayPause}
             style={styles.playButton}
             focusable={IS_TV ? visible : undefined}
@@ -432,16 +433,16 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
               size={24}
               color="#fff"
             />
-          </Pressable>
+          </FocusablePressable>
           {!isLive && (
-            <Pressable
+            <FocusablePressable
               onPress={() => onSeek?.(Math.min(duration, currentTime + 10))}
               style={styles.seekButton}
               focusable={IS_TV ? visible : undefined}
               accessibilityRole="button"
               accessibilityLabel="Go forward 10 seconds">
               <FontAwesome5 name="forward" size={20} color="#fff" />
-            </Pressable>
+            </FocusablePressable>
           )}
         </View>
 
@@ -487,7 +488,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             </View>
           )}
           {isLive && onToggleChannelSwitcher && (
-            <Pressable
+            <FocusablePressable
               onPress={onToggleChannelSwitcher}
               style={styles.channelSwitchButton}
               focusable={IS_TV ? visible : undefined}
@@ -495,7 +496,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
               accessibilityLabel="Open channel list">
               <FontAwesome5 name="list" size={16} color="#fff" />
               <Text style={styles.channelSwitchText}>Channels</Text>
-            </Pressable>
+            </FocusablePressable>
           )}
         </View>
       </Animated.View>
