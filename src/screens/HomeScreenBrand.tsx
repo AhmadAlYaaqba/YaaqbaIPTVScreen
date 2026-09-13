@@ -11,7 +11,6 @@ import {
   StyleSheet,
   ScrollView,
   FlatList,
-  Pressable,
   Platform,
   Animated,
   Easing,
@@ -38,6 +37,7 @@ import { storage, type LatestWatched } from '../utils/storage';
 import { colors, sectionAccents, radii, gradients } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
 import CachedRemoteImage from '../components/CachedRemoteImage';
+import FocusablePressable from '../tv/FocusablePressable';
 import { useXtreamAccountInfo } from '../services/xtream/xtreamQueries';
 import type { XtreamSession } from '../services/xtream/xtreamService';
 import {
@@ -47,6 +47,7 @@ import {
 
 type HomeScreenProps = TabScreenProps<'Home'>;
 
+const IS_TV = Platform.isTV;
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 
@@ -115,13 +116,14 @@ function Header({
           </Text>
         </View>
       </View>
-      <Pressable
+      <FocusablePressable
         style={styles.settingsBtn}
+        focusScale={1.12}
         onPress={onSettings}
         accessibilityRole="button"
         accessibilityLabel="Open settings">
         <FontAwesome5 name="cog" size={17} color={colors.fgMuted} solid />
-      </Pressable>
+      </FocusablePressable>
     </View>
   );
 }
@@ -293,14 +295,14 @@ const SubscriptionRetryCard = React.memo(
           </Text>
         </View>
       </View>
-      <Pressable
+      <FocusablePressable
         style={styles.subscriptionRetryButton}
         onPress={onRetry}
         accessibilityRole="button"
         accessibilityLabel="Retry subscription information">
         <FontAwesome5 name="redo" size={12} color={colors.fg} />
         <Text style={styles.subscriptionRetryText}>Retry</Text>
-      </Pressable>
+      </FocusablePressable>
     </View>
   ),
 );
@@ -364,9 +366,13 @@ const SectionTile = React.memo(function SectionTile({
 }) {
   const handlePress = useCallback(() => onPress(s.id), [onPress, s.id]);
   return (
-    <Pressable
+    <FocusablePressable
       onPress={handlePress}
       style={[styles.sectionTile, { borderColor: `${s.accent}30` }]}
+      // Wide tiles: subtle scale so they don't spill over the TV rail.
+      focusScale={1.02}
+      // TV: land on Live TV first instead of the header settings button.
+      hasTVPreferredFocus={IS_TV && s.id === 'live'}
       accessibilityRole="button"
       accessibilityLabel={`Open ${s.title}`}>
       {/* background: solid base + soft accent corner glow (radial, fades before edge) */}
@@ -412,7 +418,7 @@ const SectionTile = React.memo(function SectionTile({
         color={s.accent}
         style={styles.sectionChevron}
       />
-    </Pressable>
+    </FocusablePressable>
   );
 });
 
@@ -510,7 +516,7 @@ const ContinueCard = React.memo(function ContinueCard({
     .join(', ');
 
   return (
-    <Pressable
+    <FocusablePressable
       style={styles.continueCard}
       onPress={handlePress}
       accessibilityRole="button"
@@ -573,7 +579,7 @@ const ContinueCard = React.memo(function ContinueCard({
           {remaining}
         </Text>
       )}
-    </Pressable>
+    </FocusablePressable>
   );
 });
 

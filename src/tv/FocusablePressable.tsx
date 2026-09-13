@@ -1,17 +1,21 @@
 // src/tv/FocusablePressable.tsx
 // Pressable with a consistent, high-contrast focus state for remote navigation.
 //
-// Performance: focus is tracked in local state, so moving focus re-renders only
-// the two items involved (the one losing and the one gaining focus). The ring
-// border is always present (transparent when unfocused) so focusing never
-// changes layout. Focus styling applies on TV only; on phones this is a plain
-// Pressable.
+// The focus ring is an overlay drawn above the item's content rather than a
+// border on the item itself, so:
+// - items that already define borderWidth/borderColor still get a full ring,
+// - focusing never changes layout.
+//
+// Performance: focus lives in local state, so moving focus re-renders only the
+// two items involved. The overlay is only mounted while focused. Focus styling
+// applies on TV only; on phones this is a plain Pressable.
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Platform,
   Pressable,
   StyleSheet,
+  View,
   type NativeSyntheticEvent,
   type PressableProps,
   type StyleProp,
@@ -37,6 +41,7 @@ export interface FocusablePressableProps
 }
 
 const IS_TV = Platform.isTV;
+const RING_WIDTH = 3;
 
 function FocusablePressable({
   style,
@@ -66,6 +71,18 @@ function FocusablePressable({
     [onBlur],
   );
 
+  // Match the ring's corners to the item's own radius.
+  const ringStyle = useMemo(() => {
+    if (!IS_TV) {
+      return undefined;
+    }
+    const radius = StyleSheet.flatten(style)?.borderRadius;
+    return [
+      styles.ring,
+      { borderRadius: typeof radius === 'number' ? radius : radii.md },
+    ];
+  }, [style]);
+
   return (
     <Pressable
       {...rest}
@@ -73,28 +90,32 @@ function FocusablePressable({
       onFocus={handleFocus}
       onBlur={handleBlur}
       style={({ pressed }) => [
-        IS_TV && styles.ring,
         style,
-        IS_TV && focused && styles.ringFocused,
-        IS_TV && focused && focusScale !== 1 && { transform: [{ scale: focusScale }] },
+        IS_TV &&
+          focused &&
+          focusScale !== 1 && { transform: [{ scale: focusScale }] },
         IS_TV && focused && focusedStyle,
         disabled && styles.disabled,
         pressed && styles.pressed,
       ]}>
-      {({ pressed }) =>
-        typeof children === 'function' ? children({ focused, pressed }) : children
-      }
+      {({ pressed }) => (
+        <>
+          {typeof children === 'function'
+            ? children({ focused, pressed })
+            : children}
+          {IS_TV && focused ? (
+            <View pointerEvents="none" style={ringStyle} />
+          ) : null}
+        </>
+      )}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   ring: {
-    borderWidth: 3,
-    borderColor: 'transparent',
-    borderRadius: radii.md,
-  },
-  ringFocused: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: RING_WIDTH,
     borderColor: colors.fg,
   },
   pressed: {
