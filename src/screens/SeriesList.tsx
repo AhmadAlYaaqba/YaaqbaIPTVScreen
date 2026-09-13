@@ -47,6 +47,9 @@ import { getTenPointRating } from '../utils/rating';
 import type { TabScreenProps } from '../navigation/types';
 import CachedRemoteImage from '../components/CachedRemoteImage';
 
+// TV: pull-to-refresh is touch-only, and clipped (off-screen) cells can't
+// receive D-pad focus, so both are disabled on TV.
+const IS_TV = Platform.isTV;
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 
@@ -487,14 +490,16 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
             onScroll={handleListScroll}
             scrollEventThrottle={200}
             refreshControl={
-              <RefreshControl
-                refreshing={refreshingCategories || refreshingSeries}
-                onRefresh={handleRefresh}
-                tintColor={ACCENT}
-                colors={[ACCENT]}
-              />
+              IS_TV ? undefined : (
+                <RefreshControl
+                  refreshing={refreshingCategories || refreshingSeries}
+                  onRefresh={handleRefresh}
+                  tintColor={ACCENT}
+                  colors={[ACCENT]}
+                />
+              )
             }
-            removeClippedSubviews
+            removeClippedSubviews={!IS_TV}
             maxToRenderPerBatch={12}
             windowSize={5}
             initialNumToRender={12}

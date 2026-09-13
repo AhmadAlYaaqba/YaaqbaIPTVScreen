@@ -1,0 +1,89 @@
+diff --git a/node_modules/@react-native-tvos/virtualized-lists/Lists/VirtualizedList.js b/node_modules/@react-native-tvos/virtualized-lists/Lists/VirtualizedList.js
+index 4ce9b95..14c421f 100644
+--- a/node_modules/@react-native-tvos/virtualized-lists/Lists/VirtualizedList.js
++++ b/node_modules/@react-native-tvos/virtualized-lists/Lists/VirtualizedList.js
+@@ -67,6 +67,56 @@ import {
+ } from 'react-native';
+ import * as ReactNativeFeatureFlags from 'react-native/src/private/featureflags/ReactNativeFeatureFlags';
+ 
++// TV only: the ScrollView is wrapped in a TVFocusGuideView that had no layout
++// style, so it shrank to its 1x1 minimum and a `flex: 1` list collapsed to ~2px.
++// Mirror Android's RefreshControl wrapper: the guide takes the list's outer
++// layout props and the ScrollView (flexGrow/flexShrink by default) fills it.
++const TV_OUTER_LAYOUT_PROPS = new Set([
++  'margin',
++  'marginHorizontal',
++  'marginVertical',
++  'marginBottom',
++  'marginTop',
++  'marginLeft',
++  'marginRight',
++  'flex',
++  'flexGrow',
++  'flexShrink',
++  'flexBasis',
++  'alignSelf',
++  'height',
++  'minHeight',
++  'maxHeight',
++  'width',
++  'minWidth',
++  'maxWidth',
++  'position',
++  'left',
++  'right',
++  'bottom',
++  'top',
++  'transform',
++  'transformOrigin',
++]);
++const TV_FOCUS_GUIDE_FILL = {flexGrow: 1, flexShrink: 1};
++
++function splitTVListStyle(style: any): {outer: any, inner: any} {
++  const flat = StyleSheet.flatten(style);
++  if (flat == null) {
++    return {outer: null, inner: null};
++  }
++  const outer: {[string]: mixed} = {};
++  const inner: {[string]: mixed} = {};
++  for (const key of Object.keys(flat)) {
++    if (TV_OUTER_LAYOUT_PROPS.has(key)) {
++      outer[key] = flat[key];
++    } else {
++      inner[key] = flat[key];
++    }
++  }
++  return {outer, inner};
++}
++
+ export type {ListRenderItemInfo, ListRenderItem, Separators};
+ 
+ const ON_EDGE_REACHED_EPSILON = 0.001;
+@@ -1140,6 +1190,10 @@ class VirtualizedList extends StateSafePureComponent<
+             horizontalOrDefault(this.props.horizontal) && this._hasMore,
+         };
+ 
++    const tvListStyle = Platform.isTV
++      ? splitTVListStyle(scrollProps.style)
++      : null;
++
+     const innerRet = (
+       <VirtualizedListContextProvider
+         value={{
+@@ -1152,6 +1206,7 @@ class VirtualizedList extends StateSafePureComponent<
+         }}>
+         {Platform.isTV ? (
+           <TVFocusGuideView
++            style={[TV_FOCUS_GUIDE_FILL, tvListStyle?.outer]}
+             {...trapFocusHorizontal}
+             trapFocusUp={
+               !horizontalOrDefault(this.props.horizontal) &&
+@@ -1166,7 +1221,7 @@ class VirtualizedList extends StateSafePureComponent<
+                 this._defaultRenderScrollComponent
+               )(
+                 // $FlowExpectedError[incompatible-type] scrollProps is a superset of ScrollViewProps
+-                scrollProps,
++                {...scrollProps, style: tvListStyle?.inner},
+               ) as ExactReactElement_DEPRECATED<any>,
+               {
+                 ref: this._captureScrollRef,

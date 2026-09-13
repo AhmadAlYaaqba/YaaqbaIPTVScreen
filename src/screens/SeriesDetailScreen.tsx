@@ -52,6 +52,9 @@ import { CatalogStatus } from '../components/catalog/CatalogStates';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import CachedRemoteImage from '../components/CachedRemoteImage';
 
+// TV: pull-to-refresh is touch-only, and clipped (off-screen) cells can't
+// receive D-pad focus, so both are disabled on TV.
+const IS_TV = Platform.isTV;
 const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 const ACCENT = sectionAccents.series; // cyan
@@ -610,14 +613,16 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         maxToRenderPerBatch={8}
         updateCellsBatchingPeriod={50}
         windowSize={7}
-        removeClippedSubviews={Platform.OS === 'android'}
+        removeClippedSubviews={Platform.OS === 'android' && !IS_TV}
         refreshControl={
-          <RefreshControl
-            refreshing={seriesDetailsQuery.isRefetching}
-            onRefresh={handleRefresh}
-            tintColor={ACCENT}
-            colors={REFRESH_COLORS}
-          />
+          IS_TV ? undefined : (
+            <RefreshControl
+              refreshing={seriesDetailsQuery.isRefetching}
+              onRefresh={handleRefresh}
+              tintColor={ACCENT}
+              colors={REFRESH_COLORS}
+            />
+          )
         }
         ListHeaderComponent={
           <>
