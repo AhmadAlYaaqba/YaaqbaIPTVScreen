@@ -3,8 +3,6 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   ScrollView,
@@ -12,6 +10,8 @@ import {
   Switch,
   Platform,
 } from 'react-native';
+import TVTextInput from '../tv/TVTextInput';
+import TVTouchable from '../tv/TVTouchable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import axios from 'axios';
@@ -285,7 +285,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
   const renderTabButton = (key: TabKey, label: string, icon: string) => {
     const active = tab === key;
     return (
-      <TouchableOpacity
+      <TVTouchable
         style={[styles.tabButton, active && styles.tabButtonActive]}
         activeOpacity={0.85}
         onPress={() => {
@@ -301,7 +301,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
         <Text style={[styles.tabText, active && styles.tabTextActive]}>
           {label}
         </Text>
-      </TouchableOpacity>
+      </TVTouchable>
     );
   };
 
@@ -359,7 +359,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                   </View>
                 </View>
 
-                <TextInput
+                <TVTextInput
                   style={styles.input}
                   value={activationCode}
                   onChangeText={handleCodeChange}
@@ -372,7 +372,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                   selectionColor={colors.indigo}
                 />
 
-                <TouchableOpacity
+                <TVTouchable
                   style={[styles.button, isLoading && styles.buttonDisabled]}
                   activeOpacity={0.86}
                   onPress={handleActivation}
@@ -399,7 +399,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                       <Text style={styles.buttonText}>Activate</Text>
                     </>
                   )}
-                </TouchableOpacity>
+                </TVTouchable>
               </>
             ) : (
               <>
@@ -413,7 +413,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                   </View>
                 </View>
 
-                <TextInput
+                <TVTextInput
                   style={styles.fieldInput}
                   value={xtreamName}
                   onChangeText={setXtreamName}
@@ -423,7 +423,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                   autoCorrect={false}
                   selectionColor={colors.indigo}
                 />
-                <TextInput
+                <TVTextInput
                   style={styles.fieldInput}
                   value={xtreamUsername}
                   onChangeText={setXtreamUsername}
@@ -433,7 +433,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                   autoCorrect={false}
                   selectionColor={colors.indigo}
                 />
-                <TextInput
+                <TVTextInput
                   style={styles.fieldInput}
                   value={xtreamPassword}
                   onChangeText={setXtreamPassword}
@@ -444,7 +444,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                   secureTextEntry
                   selectionColor={colors.indigo}
                 />
-                <TextInput
+                <TVTextInput
                   style={styles.fieldInput}
                   value={xtreamUrl}
                   onChangeText={setXtreamUrl}
@@ -456,7 +456,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                   selectionColor={colors.indigo}
                 />
 
-                <TouchableOpacity
+                <TVTouchable
                   style={[styles.button, isLoading && styles.buttonDisabled]}
                   activeOpacity={0.86}
                   onPress={handleAddXtream}
@@ -483,7 +483,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                       <Text style={styles.buttonText}>Add playlist</Text>
                     </>
                   )}
-                </TouchableOpacity>
+                </TVTouchable>
               </>
             )}
 
@@ -522,7 +522,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
             <View style={styles.savedBlock}>
               <Text style={styles.savedTitle}>YOUR PLAYLISTS</Text>
               {savedPlaylists.map(pl => (
-                <TouchableOpacity
+                <TVTouchable
                   key={pl.id}
                   style={styles.savedRow}
                   activeOpacity={0.8}
@@ -550,13 +550,13 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                     size={13}
                     color={colors.fgSubtle}
                   />
-                </TouchableOpacity>
+                </TVTouchable>
               ))}
             </View>
           ) : null}
 
           {isAddMode ? (
-            <TouchableOpacity
+            <TVTouchable
               style={styles.cancelBtn}
               activeOpacity={0.8}
               onPress={() =>
@@ -565,7 +565,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                   : navigation.navigate('Main')
               }>
               <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
+            </TVTouchable>
           ) : (
             <View style={styles.footer}>
               <Text style={styles.footerText}>Need help? Contact support</Text>
