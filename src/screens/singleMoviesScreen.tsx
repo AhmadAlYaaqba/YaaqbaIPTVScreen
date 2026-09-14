@@ -57,6 +57,9 @@ import type { TabScreenProps } from '../navigation/types';
 import CachedRemoteImage from '../components/CachedRemoteImage';
 import TVTouchable from '../tv/TVTouchable';
 import { TV_NAV_RAIL_WIDTH } from '../tv/TVNavRail';
+import TVCatalogLayout, { TV_CATEGORY_PANE_WIDTH } from '../tv/TVCatalogLayout';
+import TVCatalogHeader from '../tv/TVCatalogHeader';
+import TVTextInput from '../tv/TVTextInput';
 
 // TV: pull-to-refresh is touch-only, and clipped (off-screen) cells can't
 // receive D-pad focus, so both are disabled on TV.
@@ -68,10 +71,12 @@ const ACCENT = sectionAccents.movies;
 const { width: WINDOW_WIDTH } = Dimensions.get('window');
 // TV: the nav rail takes part of the width, and a 10-foot grid shows more,
 // smaller posters (which also keeps image memory down on 2 GB devices).
-const width = WINDOW_WIDTH - (IS_TV ? TV_NAV_RAIL_WIDTH : 0);
-const H_PAD = IS_TV ? 32 : 20;
+// TV also reserves the persistent category column (TVCatalogLayout).
+const width =
+  WINDOW_WIDTH - (IS_TV ? TV_NAV_RAIL_WIDTH + TV_CATEGORY_PANE_WIDTH : 0);
+const H_PAD = IS_TV ? 24 : 20;
 const GUTTER = IS_TV ? 16 : 12;
-const COLUMNS = IS_TV ? 6 : 3;
+const COLUMNS = IS_TV ? 4 : 3;
 const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
 const POSTER_HEIGHT = ITEM_WIDTH * 1.5; // 2:3 portrait
 const EMPTY_CATEGORIES: XtreamCategory[] = [];
@@ -279,6 +284,16 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
     [selectCategory],
   );
 
+  // TV category column: persistent, so there is no dropdown viewport to
+  // restore.
+  const handleTVCategorySelect = useCallback(
+    (categoryId: string) => {
+      selectCategory(categoryId);
+      setSearch('');
+    },
+    [selectCategory],
+  );
+
   const toggleSearch = useCallback(() => {
     setSearchOpen(open => {
       const next = !open;
@@ -418,31 +433,42 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
 
   const renderHeader = () => (
     <View style={styles.headerBlock}>
-      <CategoryDropdown
-        label="MOVIES"
-        accent={ACCENT}
-        icon="film"
-        categories={movieCategories as any}
-        activeCategoryId={activeCategory}
-        activeCategoryName={activeCategoryName}
-        onSelect={handleCategorySelect}
-        restorationState={dropdownState}
-        onPositionCommit={commitDropdownViewport}
-        onSearchToggle={toggleSearch}
-        searchActive={searchOpen}
-        searchPlaceholder="Search categories"
-        onBack={() =>
-          navigation.canGoBack()
-            ? navigation.goBack()
-            : navigation.navigate('Home')
-        }
-      />
+      {IS_TV ? (
+        <TVCatalogHeader
+          label="MOVIES"
+          title={activeCategoryName}
+          accent={ACCENT}
+          icon="film"
+          onSearchToggle={toggleSearch}
+          searchActive={searchOpen}
+        />
+      ) : (
+        <CategoryDropdown
+          label="MOVIES"
+          accent={ACCENT}
+          icon="film"
+          categories={movieCategories as any}
+          activeCategoryId={activeCategory}
+          activeCategoryName={activeCategoryName}
+          onSelect={handleCategorySelect}
+          restorationState={dropdownState}
+          onPositionCommit={commitDropdownViewport}
+          onSearchToggle={toggleSearch}
+          searchActive={searchOpen}
+          searchPlaceholder="Search categories"
+          onBack={() =>
+            navigation.canGoBack()
+              ? navigation.goBack()
+              : navigation.navigate('Home')
+          }
+        />
+      )}
 
       {searchOpen && (
         <View style={styles.searchBarWrap}>
           <View style={[styles.searchBar, { borderColor: `${ACCENT}55` }]}>
             <FontAwesome5 name="search" size={15} color={colors.fgSubtle} />
-            <TextInput
+            <TVTextInput
               ref={searchRef}
               value={search}
               onChangeText={setSearch}
@@ -601,71 +627,78 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
     <View style={styles.root}>
       <AmbientGlow accent={ACCENT} />
       <SafeAreaView style={styles.safe}>
-        {renderHeader()}
-        {loadingMovies && movies.length === 0 ? (
-          <CatalogGridSkeleton
-            accent={ACCENT}
-            itemWidth={ITEM_WIDTH}
-            itemHeight={POSTER_HEIGHT}
-            gutter={GUTTER}
-          />
-        ) : movies.length === 0 && (isOffline || moviesError) ? (
-          <CatalogStatus
-            kind={isOffline ? 'offline' : 'error'}
-            title={isOffline ? 'You’re offline' : 'Couldn’t load movies'}
-            message={
-              isOffline
-                ? 'Reconnect or choose a category that is already cached.'
-                : error
-            }
-            accent={ACCENT}
-            onRetry={handleRetry}
-          />
-        ) : (
-          <FlatList
-            key={listKey}
-            style={styles.grid}
-            data={filteredMovies}
-            keyExtractor={movieKeyExtractor}
-            renderItem={renderMovie}
-            numColumns={COLUMNS}
-            columnWrapperStyle={styles.columnWrapper}
-            contentContainerStyle={styles.gridContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentOffset={contentOffset}
-            onScroll={handleListScroll}
-            scrollEventThrottle={200}
-            refreshControl={
-              IS_TV ? undefined : (
-                <RefreshControl
-                  refreshing={refreshingCategories || refreshingMovies}
-                  onRefresh={handleRefresh}
-                  tintColor={ACCENT}
-                  colors={[ACCENT]}
+        <TVCatalogLayout
+          label="MOVIES"
+          accent={ACCENT}
+          categories={movieCategories}
+          activeCategoryId={activeCategory}
+          onSelectCategory={handleTVCategorySelect}>
+          {renderHeader()}
+          {loadingMovies && movies.length === 0 ? (
+            <CatalogGridSkeleton
+              accent={ACCENT}
+              itemWidth={ITEM_WIDTH}
+              itemHeight={POSTER_HEIGHT}
+              gutter={GUTTER}
+            />
+          ) : movies.length === 0 && (isOffline || moviesError) ? (
+            <CatalogStatus
+              kind={isOffline ? 'offline' : 'error'}
+              title={isOffline ? 'You’re offline' : 'Couldn’t load movies'}
+              message={
+                isOffline
+                  ? 'Reconnect or choose a category that is already cached.'
+                  : error
+              }
+              accent={ACCENT}
+              onRetry={handleRetry}
+            />
+          ) : (
+            <FlatList
+              key={listKey}
+              style={styles.grid}
+              data={filteredMovies}
+              keyExtractor={movieKeyExtractor}
+              renderItem={renderMovie}
+              numColumns={COLUMNS}
+              columnWrapperStyle={styles.columnWrapper}
+              contentContainerStyle={styles.gridContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentOffset={contentOffset}
+              onScroll={handleListScroll}
+              scrollEventThrottle={200}
+              refreshControl={
+                IS_TV ? undefined : (
+                  <RefreshControl
+                    refreshing={refreshingCategories || refreshingMovies}
+                    onRefresh={handleRefresh}
+                    tintColor={ACCENT}
+                    colors={[ACCENT]}
+                  />
+                )
+              }
+              removeClippedSubviews={!IS_TV}
+              maxToRenderPerBatch={12}
+              windowSize={5}
+              initialNumToRender={12}
+              ListEmptyComponent={
+                <CatalogStatus
+                  kind="empty"
+                  title={
+                    normalizedSearch ? 'No matching movies' : 'No movies found'
+                  }
+                  message={
+                    normalizedSearch
+                      ? 'Try a different search term.'
+                      : 'This category is currently empty.'
+                  }
+                  accent={ACCENT}
                 />
-              )
-            }
-            removeClippedSubviews={!IS_TV}
-            maxToRenderPerBatch={12}
-            windowSize={5}
-            initialNumToRender={12}
-            ListEmptyComponent={
-              <CatalogStatus
-                kind="empty"
-                title={
-                  normalizedSearch ? 'No matching movies' : 'No movies found'
-                }
-                message={
-                  normalizedSearch
-                    ? 'Try a different search term.'
-                    : 'This category is currently empty.'
-                }
-                accent={ACCENT}
-              />
-            }
-          />
-        )}
+              }
+            />
+          )}
+        </TVCatalogLayout>
       </SafeAreaView>
 
       {/* Detail modal */}

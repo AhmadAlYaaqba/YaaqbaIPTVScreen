@@ -1,8 +1,9 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
 import { colors, radii } from '../../theme/colors';
+import FocusablePressable from '../../tv/FocusablePressable';
 
 const SKELETON_ITEMS = Array.from({ length: 12 }, (_, index) => index);
 
@@ -69,13 +70,13 @@ export function CatalogStatus({
       <Text style={styles.statusTitle}>{title}</Text>
       {message ? <Text style={styles.statusMessage}>{message}</Text> : null}
       {onRetry ? (
-        <Pressable
+        <FocusablePressable
           style={[styles.retryButton, { borderColor: `${accent}66` }]}
           onPress={onRetry}
           accessibilityRole="button"
           accessibilityLabel={`Retry: ${title}`}>
           <Text style={styles.retryText}>Retry</Text>
-        </Pressable>
+        </FocusablePressable>
       ) : null}
     </View>
   );

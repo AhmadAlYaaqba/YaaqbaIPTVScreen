@@ -43,76 +43,82 @@ export interface FocusablePressableProps
 const IS_TV = Platform.isTV;
 const RING_WIDTH = 3;
 
-function FocusablePressable({
-  style,
-  focusedStyle,
-  focusScale = 1.05,
-  onFocus,
-  onBlur,
-  disabled,
-  children,
-  ...rest
-}: FocusablePressableProps) {
-  const [focused, setFocused] = useState(false);
-
-  const handleFocus = useCallback(
-    (event: NativeSyntheticEvent<TargetedEvent>) => {
-      setFocused(true);
-      onFocus?.(event);
+const FocusablePressable = React.forwardRef<View, FocusablePressableProps>(
+  function FocusablePressable(
+    {
+      style,
+      focusedStyle,
+      focusScale = 1.05,
+      onFocus,
+      onBlur,
+      disabled,
+      children,
+      ...rest
     },
-    [onFocus],
-  );
+    ref,
+  ) {
+    const [focused, setFocused] = useState(false);
 
-  const handleBlur = useCallback(
-    (event: NativeSyntheticEvent<TargetedEvent>) => {
-      setFocused(false);
-      onBlur?.(event);
-    },
-    [onBlur],
-  );
+    const handleFocus = useCallback(
+      (event: NativeSyntheticEvent<TargetedEvent>) => {
+        setFocused(true);
+        onFocus?.(event);
+      },
+      [onFocus],
+    );
 
-  // Match the ring's corners to the item's own radius.
-  const ringStyle = useMemo(() => {
-    if (!IS_TV) {
-      return undefined;
-    }
-    const radius = StyleSheet.flatten(style)?.borderRadius;
-    return [
-      styles.ring,
-      { borderRadius: typeof radius === 'number' ? radius : radii.md },
-    ];
-  }, [style]);
+    const handleBlur = useCallback(
+      (event: NativeSyntheticEvent<TargetedEvent>) => {
+        setFocused(false);
+        onBlur?.(event);
+      },
+      [onBlur],
+    );
 
-  return (
-    <Pressable
-      {...rest}
-      disabled={disabled}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      style={({ pressed }) => [
-        style,
-        IS_TV &&
-          focused &&
-          focusScale !== 1 && { transform: [{ scale: focusScale }] },
-        IS_TV && focused && focusedStyle,
-        // Pressed/disabled feedback is TV-only so phones render exactly the
-        // Pressable they had before.
-        IS_TV && disabled && styles.disabled,
-        IS_TV && pressed && styles.pressed,
-      ]}>
-      {({ pressed }) => (
-        <>
-          {typeof children === 'function'
-            ? children({ focused, pressed })
-            : children}
-          {IS_TV && focused ? (
-            <View pointerEvents="none" style={ringStyle} />
-          ) : null}
-        </>
-      )}
-    </Pressable>
-  );
-}
+    // Match the ring's corners to the item's own radius.
+    const ringStyle = useMemo(() => {
+      if (!IS_TV) {
+        return undefined;
+      }
+      const radius = StyleSheet.flatten(style)?.borderRadius;
+      return [
+        styles.ring,
+        { borderRadius: typeof radius === 'number' ? radius : radii.md },
+      ];
+    }, [style]);
+
+    return (
+      <Pressable
+        {...rest}
+        ref={ref}
+        disabled={disabled}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        style={({ pressed }) => [
+          style,
+          IS_TV &&
+            focused &&
+            focusScale !== 1 && { transform: [{ scale: focusScale }] },
+          IS_TV && focused && focusedStyle,
+          // Pressed/disabled feedback is TV-only so phones render exactly the
+          // Pressable they had before.
+          IS_TV && disabled && styles.disabled,
+          IS_TV && pressed && styles.pressed,
+        ]}>
+        {({ pressed }) => (
+          <>
+            {typeof children === 'function'
+              ? children({ focused, pressed })
+              : children}
+            {IS_TV && focused ? (
+              <View pointerEvents="none" style={ringStyle} />
+            ) : null}
+          </>
+        )}
+      </Pressable>
+    );
+  },
+);
 
 const styles = StyleSheet.create({
   ring: {

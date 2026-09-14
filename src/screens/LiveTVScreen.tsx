@@ -45,6 +45,9 @@ import type { TabScreenProps } from '../navigation/types';
 import CachedRemoteImage from '../components/CachedRemoteImage';
 import TVTouchable from '../tv/TVTouchable';
 import { TV_NAV_RAIL_WIDTH } from '../tv/TVNavRail';
+import TVCatalogLayout, { TV_CATEGORY_PANE_WIDTH } from '../tv/TVCatalogLayout';
+import TVCatalogHeader from '../tv/TVCatalogHeader';
+import TVTextInput from '../tv/TVTextInput';
 
 // TV: pull-to-refresh is touch-only, and clipped (off-screen) cells can't
 // receive D-pad focus, so both are disabled on TV.
@@ -56,10 +59,12 @@ const ACCENT = sectionAccents.live;
 const { width: WINDOW_WIDTH } = Dimensions.get('window');
 // TV: the nav rail takes part of the width, and a 10-foot grid shows more,
 // smaller cards (smaller logos also keep image memory down on 2 GB devices).
-const width = WINDOW_WIDTH - (IS_TV ? TV_NAV_RAIL_WIDTH : 0);
-const H_PAD = IS_TV ? 32 : 20;
+// TV also reserves the persistent category column (TVCatalogLayout).
+const width =
+  WINDOW_WIDTH - (IS_TV ? TV_NAV_RAIL_WIDTH + TV_CATEGORY_PANE_WIDTH : 0);
+const H_PAD = IS_TV ? 24 : 20;
 const GUTTER = IS_TV ? 16 : 10;
-const COLUMNS = IS_TV ? 6 : 3;
+const COLUMNS = IS_TV ? 4 : 3;
 const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
 const EMPTY_CATEGORIES: XtreamCategory[] = [];
 const EMPTY_CHANNELS: XtreamLiveStream[] = [];
@@ -214,6 +219,16 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
     [selectCategory],
   );
 
+  // TV category column: persistent, so there is no dropdown viewport to
+  // restore.
+  const handleTVCategorySelect = useCallback(
+    (categoryId: string) => {
+      selectCategory(categoryId);
+      setSearch('');
+    },
+    [selectCategory],
+  );
+
   const toggleSearch = useCallback(() => {
     setSearchOpen(open => {
       const next = !open;
@@ -308,31 +323,42 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
 
   const renderHeader = () => (
     <View style={styles.headerBlock}>
-      <CategoryDropdown
-        label="LIVE TV"
-        accent={ACCENT}
-        icon="satellite-dish"
-        categories={categories}
-        activeCategoryId={activeCategory}
-        activeCategoryName={activeCategoryName}
-        onSelect={handleCategorySelect}
-        restorationState={dropdownState}
-        onPositionCommit={commitDropdownViewport}
-        onSearchToggle={toggleSearch}
-        searchActive={searchOpen}
-        searchPlaceholder="Search categories"
-        onBack={() =>
-          navigation.canGoBack()
-            ? navigation.goBack()
-            : navigation.navigate('Home')
-        }
-      />
+      {IS_TV ? (
+        <TVCatalogHeader
+          label="LIVE TV"
+          title={activeCategoryName}
+          accent={ACCENT}
+          icon="satellite-dish"
+          onSearchToggle={toggleSearch}
+          searchActive={searchOpen}
+        />
+      ) : (
+        <CategoryDropdown
+          label="LIVE TV"
+          accent={ACCENT}
+          icon="satellite-dish"
+          categories={categories}
+          activeCategoryId={activeCategory}
+          activeCategoryName={activeCategoryName}
+          onSelect={handleCategorySelect}
+          restorationState={dropdownState}
+          onPositionCommit={commitDropdownViewport}
+          onSearchToggle={toggleSearch}
+          searchActive={searchOpen}
+          searchPlaceholder="Search categories"
+          onBack={() =>
+            navigation.canGoBack()
+              ? navigation.goBack()
+              : navigation.navigate('Home')
+          }
+        />
+      )}
 
       {searchOpen && (
         <View style={styles.searchBarWrap}>
           <View style={[styles.searchBar, { borderColor: `${ACCENT}55` }]}>
             <FontAwesome5 name="search" size={15} color={colors.fgSubtle} />
-            <TextInput
+            <TVTextInput
               ref={searchRef}
               value={search}
               onChangeText={setSearch}
@@ -444,73 +470,80 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
     <View style={styles.root}>
       <AmbientGlow accent={ACCENT} />
       <SafeAreaView style={styles.safe}>
-        {renderHeader()}
-        {loading && channels.length === 0 ? (
-          <CatalogGridSkeleton
-            accent={ACCENT}
-            itemWidth={ITEM_WIDTH}
-            itemHeight={ITEM_WIDTH + 34}
-            gutter={GUTTER}
-          />
-        ) : channels.length === 0 && (isOffline || channelsError) ? (
-          <CatalogStatus
-            kind={isOffline ? 'offline' : 'error'}
-            title={isOffline ? 'You’re offline' : 'Couldn’t load channels'}
-            message={
-              isOffline
-                ? 'Reconnect or choose a category that is already cached.'
-                : error
-            }
-            accent={ACCENT}
-            onRetry={handleRetry}
-          />
-        ) : (
-          <FlatList
-            key={listKey}
-            style={styles.grid}
-            data={filteredChannels}
-            keyExtractor={channelKeyExtractor}
-            renderItem={renderChannelCard}
-            numColumns={COLUMNS}
-            columnWrapperStyle={styles.columnWrapper}
-            contentContainerStyle={styles.gridContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentOffset={contentOffset}
-            onScroll={handleListScroll}
-            scrollEventThrottle={200}
-            refreshControl={
-              IS_TV ? undefined : (
-                <RefreshControl
-                  refreshing={refreshingCategories || refreshingChannels}
-                  onRefresh={handleRefresh}
-                  tintColor={ACCENT}
-                  colors={[ACCENT]}
+        <TVCatalogLayout
+          label="LIVE TV"
+          accent={ACCENT}
+          categories={categories}
+          activeCategoryId={activeCategory}
+          onSelectCategory={handleTVCategorySelect}>
+          {renderHeader()}
+          {loading && channels.length === 0 ? (
+            <CatalogGridSkeleton
+              accent={ACCENT}
+              itemWidth={ITEM_WIDTH}
+              itemHeight={ITEM_WIDTH + 34}
+              gutter={GUTTER}
+            />
+          ) : channels.length === 0 && (isOffline || channelsError) ? (
+            <CatalogStatus
+              kind={isOffline ? 'offline' : 'error'}
+              title={isOffline ? 'You’re offline' : 'Couldn’t load channels'}
+              message={
+                isOffline
+                  ? 'Reconnect or choose a category that is already cached.'
+                  : error
+              }
+              accent={ACCENT}
+              onRetry={handleRetry}
+            />
+          ) : (
+            <FlatList
+              key={listKey}
+              style={styles.grid}
+              data={filteredChannels}
+              keyExtractor={channelKeyExtractor}
+              renderItem={renderChannelCard}
+              numColumns={COLUMNS}
+              columnWrapperStyle={styles.columnWrapper}
+              contentContainerStyle={styles.gridContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentOffset={contentOffset}
+              onScroll={handleListScroll}
+              scrollEventThrottle={200}
+              refreshControl={
+                IS_TV ? undefined : (
+                  <RefreshControl
+                    refreshing={refreshingCategories || refreshingChannels}
+                    onRefresh={handleRefresh}
+                    tintColor={ACCENT}
+                    colors={[ACCENT]}
+                  />
+                )
+              }
+              removeClippedSubviews={!IS_TV}
+              maxToRenderPerBatch={12}
+              windowSize={5}
+              initialNumToRender={12}
+              ListEmptyComponent={
+                <CatalogStatus
+                  kind="empty"
+                  title={
+                    normalizedSearch
+                      ? 'No matching channels'
+                      : 'No channels found'
+                  }
+                  message={
+                    normalizedSearch
+                      ? 'Try a different search term.'
+                      : 'This category is currently empty.'
+                  }
+                  accent={ACCENT}
                 />
-              )
-            }
-            removeClippedSubviews={!IS_TV}
-            maxToRenderPerBatch={12}
-            windowSize={5}
-            initialNumToRender={12}
-            ListEmptyComponent={
-              <CatalogStatus
-                kind="empty"
-                title={
-                  normalizedSearch
-                    ? 'No matching channels'
-                    : 'No channels found'
-                }
-                message={
-                  normalizedSearch
-                    ? 'Try a different search term.'
-                    : 'This category is currently empty.'
-                }
-                accent={ACCENT}
-              />
-            }
-          />
-        )}
+              }
+            />
+          )}
+        </TVCatalogLayout>
       </SafeAreaView>
     </View>
   );
