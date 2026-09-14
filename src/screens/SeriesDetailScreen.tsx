@@ -9,7 +9,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   FlatList,
   type ListRenderItem,
@@ -51,6 +50,8 @@ import { getTenPointRating } from '../utils/rating';
 import { CatalogStatus } from '../components/catalog/CatalogStates';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import CachedRemoteImage from '../components/CachedRemoteImage';
+import TVTouchable from '../tv/TVTouchable';
+import { useBackHandler } from '../tv/useBackHandler';
 
 // TV: pull-to-refresh is touch-only, and clipped (off-screen) cells can't
 // receive D-pad focus, so both are disabled on TV.
@@ -66,6 +67,9 @@ export type SeriesDetailNavProp = Props['navigation'];
 
 const { width } = Dimensions.get('window');
 const THUMB_W = 124;
+// TV: a 16:11 hero is taller than a 16:9 screen; cap it so the title and
+// Play button stay above the fold.
+const HERO_TV_HEIGHT = 300;
 
 interface EpisodeRowData {
   key: string;
@@ -85,7 +89,7 @@ interface EpisodeRowProps extends Omit<EpisodeRowData, 'key'> {
 
 const SeriesDetailSkeleton = React.memo(() => (
   <View style={styles.skeletonRoot}>
-    <View style={styles.skeletonHero} />
+    <View style={[styles.skeletonHero, IS_TV && styles.heroTV]} />
     <View style={styles.skeletonBody}>
       <View style={[styles.skeletonLine, styles.skeletonTitle]} />
       <View style={[styles.skeletonLine, styles.skeletonMeta]} />
@@ -167,8 +171,9 @@ const EpisodeListItem = React.memo(
     }, [index, onPressEpisode]);
 
     return (
-      <TouchableOpacity
+      <TVTouchable
         style={styles.episodeRow}
+        focusScale={1}
         activeOpacity={0.8}
         onPress={handlePress}
         accessibilityRole="button"
@@ -217,7 +222,7 @@ const EpisodeListItem = React.memo(
           )}
           {!!remaining && <Text style={styles.epContinue}>{remaining}</Text>}
         </View>
-      </TouchableOpacity>
+      </TVTouchable>
     );
   },
 );
@@ -256,6 +261,12 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const [seasonOpen, setSeasonOpen] = useState(false);
   const episodeListRef = useRef<FlatList<EpisodeRowData>>(null);
   const shouldRestoreEpisodeSectionRef = useRef(false);
+
+  // TV: Back closes the season panel before leaving the screen.
+  useBackHandler(() => {
+    setSeasonOpen(false);
+    return true;
+  }, IS_TV && seasonOpen);
 
   const xtreamYear = baseInfo?.releaseDate
     ? String(baseInfo.releaseDate).substring(0, 4)
@@ -627,7 +638,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         ListHeaderComponent={
           <>
             {/* ── Hero ── */}
-            <View style={styles.hero}>
+            <View style={[styles.hero, IS_TV && styles.heroTV]}>
               <CachedRemoteImage
                 uri={heroImg}
                 playlistId={playlistId}
@@ -636,7 +647,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                 style={StyleSheet.absoluteFill}
                 priority="high"
                 displayWidth={width}
-                displayHeight={(width * 11) / 16}
+                displayHeight={IS_TV ? HERO_TV_HEIGHT : (width * 11) / 16}
                 fallback={
                   <View
                     style={[StyleSheet.absoluteFill, styles.heroPlaceholder]}
@@ -651,8 +662,9 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
               />
 
               <View style={[styles.heroTopRow, { top: insets.top + 8 }]}>
-                <TouchableOpacity
+                <TVTouchable
                   style={styles.glassBtn}
+                  hasTVPreferredFocus={IS_TV && currentEpisodes.length === 0}
                   activeOpacity={0.8}
                   onPress={handleGoBack}
                   accessibilityRole="button"
@@ -662,7 +674,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                     size={17}
                     color={colors.fg}
                   />
-                </TouchableOpacity>
+                </TVTouchable>
               </View>
 
               <View style={styles.heroBottom}>
@@ -745,8 +757,11 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
             {currentEpisodes.length > 0 && (
               <View style={styles.actionsRow}>
-                <TouchableOpacity
-                  style={styles.playButton}
+                <TVTouchable
+                  style={[styles.playButton, IS_TV && styles.playButtonTV]}
+                  hasTVPreferredFocus={IS_TV}
+                  // The default white ring is invisible on the white button.
+                  focusedStyle={styles.playButtonFocusedTV}
                   activeOpacity={0.85}
                   onPress={handlePlayFirstEpisode}
                   accessibilityRole="button"
@@ -758,7 +773,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                     solid
                   />
                   <Text style={styles.playText}>{playLabel}</Text>
-                </TouchableOpacity>
+                </TVTouchable>
               </View>
             )}
 
@@ -769,9 +784,11 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   numberOfLines={expanded ? undefined : 3}>
                   {plot}
                 </Text>
-                <TouchableOpacity
+                <TVTouchable
                   activeOpacity={0.7}
                   onPress={() => setExpanded(value => !value)}
+                  style={IS_TV ? styles.readMoreButtonTV : undefined}
+                  focusScale={1}
                   hitSlop={8}
                   accessibilityRole="button"
                   accessibilityLabel={
@@ -781,7 +798,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   <Text style={styles.readMore}>
                     {expanded ? 'Show less' : 'Read more'}
                   </Text>
-                </TouchableOpacity>
+                </TVTouchable>
               </View>
             )}
 
@@ -808,7 +825,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
                 {multiSeason ? (
                   <View style={styles.seasonWrap}>
-                    <TouchableOpacity
+                    <TVTouchable
                       activeOpacity={0.8}
                       onPress={() => setSeasonOpen(open => !open)}
                       style={[
@@ -826,7 +843,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                         size={12}
                         color={colors.fgMuted}
                       />
-                    </TouchableOpacity>
+                    </TVTouchable>
 
                     {seasonOpen && (
                       <>
@@ -842,10 +859,12 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                             {seasons.map(num => {
                               const selected = num === selectedSeason;
                               return (
-                                <TouchableOpacity
+                                <TVTouchable
                                   key={num}
                                   activeOpacity={0.7}
                                   onPress={() => handleSeasonSelect(num)}
+                                  hasTVPreferredFocus={IS_TV && selected}
+                                  focusScale={1}
                                   style={[
                                     styles.seasonRow,
                                     selected && {
@@ -867,7 +886,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                                   <Text style={styles.seasonRowCount}>
                                     {episodes[num]?.length || 0} ep
                                   </Text>
-                                </TouchableOpacity>
+                                </TVTouchable>
                               );
                             })}
                           </ScrollView>
@@ -957,6 +976,10 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 16 / 11,
     backgroundColor: colors.surface,
+  },
+  heroTV: {
+    aspectRatio: undefined,
+    height: HERO_TV_HEIGHT,
   },
   heroPlaceholder: {
     backgroundColor: colors.surface,
@@ -1088,6 +1111,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
+  playButtonTV: {
+    flex: 0,
+    paddingHorizontal: 32,
+  },
+  playButtonFocusedTV: {
+    backgroundColor: ACCENT,
+  },
   playText: {
     fontFamily: FONT,
     fontSize: 15,
@@ -1105,6 +1135,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: colors.fgMuted,
+  },
+  readMoreButtonTV: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    marginLeft: -8,
+    borderRadius: radii.sm,
   },
   readMore: {
     marginTop: 6,

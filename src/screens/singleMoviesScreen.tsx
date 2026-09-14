@@ -79,6 +79,7 @@ const GUTTER = IS_TV ? 16 : 12;
 const COLUMNS = IS_TV ? 4 : 3;
 const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
 const POSTER_HEIGHT = ITEM_WIDTH * 1.5; // 2:3 portrait
+const MODAL_POSTER_TV_HEIGHT = 190;
 const EMPTY_CATEGORIES: XtreamCategory[] = [];
 const EMPTY_MOVIES: XtreamMovieStream[] = [];
 const movieKeyExtractor = (item: XtreamMovieStream) => String(item.stream_id);
@@ -708,7 +709,12 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
         transparent
         onRequestClose={() => setSelectedMovie(null)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalWrap, { paddingTop: insets.top }]}>
+          <View
+            style={[
+              styles.modalWrap,
+              IS_TV && styles.modalWrapTV,
+              { paddingTop: insets.top },
+            ]}>
             {selectedMovie && (
               <View
                 style={styles.modalCard}
@@ -727,13 +733,17 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                   playlistId={playlistId}
                   contentId={selectedMovie.stream_id}
                   variant={modalBackdropUri ? 'backdrop' : 'poster'}
-                  style={styles.modalPoster}
+                  style={[styles.modalPoster, IS_TV && styles.modalPosterTV]}
                   priority="high"
                   displayWidth={width}
-                  displayHeight={320}
+                  displayHeight={IS_TV ? MODAL_POSTER_TV_HEIGHT : 320}
                   fallback={
                     <View
-                      style={[styles.modalPoster, styles.posterPlaceholder]}>
+                      style={[
+                        styles.modalPoster,
+                        IS_TV && styles.modalPosterTV,
+                        styles.posterPlaceholder,
+                      ]}>
                       <FontAwesome5
                         name="film"
                         size={40}
@@ -791,10 +801,16 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                   )}
 
                   {!!modalOverview && (
-                    <Text style={styles.modalOverview}>{modalOverview}</Text>
+                    <Text
+                      style={styles.modalOverview}
+                      numberOfLines={IS_TV ? 3 : undefined}>
+                      {modalOverview}
+                    </Text>
                   )}
 
-                  {modalCast.length > 0 && (
+                  {/* TV: the modal must fit a 16:9 screen, and the cast row is not
+                      focusable, so it is left out there. */}
+                  {!IS_TV && modalCast.length > 0 && (
                     <View style={styles.castSection}>
                       <Text style={styles.castHeader}>Cast</Text>
                       <ScrollView
@@ -835,6 +851,8 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                   style={[styles.playButton, { backgroundColor: ACCENT }]}
                   activeOpacity={0.85}
                   onPress={playSelected}
+                  hasTVPreferredFocus={IS_TV}
+                  focusScale={1}
                   accessibilityRole="button"
                   accessibilityLabel={`Play ${selectedMovie.name}`}>
                   <FontAwesome5
@@ -1057,6 +1075,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
   },
+  modalWrapTV: {
+    maxWidth: 620,
+  },
   modalCard: {
     backgroundColor: colors.panel,
     borderRadius: radii.card,
@@ -1069,6 +1090,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 320,
     backgroundColor: colors.surface,
+  },
+  modalPosterTV: {
+    height: MODAL_POSTER_TV_HEIGHT,
   },
   modalClose: {
     position: 'absolute',
