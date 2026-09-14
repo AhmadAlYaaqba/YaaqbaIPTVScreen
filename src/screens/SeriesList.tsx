@@ -16,7 +16,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import AppIcon from '../components/AppIcon';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSelector } from 'react-redux';
 
@@ -128,7 +128,7 @@ const SeriesPoster = React.memo(
             displayHeight={POSTER_HEIGHT}
             fallback={
               <View style={styles.posterPlaceholder}>
-                <FontAwesome5 name="tv" size={26} color={colors.fgSubtle} />
+                <AppIcon name="tv" size={26} color={colors.fgSubtle} />
               </View>
             }
           />
@@ -141,7 +141,7 @@ const SeriesPoster = React.memo(
 
           {rating != null && (
             <View style={styles.ratingBadge}>
-              <FontAwesome5 name="star" size={9} color={colors.warning} solid />
+              <AppIcon name="star" size={9} color={colors.warning} />
               <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
             </View>
           )}
@@ -378,7 +378,7 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
       {searchOpen && (
         <View style={styles.searchBarWrap}>
           <View style={[styles.searchBar, { borderColor: `${ACCENT}55` }]}>
-            <FontAwesome5 name="search" size={15} color={colors.fgSubtle} />
+            <AppIcon name="search" size={15} color={colors.fgSubtle} />
             <TVTextInput
               ref={searchRef}
               value={search}
@@ -400,7 +400,7 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel="Clear series search">
-                <FontAwesome5 name="times" size={14} color={colors.fgMuted} />
+                <AppIcon name="times" size={14} color={colors.fgMuted} />
               </TVTouchable>
             )}
           </View>

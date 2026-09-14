@@ -17,6 +17,7 @@ import {
   getActivePlaylist,
   normalizePlaylistStore,
   setActivePlaylist,
+  setGlobalVideoContentMode,
 } from '../src/services/playlists/playlistStore';
 
 const playlist = {
@@ -59,5 +60,16 @@ describe('playlist session persistence', () => {
     expect(signedOutStore.activeId).toBeNull();
     expect(signedOutStore.playlists).toContainEqual(playlist);
     expect(await getActivePlaylist()).toBeNull();
+  });
+
+  it('persists the device-wide aspect ratio preference', async () => {
+    const keychain = require('react-native-keychain');
+
+    await setGlobalVideoContentMode('crop');
+
+    const saved = JSON.parse(
+      keychain.setGenericPassword.mock.calls.at(-1)[1],
+    );
+    expect(saved.videoContentMode).toBe('crop');
   });
 });

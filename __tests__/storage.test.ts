@@ -42,7 +42,7 @@ describe('playlist-scoped watch storage', () => {
     );
     const multiGet = jest.spyOn(AsyncStorage, 'multiGet');
 
-    const result = await storage.getLatestWatched();
+    const result = await storage.getWatchHistory();
 
     expect(multiGet).toHaveBeenCalledTimes(1);
     expect(result).toEqual([
@@ -51,17 +51,17 @@ describe('playlist-scoped watch storage', () => {
         id: '123',
         type: 'live',
         streamId: '123',
-        streamUrl: savedUrl,
         containerExtension: 'ts',
         channelName: 'News HD',
       }),
     ]);
 
     const persisted = JSON.parse(
-      (await AsyncStorage.getItem(`@latest_watched:${PLAYLIST_A}`)) || '[]',
+      (await AsyncStorage.getItem(`@watch_history:${PLAYLIST_A}`)) || '[]',
     );
     expect(persisted).toHaveLength(1);
     expect(persisted[0].schemaVersion).toBe(WATCH_HISTORY_SCHEMA_VERSION);
+    expect(persisted[0].streamUrl).toBeUndefined();
   });
 
   it('loads latest, movie progress, and series progress in one storage request', async () => {
@@ -197,7 +197,12 @@ describe('playlist-scoped watch storage', () => {
     expect((await storage.getLatestWatched()).map(item => item.id)).toEqual([
       'movie-keep',
     ]);
-    expect(await storage.getRecentlyWatched()).toEqual([]);
+    expect(await storage.getWatchHistory()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'movie-done', completed: true }),
+        expect.objectContaining({ id: 'movie-keep', completed: false }),
+      ]),
+    );
   });
 
   it('removes only the completed episode from series progress and history', async () => {
@@ -290,5 +295,133 @@ describe('playlist-scoped watch storage', () => {
         (await AsyncStorage.getItem(`@movie_progress:${PLAYLIST_A}`)) || '{}',
       ),
     ).toHaveProperty('legacy-movie.progress', 12);
+  });
+
+  it('keeps separate permanent history entries for episodes in one series', async () => {
+    await storage.saveWatchHistory({
+      id: 'series-1',
+      type: 'series',
+      name: 'Episode 1',
+      seriesId: 'series-1',
+      episodeId: 'episode-1',
+      timestamp: 1,
+    });
+    await storage.saveWatchHistory({
+      id: 'series-1',
+      type: 'series',
+      name: 'Episode 2',
+      seriesId: 'series-1',
+      episodeId: 'episode-2',
+      timestamp: 2,
+    });
+
+    expect(
+      (await storage.getWatchHistory()).map(item =>
+        item.type === 'series' ? item.episodeId : item.id,
+      ),
+    ).toEqual(['episode-2', 'episode-1']);
+  });
+
+  it('caps permanent history at 200 entries', async () => {
+    for (let index = 0; index < 205; index += 1) {
+      await storage.saveWatchHistory({
+        id: `movie-${index}`,
+        type: 'movie',
+        name: `Movie ${index}`,
+        timestamp: index,
+      });
+    }
+
+    const history = await storage.getWatchHistory();
+    expect(history).toHaveLength(200);
+    expect(history[0].id).toBe('movie-204');
+  });
+
+  it('removes one history item and its matching progress only', async () => {
+    await storage.saveWatchHistory({
+      id: 'movie-remove',
+      type: 'movie',
+      name: 'Remove',
+      streamId: 'movie-remove',
+      timestamp: 2,
+    });
+    await storage.saveWatchHistory({
+      id: 'movie-keep',
+      type: 'movie',
+      name: 'Keep',
+      streamId: 'movie-keep',
+      timestamp: 1,
+    });
+    await AsyncStorage.setItem(
+      `@movie_progress:${PLAYLIST_A}`,
+      JSON.stringify({
+        'movie-remove': { progress: 20 },
+        'movie-keep': { progress: 30 },
+      }),
+    );
+    const item = (await storage.getWatchHistory())[0];
+
+    await storage.removeHistoryEntry(item);
+
+    expect((await storage.getWatchHistory()).map(entry => entry.id)).toEqual([
+      'movie-keep',
+    ]);
+    expect(await storage.getAllProgress(true)).toEqual({
+      'movie-keep': { progress: 30 },
+    });
+  });
+
+  it('keeps favorites playlist-scoped and derives recent channels from history', async () => {
+    await storage.toggleFavoriteChannel({
+      streamId: '101',
+      name: 'News',
+      extension: 'ts',
+      categoryId: '9',
+    });
+    await storage.saveWatchHistory({
+      id: '101',
+      type: 'live',
+      name: 'News',
+      streamId: '101',
+      channelName: 'News',
+      containerExtension: 'ts',
+      categoryId: '9',
+      timestamp: 10,
+    });
+
+    expect(await storage.getFavoriteChannels()).toEqual([
+      expect.objectContaining({ streamId: '101', categoryId: '9' }),
+    ]);
+    expect(await storage.getRecentChannels()).toEqual([
+      expect.objectContaining({ streamId: '101', lastViewedAt: 10 }),
+    ]);
+
+    storage.setActivePlaylistId(PLAYLIST_B);
+    expect(await storage.getFavoriteChannels()).toEqual([]);
+    expect(await storage.getRecentChannels()).toEqual([]);
+  });
+
+  it('clears history and progress without clearing favorites', async () => {
+    await storage.toggleFavoriteChannel({
+      streamId: '101',
+      name: 'News',
+      extension: 'm3u8',
+    });
+    await storage.saveWatchHistory({
+      id: 'movie-1',
+      type: 'movie',
+      name: 'Movie',
+      timestamp: 1,
+    });
+    await AsyncStorage.setItem(
+      `@movie_progress:${PLAYLIST_A}`,
+      JSON.stringify({ 'movie-1': { progress: 20 } }),
+    );
+
+    await storage.clearWatchHistory();
+
+    expect(await storage.getWatchHistory()).toEqual([]);
+    expect(await storage.getAllProgress(true)).toEqual({});
+    expect(await storage.getFavoriteChannels()).toHaveLength(1);
   });
 });

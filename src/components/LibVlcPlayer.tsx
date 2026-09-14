@@ -16,6 +16,7 @@ import type {
   PlayerAdapter,
   PlayerAdapterProps,
 } from '../types/player';
+import { getPlayerContentFit } from '../types/player';
 import { isVlcNaturalCompletion } from '../utils/playerCompletion';
 
 const LibVlcPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
@@ -31,6 +32,7 @@ const LibVlcPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
       onBuffer,
       onEnd,
       resumePosition,
+      contentMode,
     },
     ref,
   ) => {
@@ -40,6 +42,7 @@ const LibVlcPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
     const lastProgressSecRef = useRef(-1);
     const lastPositionMsRef = useRef(0);
     const suppressStoppedRef = useRef(false);
+    const encounteredErrorRef = useRef(false);
     const lastAppliedTokenRef = useRef(sourceToken);
     const sourceRef = useRef(source);
     const resumePositionRef = useRef(resumePosition);
@@ -58,6 +61,7 @@ const LibVlcPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
     const replaceSource = useCallback(
       (nextSource: PlaybackSource, nextResumePosition = 0) => {
         suppressStoppedRef.current = true;
+        encounteredErrorRef.current = false;
         loadedRef.current = false;
         durationMsRef.current = 0;
         lastPositionMsRef.current = 0;
@@ -142,19 +146,21 @@ const LibVlcPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
         autoplay
         repeat={false}
         mute={false}
-        contentFit="contain"
+        contentFit={getPlayerContentFit('vlc', contentMode)}
         time={startTimeMs}
         onFirstPlay={event => {
           const { length } = event;
           durationMsRef.current = length > 0 ? length : 0;
           lastPositionMsRef.current = startTimeMs;
           suppressStoppedRef.current = false;
+          encounteredErrorRef.current = false;
           loadedRef.current = true;
           onLoad({ duration: durationMsRef.current / 1000 });
         }}
         onTimeChanged={event => {
           const timeMs = event.value || 0;
           lastPositionMsRef.current = timeMs;
+          encounteredErrorRef.current = false;
           const timeSec = timeMs / 1000;
           const wholeSecond = Math.floor(timeSec);
           if (wholeSecond === lastProgressSecRef.current) {
@@ -172,11 +178,14 @@ const LibVlcPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
         }}
         onPlaying={() => {
           suppressStoppedRef.current = false;
+          encounteredErrorRef.current = false;
           onBuffer({ isBuffering: false });
         }}
         onPaused={() => onBuffer({ isBuffering: false })}
         onStopped={() => {
-          onBuffer({ isBuffering: false });
+          if (!suppressStoppedRef.current && !encounteredErrorRef.current) {
+            onBuffer({ isBuffering: false });
+          }
           if (
             isVlcNaturalCompletion({
               isLive,
@@ -189,6 +198,7 @@ const LibVlcPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
           }
         }}
         onEncounteredError={event => {
+          encounteredErrorRef.current = true;
           onError({
             error: {
               errorString: event.message || 'VLC playback error',

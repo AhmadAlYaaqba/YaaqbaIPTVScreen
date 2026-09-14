@@ -9,11 +9,10 @@ import { AppState, View, StyleSheet, StatusBar, Platform } from 'react-native';
 import Orientation from 'react-native-orientation-locker';
 import { useFocusEffect } from '@react-navigation/native';
 import type { RootScreenProps } from '../navigation/types';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '../store';
 import { storage } from '../utils/storage';
 import {
-  buildDirectPlaybackUrl,
   createVlcFallbackRequest,
   switchLivePlaybackRequest,
 } from '../utils/playbackSources';
@@ -33,11 +32,15 @@ import { useTVRemote } from '../tv/useTVRemote';
 import { useBackHandler } from '../tv/useBackHandler';
 import type { TVRemoteAction } from '../tv/remoteActions';
 import PlayerAdapterView from '../components/PlayerAdapterView';
-import type {
-  PlaybackRequest,
-  PlayerAdapter,
-  PlayerEngine,
+import {
+  VIDEO_CONTENT_MODES,
+  type PlaybackRequest,
+  type PlayerAdapter,
+  type PlayerEngine,
 } from '../types/player';
+import { setUserPreferences } from '../store/slices/userSlice';
+import { setGlobalVideoContentMode } from '../services/playlists/playlistStore';
+import { playbackRequestToHistoryInput } from '../utils/historyPlayback';
 // import DevStreamDebugOverlay from '../components/DevStreamDebugOverlay';
 
 // Hooks
@@ -51,6 +54,7 @@ const CONTROLS_TIMEOUT = 5000; // Auto-hide controls after 5 seconds
 const EMPTY_CHANNELS: XtreamLiveStream[] = [];
 
 const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
+  const dispatch = useDispatch<AppDispatch>();
   const [playbackRequest, setPlaybackRequest] = useState<PlaybackRequest>(
     route.params.request,
   );
@@ -63,6 +67,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     password,
     serverDomain,
     serverPort,
+    videoContentMode,
   } = useSelector((state: RootState) => state.user);
   const [sessionPlayerEngine, setSessionPlayerEngine] =
     useState<PlayerEngine>(playerEngine);
@@ -97,18 +102,12 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   const movieId =
     playbackRequest.kind === 'movie' ? playbackRequest.streamId : undefined;
   const currentStreamId = playbackRequest.streamId;
-  const currentContainerExtension = playbackRequest.extension;
   const currentChannelName =
     playbackRequest.kind === 'live'
       ? playbackRequest.channelName
       : playbackRequest.title;
-  const currentThumbnail = playbackRequest.thumbnail ?? '';
   const categoryId =
     playbackRequest.kind === 'live' ? playbackRequest.categoryId : undefined;
-  const currentStreamUrl = useMemo(
-    () => buildDirectPlaybackUrl(playbackRequest, connection),
-    [connection, playbackRequest],
-  );
   const session = useMemo<XtreamSession | null>(
     () =>
       playlistId
@@ -269,6 +268,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   const durationRef = useRef(player.duration);
   const lastSavedProgressRef = useRef(-1);
   const completionHandledRef = useRef<string | null>(null);
+  const recordedPlaybackKeyRef = useRef<string | null>(null);
   durationRef.current = player.duration;
   const progressContentKey = `${playlistId ?? 'none'}:${playbackRequest.kind}:${
     seriesId ?? ''
@@ -314,8 +314,25 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         },
         Boolean(movieId),
       );
+      const historyItem = playbackRequestToHistoryInput(
+        playbackRequest,
+        currentProgress,
+        totalDuration,
+      );
+      await Promise.all([
+        storage.saveWatchHistory(historyItem),
+        storage.saveLatestWatched(historyItem),
+      ]);
     },
-    [episodeId, isLive, movieId, progressContentKey, seriesId, title],
+    [
+      episodeId,
+      isLive,
+      movieId,
+      playbackRequest,
+      progressContentKey,
+      seriesId,
+      title,
+    ],
   );
 
   const flushProgress = useCallback(
@@ -396,7 +413,12 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
       }
       if (cancelled) return;
 
-      if (seriesId && episodeList && currentEpisodeIndex !== undefined) {
+      if (
+        playbackRequest.kind === 'episode' &&
+        seriesId &&
+        episodeList &&
+        currentEpisodeIndex !== undefined
+      ) {
         const nextEpisodeIndex = currentEpisodeIndex + 1;
         if (nextEpisodeIndex < episodeList.length) {
           const nextEpisode = episodeList[nextEpisodeIndex];
@@ -415,6 +437,14 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
               playbackRequest.expectedDuration,
             thumbnail: playbackRequest.thumbnail,
             seriesId,
+            seriesName: playbackRequest.seriesName,
+            episodeNumber:
+              typeof nextEpisode.episode_num === 'number'
+                ? nextEpisode.episode_num
+                : typeof nextEpisode.episode === 'number'
+                ? nextEpisode.episode
+                : nextEpisodeIndex + 1,
+            seasonNumber: playbackRequest.seasonNumber,
             episodeList,
             currentEpisodeIndex: nextEpisodeIndex,
           });
@@ -443,75 +473,21 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     flushProgress,
   ]);
 
-  // --- Recently watched tracking ---
-  useEffect(() => {
-    if (playbackRequest.kind === 'live') {
-      return;
-    }
-
-    if (playbackRequest.kind === 'episode') {
-      const item = {
-        id: playbackRequest.seriesId,
-        type: 'series' as const,
-        name: playbackRequest.title,
-        timestamp: Date.now(),
-        progress: playbackRequest.resume?.progress ?? 0,
-        totalDuration:
-          playbackRequest.resume?.totalDuration ??
-          playbackRequest.expectedDuration,
-        seriesId: playbackRequest.seriesId,
-        episodeId: playbackRequest.streamId,
-        thumbnail: playbackRequest.thumbnail,
-        streamUrl: currentStreamUrl,
-        containerExtension: playbackRequest.extension,
-      };
-      storage.saveRecentlyWatched(item);
+  const handlePlayerLoad = useCallback(
+    (data: { duration: number }) => {
+      player.onLoad(data);
+      if (recordedPlaybackKeyRef.current === progressContentKey) return;
+      recordedPlaybackKeyRef.current = progressContentKey;
+      const item = playbackRequestToHistoryInput(
+        playbackRequest,
+        playbackRequest.kind === 'live' ? 0 : player.currentProgressRef.current,
+        data.duration,
+      );
+      storage.saveWatchHistory(item);
       storage.saveLatestWatched(item);
-    } else {
-      const item = {
-        id: playbackRequest.streamId,
-        type: 'movie' as const,
-        name: playbackRequest.title,
-        timestamp: Date.now(),
-        progress: playbackRequest.resume?.progress ?? 0,
-        totalDuration:
-          playbackRequest.resume?.totalDuration ??
-          playbackRequest.expectedDuration,
-        thumbnail: playbackRequest.thumbnail,
-        streamUrl: currentStreamUrl,
-        containerExtension: playbackRequest.extension,
-      };
-      storage.saveRecentlyWatched(item);
-      storage.saveLatestWatched(item);
-    }
-  }, [currentStreamUrl, playbackRequest]);
-
-  useEffect(() => {
-    if (!isLive || !currentStreamId || !currentChannelName) {
-      return;
-    }
-
-    storage.saveLatestWatched({
-      id: currentStreamId,
-      type: 'live',
-      name: currentChannelName,
-      timestamp: Date.now(),
-      streamId: currentStreamId,
-      streamUrl: currentStreamUrl,
-      containerExtension: currentContainerExtension,
-      categoryId,
-      channelName: currentChannelName,
-      thumbnail: currentThumbnail,
-    });
-  }, [
-    categoryId,
-    currentChannelName,
-    currentContainerExtension,
-    currentStreamId,
-    currentStreamUrl,
-    currentThumbnail,
-    isLive,
-  ]);
+    },
+    [playbackRequest, player, progressContentKey],
+  );
 
   // --- Channel switch ---
   const handleChannelSwitch = useCallback(
@@ -520,6 +496,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
       newChannelName: string,
       newExtension: string,
       newThumbnail?: string,
+      newCategoryId?: string,
     ) => {
       if (playbackRequest.kind === 'live') {
         setPlaybackRequest(
@@ -528,6 +505,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
             channelName: newChannelName,
             extension: newExtension,
             thumbnail: newThumbnail,
+            categoryId: newCategoryId,
           }),
         );
       }
@@ -543,6 +521,15 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   const closeChannelSwitcher = useCallback(() => {
     setChannelSwitcherVisible(false);
   }, []);
+
+  const handleCycleContentMode = useCallback(() => {
+    const index = VIDEO_CONTENT_MODES.indexOf(videoContentMode);
+    const next = VIDEO_CONTENT_MODES[(index + 1) % VIDEO_CONTENT_MODES.length];
+    dispatch(setUserPreferences({ videoContentMode: next }));
+    setGlobalVideoContentMode(next).catch(error => {
+      if (__DEV__) console.error('Error saving aspect ratio:', error);
+    });
+  }, [dispatch, videoContentMode]);
 
   const retryLiveChannels = useCallback(() => {
     refetchLiveChannels();
@@ -603,7 +590,13 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
       );
       revealControls();
     },
-    [currentStreamId, handleChannelSwitch, isLive, liveChannels, revealControls],
+    [
+      currentStreamId,
+      handleChannelSwitch,
+      isLive,
+      liveChannels,
+      revealControls,
+    ],
   );
 
   const handleRemoteAction = useCallback(
@@ -630,6 +623,9 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         case 'previous':
           switchAdjacentChannel(-1);
           return;
+      }
+      if (player.error && (action === 'left' || action === 'right')) {
+        return; // D-pad moves focus between Retry and the switch-player button
       }
       if (controlsVisible) {
         resetControlsTimeout();
@@ -700,8 +696,9 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         isLive={isLive}
         isPaused={player.shouldPause}
         resumePosition={player.resumePosition}
+        contentMode={videoContentMode}
         bufferConfig={player.bufferConfig}
-        onLoad={player.onLoad}
+        onLoad={handlePlayerLoad}
         onError={player.onError}
         onProgress={player.onProgress}
         onBuffer={player.onBuffer}
@@ -732,20 +729,19 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         onSeekInteractionEnd={resetControlsTimeout}
         onRetry={player.retry}
         fallbackActionLabel={
-          player.error &&
-          !isLive &&
-          sessionPlayerEngine === 'expo-video'
+          player.error && !isLive && sessionPlayerEngine === 'expo-video'
             ? 'Try with VLC'
             : undefined
         }
         onFallbackAction={
-          player.error &&
-          !isLive &&
-          sessionPlayerEngine === 'expo-video'
+          player.error && !isLive && sessionPlayerEngine === 'expo-video'
             ? handleTryWithVlc
             : undefined
         }
         onToggleVisibility={toggleControls}
+        tvOverlayOpen={channelSwitcherVisible}
+        contentMode={videoContentMode}
+        onCycleContentMode={handleCycleContentMode}
         onDoubleTap={isLive ? undefined : handleDoubleTap}
         onToggleChannelSwitcher={isLive ? toggleChannelSwitcher : undefined}
         onVerticalPanStart={gestures.onVerticalPanStart}
@@ -759,6 +755,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
           playlistId={playlistId}
           visible={channelSwitcherVisible}
           channels={liveChannels}
+          currentCategoryId={categoryId}
           activeStreamId={currentStreamId}
           isLoading={liveChannelsQuery.isPending}
           isOffline={isOffline}

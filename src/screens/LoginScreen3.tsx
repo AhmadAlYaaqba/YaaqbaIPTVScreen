@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import AppIcon from '../components/AppIcon';
 import axios from 'axios';
 import * as Keychain from 'react-native-keychain';
 import DeviceInfo from 'react-native-device-info';
@@ -257,7 +257,7 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
               end={GRADIENT_END}
               style={styles.logoRing}>
               <View style={styles.logoInner}>
-                <FontAwesome5 name="tv" color={colors.indigo} size={24} />
+                <AppIcon name="tv" color={colors.indigo} size={24} />
               </View>
             </LinearGradient>
             <Text style={styles.eyebrow}>WELCOME TO</Text>
@@ -282,7 +282,7 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.inputTitle}>Enter your code</Text>
               </View>
               <View style={styles.codeIcon}>
-                <FontAwesome5 name="key" size={15} color={colors.cyan} />
+                <AppIcon name="key" size={15} color={colors.cyan} />
               </View>
             </View>
 
@@ -317,11 +317,10 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
                 </>
               ) : (
                 <>
-                  <FontAwesome5
+                  <AppIcon
                     name="bolt"
                     size={14}
                     color={colors.scene}
-                    solid
                   />
                   <Text style={styles.buttonText}>Activate</Text>
                 </>
@@ -330,7 +329,7 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
 
             {error ? (
               <View style={styles.errorBox}>
-                <FontAwesome5
+                <AppIcon
                   name="exclamation-circle"
                   color={colors.danger}
                   size={14}
@@ -342,7 +341,7 @@ const ActivationScreen: React.FC<Props> = ({ navigation }) => {
 
           <View style={styles.proxyCard}>
             <View style={styles.proxyIconTile}>
-              <FontAwesome5 name="shield-alt" size={15} color={colors.cyan} />
+              <AppIcon name="shield-alt" size={15} color={colors.cyan} />
             </View>
             <View style={styles.proxyCopy}>
               <Text style={styles.proxyLabel}>Use HTTP Proxy</Text>

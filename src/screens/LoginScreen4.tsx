@@ -13,7 +13,7 @@ import {
 import TVTextInput from '../tv/TVTextInput';
 import TVTouchable from '../tv/TVTouchable';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import AppIcon, { type AppIconName } from '../components/AppIcon';
 import axios from 'axios';
 import DeviceInfo from 'react-native-device-info';
 import { useSelector } from 'react-redux';
@@ -282,7 +282,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
     await enterPlaylist(playlist, navigation);
   };
 
-  const renderTabButton = (key: TabKey, label: string, icon: string) => {
+  const renderTabButton = (key: TabKey, label: string, icon: AppIconName) => {
     const active = tab === key;
     return (
       <TVTouchable
@@ -292,11 +292,10 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
           setError(null);
           setTab(key);
         }}>
-        <FontAwesome5
+        <AppIcon
           name={icon}
           size={13}
           color={active ? colors.scene : colors.fgMuted}
-          solid={active}
         />
         <Text style={[styles.tabText, active && styles.tabTextActive]}>
           {label}
@@ -321,7 +320,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
               end={GRADIENT_END}
               style={styles.logoRing}>
               <View style={styles.logoInner}>
-                <FontAwesome5 name="tv" color={colors.indigo} size={24} />
+                <AppIcon name="tv" color={colors.indigo} size={24} />
               </View>
             </LinearGradient>
             <Text style={styles.eyebrow}>WELCOME TO</Text>
@@ -355,7 +354,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                     <Text style={styles.inputTitle}>Enter your code</Text>
                   </View>
                   <View style={styles.codeIcon}>
-                    <FontAwesome5 name="key" size={15} color={colors.cyan} />
+                    <AppIcon name="key" size={15} color={colors.cyan} />
                   </View>
                 </View>
 
@@ -390,11 +389,10 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                     </>
                   ) : (
                     <>
-                      <FontAwesome5
+                      <AppIcon
                         name="bolt"
                         size={14}
                         color={colors.scene}
-                        solid
                       />
                       <Text style={styles.buttonText}>Activate</Text>
                     </>
@@ -409,7 +407,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                     <Text style={styles.inputTitle}>Add a playlist</Text>
                   </View>
                   <View style={styles.codeIcon}>
-                    <FontAwesome5 name="server" size={15} color={colors.cyan} />
+                    <AppIcon name="server" size={15} color={colors.cyan} />
                   </View>
                 </View>
 
@@ -474,11 +472,10 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                     </>
                   ) : (
                     <>
-                      <FontAwesome5
+                      <AppIcon
                         name="plus"
                         size={14}
                         color={colors.scene}
-                        solid
                       />
                       <Text style={styles.buttonText}>Add playlist</Text>
                     </>
@@ -489,7 +486,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
 
             {error ? (
               <View style={styles.errorBox}>
-                <FontAwesome5
+                <AppIcon
                   name="exclamation-circle"
                   color={colors.danger}
                   size={14}
@@ -501,7 +498,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
 
           <View style={styles.proxyCard}>
             <View style={styles.proxyIconTile}>
-              <FontAwesome5 name="shield-alt" size={15} color={colors.cyan} />
+              <AppIcon name="shield-alt" size={15} color={colors.cyan} />
             </View>
             <View style={styles.proxyCopy}>
               <Text style={styles.proxyLabel}>Use HTTP Proxy</Text>
@@ -529,7 +526,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                   onPress={() => handleResume(pl)}
                   disabled={isLoading}>
                   <View style={styles.savedIcon}>
-                    <FontAwesome5
+                    <AppIcon
                       name={pl.kind === 'activation' ? 'key' : 'server'}
                       size={13}
                       color={colors.indigo}
@@ -545,7 +542,7 @@ const LoginScreen4: React.FC<Props> = ({ navigation, route }) => {
                         : 'Xtream server'}
                     </Text>
                   </View>
-                  <FontAwesome5
+                  <AppIcon
                     name="chevron-right"
                     size={13}
                     color={colors.fgSubtle}

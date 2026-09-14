@@ -22,6 +22,7 @@ export interface LiveChannelSelection {
   channelName: string;
   extension: string;
   thumbnail?: string;
+  categoryId?: string;
 }
 
 export type ExpoPlaybackContentType = 'hls' | 'dash' | 'auto';
@@ -211,6 +212,6 @@ export function switchLivePlaybackRequest(
     title: selection.channelName,
     channelName: selection.channelName,
     thumbnail: selection.thumbnail,
-    categoryId: current.categoryId,
+    categoryId: selection.categoryId ?? current.categoryId,
   };
 }

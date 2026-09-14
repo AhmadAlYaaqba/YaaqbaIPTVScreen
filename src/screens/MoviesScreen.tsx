@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import AppIcon from '../components/AppIcon';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import CachedRemoteImage from '../components/CachedRemoteImage';
 
@@ -66,7 +66,7 @@ const MovieCard = React.memo(
               />
             </View>
           ) : (
-            <FontAwesome5 name="film" size={32} color="#F97316" />
+            <AppIcon name="film" size={32} color="#F97316" />
           )}
         </View>
         <Text style={styles.cardTitle} numberOfLines={1}>
@@ -206,7 +206,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
     return (
       <ImageBackground source={backgroundImage} style={styles.backgroundImage}>
         <View style={styles.center}>
-          <FontAwesome5 name="exclamation-circle" size={40} color="#ff4d4f" />
+          <AppIcon name="exclamation-circle" size={40} color="#ff4d4f" />
           <Text style={styles.error}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
@@ -238,12 +238,12 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
           <TouchableOpacity
             style={styles.headerLeft}
             onPress={() => navigation.goBack()}>
-            <FontAwesome5 name="arrow-left" size={18} color="#fff" />
+            <AppIcon name="arrow-left" size={18} color="#fff" />
             <Text style={styles.headerTitle}> Movies</Text>
           </TouchableOpacity>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.headerIconButton}>
-              <FontAwesome5 name="user" size={16} color="#4A90E2" />
+              <AppIcon name="user" size={16} color="#4A90E2" />
             </TouchableOpacity>
           </View>
         </View>
@@ -257,7 +257,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
             style={styles.categoryChip}
             onPress={() => setShowCategoryModal(true)}
             activeOpacity={0.75}>
-            <FontAwesome5
+            <AppIcon
               name="layer-group"
               size={14}
               color="#A0ABC0"
@@ -266,12 +266,12 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
             <Text style={styles.chipText} numberOfLines={1}>
               {activeCategoryName || 'Select Category'}
             </Text>
-            <FontAwesome5 name="chevron-down" size={12} color="#A0ABC0" />
+            <AppIcon name="chevron-down" size={12} color="#A0ABC0" />
           </TouchableOpacity>
 
           {/* Search bar */}
           <View style={styles.searchWrapper}>
-            <FontAwesome5
+            <AppIcon
               name="search"
               size={14}
               color="#A0ABC0"
@@ -296,7 +296,7 @@ const MoviesScreen: React.FC<any> = ({ navigation }) => {
             </View>
           ) : filteredMovies.length === 0 ? (
             <View style={styles.center}>
-              <FontAwesome5 name="film" size={40} color="#A0ABC0" />
+              <AppIcon name="film" size={40} color="#A0ABC0" />
               <Text style={styles.emptyText}>No movies found</Text>
             </View>
           ) : (

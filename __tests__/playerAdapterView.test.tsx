@@ -3,7 +3,11 @@
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 
-import type { PlaybackSource, PlayerEngine } from '../src/types/player';
+import type {
+  PlaybackSource,
+  PlayerEngine,
+  VideoContentMode,
+} from '../src/types/player';
 
 const mockCounters = {
   native: { mounts: 0, unmounts: 0 },
@@ -88,6 +92,7 @@ function renderAdapter(
   engine: PlayerEngine,
   source: PlaybackSource,
   sourceToken: string,
+  contentMode: VideoContentMode = 'fit',
 ) {
   return (
     <PlayerAdapterView
@@ -97,6 +102,7 @@ function renderAdapter(
       isLive
       isPaused={false}
       resumePosition={0}
+      contentMode={contentMode}
       onLoad={jest.fn()}
       onError={jest.fn()}
       onProgress={jest.fn()}
@@ -148,6 +154,24 @@ describe('PlayerAdapterView lifecycle', () => {
     expect(mockCounters.native).toEqual({ mounts: 1, unmounts: 1 });
     expect(mockCounters.expo).toEqual({ mounts: 1, unmounts: 0 });
 
+    ReactTestRenderer.act(() => renderer!.unmount());
+  });
+
+  it('changes aspect ratio without replacing or remounting the source', async () => {
+    let renderer: ReactTestRenderer.ReactTestRenderer;
+
+    await ReactTestRenderer.act(async () => {
+      renderer = ReactTestRenderer.create(
+        renderAdapter('native', firstSource, 'channel-1:0', 'fit'),
+      );
+    });
+    await ReactTestRenderer.act(async () => {
+      renderer!.update(
+        renderAdapter('native', firstSource, 'channel-1:0', 'crop'),
+      );
+    });
+
+    expect(mockCounters.native).toEqual({ mounts: 1, unmounts: 0 });
     ReactTestRenderer.act(() => renderer!.unmount());
   });
 });

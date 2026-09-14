@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import AppIcon, { type AppIconName } from '../AppIcon';
 
 import { colors, radii } from '../../theme/colors';
 import FocusablePressable from '../../tv/FocusablePressable';
@@ -53,7 +53,7 @@ export function CatalogStatus({
   accent: string;
   onRetry?: () => void;
 }) {
-  const icon =
+  const icon: AppIconName =
     kind === 'offline'
       ? 'wifi'
       : kind === 'error'
@@ -62,7 +62,7 @@ export function CatalogStatus({
 
   return (
     <View style={styles.status}>
-      <FontAwesome5
+      <AppIcon
         name={icon}
         size={34}
         color={kind === 'error' ? colors.danger : colors.fgSubtle}

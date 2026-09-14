@@ -9,6 +9,7 @@ import LoginScreen from './src/screens/LoginScreen4';
 import SeriesDetailScreen from './src/screens/SeriesDetailScreen';
 import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
 import TabNavigator from './src/screens/TabNavigator';
+import WatchHistoryScreen from './src/screens/WatchHistoryScreen';
 
 import { applyPlaylistToSession } from './src/services/playlists/usePlaylists';
 import {
@@ -31,7 +32,12 @@ const RootNavigator = () => {
         const active = await getActivePlaylist();
         if (active) {
           const store = await getPlaylistStore();
-          await applyPlaylistToSession(active, store.playerEngine, dispatch);
+          await applyPlaylistToSession(
+            active,
+            store.playerEngine,
+            dispatch,
+            store.videoContentMode,
+          );
         } else if (__DEV__) {
           console.log('No active playlist to restore');
         }
@@ -51,6 +57,7 @@ const RootNavigator = () => {
       <Stack.Screen name="Main" component={TabNavigator} />
       <Stack.Screen name="SeriesDetail" component={SeriesDetailScreen} />
       <Stack.Screen name="VideoPlayer" component={VideoPlayerScreen} />
+      <Stack.Screen name="WatchHistory" component={WatchHistoryScreen} />
     </Stack.Navigator>
   );
 };

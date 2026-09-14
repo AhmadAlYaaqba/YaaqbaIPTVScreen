@@ -18,7 +18,7 @@ import {
   type ListRenderItemInfo,
   type ViewToken,
 } from 'react-native';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import AppIcon, { type AppIconName } from '../AppIcon';
 
 import { colors, radii } from '../../theme/colors';
 import {
@@ -49,7 +49,7 @@ interface CategoryDropdownProps {
   restorationState?: CategoryDropdownState | null;
   onPositionCommit?: (viewport: CategoryDropdownViewport) => void;
   accent?: string;
-  icon?: string;
+  icon?: AppIconName;
   searchPlaceholder?: string;
   onSearchToggle?: () => void;
   searchActive?: boolean;
@@ -91,7 +91,7 @@ const CategoryRow = memo(
           numberOfLines={1}>
           {item.category_name}
         </Text>
-        {active && <FontAwesome5 name="check" size={13} color={accent} />}
+        {active && <AppIcon name="check" size={13} color={accent} />}
       </Pressable>
     );
   },
@@ -347,7 +347,7 @@ export default function CategoryDropdown({
             style={styles.backBtn}
             accessibilityRole="button"
             accessibilityLabel="Go back">
-            <FontAwesome5 name="chevron-left" size={16} color={colors.fg} />
+            <AppIcon name="chevron-left" size={16} color={colors.fg} />
           </Pressable>
         )}
         <Pressable
@@ -363,7 +363,7 @@ export default function CategoryDropdown({
               styles.triggerIcon,
               { backgroundColor: `${accent}26`, borderColor: `${accent}55` },
             ]}>
-            <FontAwesome5 name={icon} size={16} color={accent} />
+            <AppIcon name={icon} size={16} color={accent} />
           </View>
           <View style={styles.triggerBody}>
             <Text style={[styles.eyebrow, { color: accent }]} numberOfLines={1}>
@@ -373,7 +373,7 @@ export default function CategoryDropdown({
               <Text style={styles.triggerName} numberOfLines={1}>
                 {activeCategoryName || 'Select category'}
               </Text>
-              <FontAwesome5
+              <AppIcon
                 name={open ? 'chevron-up' : 'chevron-down'}
                 size={13}
                 color={colors.fgMuted}
@@ -397,7 +397,7 @@ export default function CategoryDropdown({
               searchActive ? 'Close content search' : 'Open content search'
             }
             accessibilityState={{ selected: searchActive }}>
-            <FontAwesome5
+            <AppIcon
               name="search"
               size={16}
               color={searchActive ? accent : colors.fgMuted}
@@ -424,7 +424,7 @@ export default function CategoryDropdown({
           style={[styles.panel, { top: panelTop }]}
           accessibilityViewIsModal>
           <View style={[styles.panelSearch, { borderColor: `${accent}55` }]}>
-            <FontAwesome5 name="search" size={14} color={colors.fgSubtle} />
+            <AppIcon name="search" size={14} color={colors.fgSubtle} />
             <TextInput
               value={query}
               onChangeText={handleQueryChange}

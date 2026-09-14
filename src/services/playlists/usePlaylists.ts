@@ -11,7 +11,7 @@ import {
   getPlaylistStore,
   setActivePlaylist,
 } from './playlistStore';
-import { PlayerEngine } from '../../types/player';
+import type { PlayerEngine, VideoContentMode } from '../../types/player';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -25,6 +25,7 @@ export function applyPlaylistToSession(
   playlist: Playlist,
   playerEngine: PlayerEngine,
   dispatch: AppDispatch,
+  videoContentMode?: VideoContentMode,
 ): Promise<void> {
   storage.setActivePlaylistId(playlist.id);
 
@@ -43,6 +44,7 @@ export function applyPlaylistToSession(
         serverPort,
         useProxy: playlist.useProxy,
         playerEngine,
+        ...(videoContentMode ? { videoContentMode } : {}),
       }),
     );
   });
@@ -60,7 +62,12 @@ export function usePlaylists() {
     async (playlist: Playlist, navigation: Nav) => {
       const store = await getPlaylistStore();
       await setActivePlaylist(playlist.id);
-      await applyPlaylistToSession(playlist, store.playerEngine, dispatch);
+      await applyPlaylistToSession(
+        playlist,
+        store.playerEngine,
+        dispatch,
+        store.videoContentMode,
+      );
       dispatch(resetIptv());
       navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     },

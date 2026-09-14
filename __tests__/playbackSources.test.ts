@@ -179,4 +179,24 @@ describe('playback fallback decisions', () => {
       categoryId: 'news',
     });
   });
+
+  it('moves to the selected category for a cross-category favorite', () => {
+    const current: PlaybackRequest = {
+      kind: 'live',
+      streamId: '10',
+      extension: 'm3u8',
+      title: 'Old channel',
+      channelName: 'Old channel',
+      categoryId: 'news',
+    };
+
+    expect(
+      switchLivePlaybackRequest(current, {
+        streamId: '20',
+        channelName: 'Sports',
+        extension: 'ts',
+        categoryId: 'sports',
+      }).categoryId,
+    ).toBe('sports');
+  });
 });

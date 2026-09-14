@@ -8,6 +8,10 @@ export const PLAYER_ENGINES = ['vlc', 'native', 'expo-video'] as const;
 
 export type PlayerEngine = (typeof PLAYER_ENGINES)[number];
 
+export const VIDEO_CONTENT_MODES = ['fit', 'crop', 'stretch'] as const;
+export type VideoContentMode = (typeof VIDEO_CONTENT_MODES)[number];
+export const DEFAULT_VIDEO_CONTENT_MODE: VideoContentMode = 'fit';
+
 export interface PlaybackResume {
   progress: number;
   totalDuration?: number;
@@ -42,6 +46,9 @@ export interface MoviePlaybackRequest extends PlaybackRequestBase {
 export interface EpisodePlaybackRequest extends PlaybackRequestBase {
   kind: 'episode';
   seriesId: string;
+  seriesName?: string;
+  episodeNumber?: number;
+  seasonNumber?: number;
   episodeList?: PlaybackEpisode[];
   currentEpisodeIndex?: number;
   resume?: PlaybackResume;
@@ -80,6 +87,7 @@ export interface PlayerAdapterProps {
   isLive: boolean;
   isPaused: boolean;
   resumePosition: number;
+  contentMode: VideoContentMode;
   onLoad: (data: PlayerLoadEvent) => void;
   onError: (error: unknown) => void;
   onProgress: (data: PlayerProgressEvent) => void;
@@ -98,6 +106,30 @@ export function isPlayerEngine(value: unknown): value is PlayerEngine {
     typeof value === 'string' &&
     (PLAYER_ENGINES as readonly string[]).includes(value)
   );
+}
+
+export function isVideoContentMode(value: unknown): value is VideoContentMode {
+  return (
+    typeof value === 'string' &&
+    (VIDEO_CONTENT_MODES as readonly string[]).includes(value)
+  );
+}
+
+export function getPlayerContentFit(
+  engine: 'native',
+  mode: VideoContentMode,
+): 'contain' | 'cover' | 'stretch';
+export function getPlayerContentFit(
+  engine: 'vlc' | 'expo-video',
+  mode: VideoContentMode,
+): 'contain' | 'cover' | 'fill';
+export function getPlayerContentFit(
+  engine: PlayerEngine,
+  mode: VideoContentMode,
+): 'contain' | 'cover' | 'fill' | 'stretch' {
+  if (mode === 'fit') return 'contain';
+  if (mode === 'crop') return 'cover';
+  return engine === 'native' ? 'stretch' : 'fill';
 }
 
 // Minimal imperative surface every engine wrapper exposes through its ref.

@@ -23,6 +23,7 @@ export type RootStackParamList = {
     baseInfo?: Record<string, any>;
   };
   VideoPlayer: { request: PlaybackRequest };
+  WatchHistory: undefined;
 };
 
 export type RootScreenProps<RouteName extends keyof RootStackParamList> =

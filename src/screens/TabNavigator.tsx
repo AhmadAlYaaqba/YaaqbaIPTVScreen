@@ -3,9 +3,6 @@ import {
   createBottomTabNavigator,
   BottomTabBarProps,
 } from '@react-navigation/bottom-tabs';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import { StyleSheet, Platform, View, Text, Pressable } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +13,7 @@ import MoviesScreen from './singleMoviesScreen';
 import SeriesHomeScreen from './SeriesList';
 import SettingsScreen from './SettingsScreen';
 import TVNavRail from '../tv/TVNavRail';
+import AppIcon, { type AppIconName } from '../components/AppIcon';
 import type { TabParamList } from '../navigation/types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -31,25 +29,22 @@ const TAB_LABELS: Record<keyof TabParamList, string> = {
   Settings: 'Settings',
 };
 
+const TAB_ICONS: Record<keyof TabParamList, AppIconName> = {
+  Home: 'home',
+  LiveTV: 'broadcast-tower',
+  Movies: 'film',
+  Series: 'tv',
+  Settings: 'cog',
+};
+
 function getIcon(name: keyof TabParamList, color: string, size: number) {
-  switch (name) {
-    case 'Home':
-      return <FontAwesome5 name="home" size={size - 1} color={color} solid />;
-    case 'LiveTV':
-      return <MaterialIcons name="live-tv" size={size} color={color} />;
-    case 'Movies':
-      return (
-        <MaterialCommunityIcons name="movie-open" size={size} color={color} />
-      );
-    case 'Series':
-      return (
-        <MaterialCommunityIcons name="movie-roll" size={size} color={color} />
-      );
-    case 'Settings':
-      return <FontAwesome5 name="cog" size={size} color={color} solid />;
-    default:
-      return <FontAwesome5 name="circle" size={size} color={color} solid />;
-  }
+  return (
+    <AppIcon
+      name={TAB_ICONS[name] ?? 'circle'}
+      size={name === 'Home' ? size - 1 : size}
+      color={color}
+    />
+  );
 }
 
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {

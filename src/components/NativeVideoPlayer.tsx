@@ -13,10 +13,13 @@ import Video, {
   type VideoRef,
 } from 'react-native-video';
 
-import type {
-  PlaybackSource,
-  PlayerAdapter,
-  PlayerAdapterProps,
+import {
+  getPlayerContentFit,
+  type PlaybackSource,
+  type PlayerAdapter,
+  type PlayerAdapterProps,
+  type PlayerBufferEvent,
+  type PlayerProgressEvent,
 } from '../types/player';
 
 interface NativeVideoPlayerProps extends PlayerAdapterProps {
@@ -50,6 +53,7 @@ const NativeVideoPlayer = forwardRef<PlayerAdapter, NativeVideoPlayerProps>(
       onBuffer,
       onEnd,
       resumePosition,
+      contentMode,
     },
     ref,
   ) => {
@@ -58,6 +62,7 @@ const NativeVideoPlayer = forwardRef<PlayerAdapter, NativeVideoPlayerProps>(
     const sourceRef = useRef(source);
     const isLiveRef = useRef(isLive);
     const bufferConfigRef = useRef(bufferConfig);
+    const encounteredErrorRef = useRef(false);
     sourceRef.current = source;
     pendingResumeRef.current = resumePosition;
     isLiveRef.current = isLive;
@@ -65,6 +70,7 @@ const NativeVideoPlayer = forwardRef<PlayerAdapter, NativeVideoPlayerProps>(
 
     const replaceSource = useCallback(
       (nextSource: PlaybackSource, nextResumePosition = 0) => {
+        encounteredErrorRef.current = false;
         pendingResumeRef.current = nextResumePosition;
         videoRef.current?.setSource(
           createNativeSource(
@@ -98,12 +104,39 @@ const NativeVideoPlayer = forwardRef<PlayerAdapter, NativeVideoPlayerProps>(
 
     const handleLoad = useCallback(
       (data: OnLoadData) => {
+        encounteredErrorRef.current = false;
         if (!isLive && pendingResumeRef.current > 0) {
           videoRef.current?.seek(pendingResumeRef.current);
         }
         onLoad({ duration: data.duration || 0 });
       },
       [isLive, onLoad],
+    );
+
+    const handleProgress = useCallback(
+      (data: PlayerProgressEvent) => {
+        encounteredErrorRef.current = false;
+        onProgress(data);
+      },
+      [onProgress],
+    );
+
+    const handleBuffer = useCallback(
+      (data: PlayerBufferEvent) => {
+        if (!data.isBuffering && encounteredErrorRef.current) {
+          return;
+        }
+        onBuffer(data);
+      },
+      [onBuffer],
+    );
+
+    const handleError = useCallback(
+      (playerError: unknown) => {
+        encounteredErrorRef.current = true;
+        onError(playerError);
+      },
+      [onError],
     );
 
     return (
@@ -115,13 +148,13 @@ const NativeVideoPlayer = forwardRef<PlayerAdapter, NativeVideoPlayerProps>(
         fullscreenOrientation="landscape"
         enterPictureInPictureOnLeave
         controls={false}
-        resizeMode="contain"
+        resizeMode={getPlayerContentFit('native', contentMode)}
         paused={isPaused}
         onLoad={handleLoad}
-        onError={onError}
-        onProgress={onProgress}
+        onError={handleError}
+        onProgress={handleProgress}
         progressUpdateInterval={1000}
-        onBuffer={onBuffer}
+        onBuffer={handleBuffer}
         onEnd={onEnd}
         playInBackground={false}
         playWhenInactive={false}

@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import AppIcon, { type AppIconName } from '../components/AppIcon';
 
 import FocusablePressable from './FocusablePressable';
 import { colors, radii, space } from '../theme/colors';
@@ -15,7 +15,7 @@ export interface TVCatalogHeaderProps {
   label: string;
   title: string;
   accent: string;
-  icon: string;
+  icon: AppIconName;
   onSearchToggle?: () => void;
   searchActive?: boolean;
 }
@@ -35,7 +35,7 @@ export default function TVCatalogHeader({
           styles.iconTile,
           { backgroundColor: `${accent}26`, borderColor: `${accent}55` },
         ]}>
-        <FontAwesome5 name={icon} size={16} color={accent} />
+        <AppIcon name={icon} size={16} color={accent} />
       </View>
       <View style={styles.body}>
         <Text style={[styles.eyebrow, { color: accent }]} numberOfLines={1}>
@@ -61,7 +61,7 @@ export default function TVCatalogHeader({
             searchActive ? 'Close content search' : 'Open content search'
           }
           accessibilityState={{ selected: searchActive }}>
-          <FontAwesome5
+          <AppIcon
             name="search"
             size={16}
             color={searchActive ? accent : colors.fgMuted}

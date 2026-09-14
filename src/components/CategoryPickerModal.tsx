@@ -11,7 +11,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import AppIcon from './AppIcon';
 
 type Category = {
   category_id: string;
@@ -62,7 +62,7 @@ const CategoryItem = React.memo(
         </View>
 
         {isActive ? (
-          <FontAwesome5 name="check" size={14} color="#4A90E2" />
+          <AppIcon name="check" size={14} color="#4A90E2" />
         ) : null}
       </Pressable>
     );
@@ -72,7 +72,7 @@ const CategoryItem = React.memo(
 function EmptyState({hasSearch}: {hasSearch: boolean}) {
   return (
     <View style={styles.emptyState}>
-      <FontAwesome5
+      <AppIcon
         name={hasSearch ? 'search' : 'layer-group'}
         size={18}
         color="#94A3B8"
@@ -183,13 +183,13 @@ export default function CategoryPickerModal({
                     styles.closeButton,
                     pressed && styles.closeButtonPressed,
                   ]}>
-                  <FontAwesome5 name="times" size={18} color="#CBD5E1" />
+                  <AppIcon name="times" size={18} color="#CBD5E1" />
                 </Pressable>
               </View>
             </View>
 
             <View style={styles.searchContainer}>
-              <FontAwesome5
+              <AppIcon
                 name="search"
                 size={14}
                 color="#94A3B8"

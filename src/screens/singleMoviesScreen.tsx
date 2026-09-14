@@ -24,7 +24,7 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import AppIcon from '../components/AppIcon';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { RootState } from '../store';
@@ -147,7 +147,7 @@ const MoviePoster = React.memo(
             displayHeight={POSTER_HEIGHT}
             fallback={
               <View style={styles.posterPlaceholder}>
-                <FontAwesome5 name="film" size={26} color={colors.fgSubtle} />
+                <AppIcon name="film" size={26} color={colors.fgSubtle} />
               </View>
             }
           />
@@ -160,7 +160,7 @@ const MoviePoster = React.memo(
 
           {rating != null && (
             <View style={styles.ratingBadge}>
-              <FontAwesome5 name="star" size={9} color={colors.warning} solid />
+              <AppIcon name="star" size={9} color={colors.warning} />
               <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
             </View>
           )}
@@ -468,7 +468,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
       {searchOpen && (
         <View style={styles.searchBarWrap}>
           <View style={[styles.searchBar, { borderColor: `${ACCENT}55` }]}>
-            <FontAwesome5 name="search" size={15} color={colors.fgSubtle} />
+            <AppIcon name="search" size={15} color={colors.fgSubtle} />
             <TVTextInput
               ref={searchRef}
               value={search}
@@ -490,7 +490,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel="Clear movie search">
-                <FontAwesome5 name="times" size={14} color={colors.fgMuted} />
+                <AppIcon name="times" size={14} color={colors.fgMuted} />
               </TVTouchable>
             )}
           </View>
@@ -725,7 +725,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                   onPress={() => setSelectedMovie(null)}
                   accessibilityRole="button"
                   accessibilityLabel="Close movie details">
-                  <FontAwesome5 name="times" size={16} color={colors.fg} />
+                  <AppIcon name="times" size={16} color={colors.fg} />
                 </TVTouchable>
 
                 <CachedRemoteImage
@@ -744,7 +744,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                         IS_TV && styles.modalPosterTV,
                         styles.posterPlaceholder,
                       ]}>
-                      <FontAwesome5
+                      <AppIcon
                         name="film"
                         size={40}
                         color={colors.fgSubtle}
@@ -758,11 +758,10 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                   <View style={styles.modalMetaRow}>
                     {modalRating != null && (
                       <>
-                        <FontAwesome5
+                        <AppIcon
                           name="star"
                           size={13}
                           color={colors.warning}
-                          solid
                         />
                         <Text style={styles.modalMetaText}>
                           {' '}
@@ -829,7 +828,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                               displayHeight={56}
                               fallback={
                                 <View style={styles.castAvatarPlaceholder}>
-                                  <FontAwesome5
+                                  <AppIcon
                                     name="user"
                                     size={14}
                                     color={colors.fgSubtle}
@@ -855,11 +854,10 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                   focusScale={1}
                   accessibilityRole="button"
                   accessibilityLabel={`Play ${selectedMovie.name}`}>
-                  <FontAwesome5
+                  <AppIcon
                     name="play"
                     size={14}
                     color={colors.scene}
-                    solid
                   />
                   <Text style={styles.playText}>Play Movie</Text>
                 </TVTouchable>

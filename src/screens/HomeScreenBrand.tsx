@@ -26,8 +26,7 @@ import Svg, {
   Path,
   Mask,
 } from 'react-native-svg';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import AppIcon from '../components/AppIcon';
 import { useSelector } from 'react-redux';
 import { useIsFocused } from '@react-navigation/native';
 
@@ -40,6 +39,7 @@ import CachedRemoteImage from '../components/CachedRemoteImage';
 import FocusablePressable from '../tv/FocusablePressable';
 import { useXtreamAccountInfo } from '../services/xtream/xtreamQueries';
 import type { XtreamSession } from '../services/xtream/xtreamService';
+import { historyEntryToPlaybackRequest } from '../utils/historyPlayback';
 import {
   createSubscriptionSummary,
   type SubscriptionSummary,
@@ -106,7 +106,7 @@ function Header({
           end={{ x: 0.9, y: 1 }}
           style={styles.avatarRing}>
           <View style={styles.avatarInner}>
-            <FontAwesome5 name="user" size={18} color={colors.indigo} />
+            <AppIcon name="user" size={18} color={colors.indigo} />
           </View>
         </LinearGradient>
         <View>
@@ -122,7 +122,7 @@ function Header({
         onPress={onSettings}
         accessibilityRole="button"
         accessibilityLabel="Open settings">
-        <FontAwesome5 name="cog" size={17} color={colors.fgMuted} solid />
+        <AppIcon name="cog" size={17} color={colors.fgMuted} />
       </FocusablePressable>
     </View>
   );
@@ -202,7 +202,7 @@ function SubscriptionCard({ sub }: { sub: SubscriptionSummary }) {
           </Text>
         </View>
         <View style={styles.viewOnly}>
-          <FontAwesome5 name="eye" size={11} color={colors.fgSubtle} />
+          <AppIcon name="eye" size={11} color={colors.fgSubtle} />
           <Text style={styles.viewOnlyText}>View only</Text>
         </View>
       </View>
@@ -243,7 +243,7 @@ function SubscriptionCard({ sub }: { sub: SubscriptionSummary }) {
 
       {isWarning && (
         <View style={styles.warningBanner}>
-          <FontAwesome5
+          <AppIcon
             name="exclamation-triangle"
             size={12}
             color={colors.warning}
@@ -281,7 +281,7 @@ const SubscriptionRetryCard = React.memo(
   ({ onRetry }: { onRetry: () => void }) => (
     <View style={styles.subCard}>
       <View style={styles.subscriptionErrorRow}>
-        <FontAwesome5
+        <AppIcon
           name="exclamation-circle"
           size={18}
           color={colors.warning}
@@ -300,7 +300,7 @@ const SubscriptionRetryCard = React.memo(
         onPress={onRetry}
         accessibilityRole="button"
         accessibilityLabel="Retry subscription information">
-        <FontAwesome5 name="redo" size={12} color={colors.fg} />
+        <AppIcon name="redo" size={12} color={colors.fg} />
         <Text style={styles.subscriptionRetryText}>Retry</Text>
       </FocusablePressable>
     </View>
@@ -327,7 +327,7 @@ const SECTIONS: SectionDef[] = [
     baseColor: '#160a1c',
     corner: { cx: '2%', cy: '2%' },
     renderIcon: (size, color) => (
-      <MaterialCommunityIcons name="radio-tower" size={size} color={color} />
+      <AppIcon name="broadcast-tower" size={size} color={color} />
     ),
   },
   {
@@ -337,7 +337,7 @@ const SECTIONS: SectionDef[] = [
     baseColor: '#0e1126',
     corner: { cx: '98%', cy: '2%' },
     renderIcon: (size, color) => (
-      <MaterialCommunityIcons name="movie-open" size={size} color={color} />
+      <AppIcon name="film" size={size} color={color} />
     ),
   },
   {
@@ -347,7 +347,7 @@ const SECTIONS: SectionDef[] = [
     baseColor: '#08141f',
     corner: { cx: '2%', cy: '98%' },
     renderIcon: (size, color) => (
-      <FontAwesome5 name="tv" size={size} color={color} />
+      <AppIcon name="tv" size={size} color={color} />
     ),
   },
 ];
@@ -412,7 +412,7 @@ const SectionTile = React.memo(function SectionTile({
         <Text style={styles.sectionTitle}>{s.title}</Text>
       </View>
 
-      <FontAwesome5
+      <AppIcon
         name="chevron-right"
         size={20}
         color={s.accent}
@@ -542,7 +542,7 @@ const ContinueCard = React.memo(function ContinueCard({
 
         {/* play badge */}
         <View style={styles.playBadge}>
-          <FontAwesome5 name="play" size={11} color={colors.white} solid />
+          <AppIcon name="play" size={11} color={colors.white} />
         </View>
 
         {/* live badge */}
@@ -595,7 +595,7 @@ function EmptyContinue() {
   return (
     <View style={styles.emptyCard}>
       <View style={styles.emptyIcon}>
-        <FontAwesome5 name="play" size={15} color={colors.indigo} solid />
+        <AppIcon name="play" size={15} color={colors.indigo} />
       </View>
       <View style={styles.emptyBody}>
         <Text style={styles.emptyTitle}>Nothing to resume</Text>
@@ -651,49 +651,15 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
 
   const openContinueItem = useCallback(
     (item: LatestWatched) => {
-      if (item.type === 'series') {
-        navigation.navigate('VideoPlayer', {
-          request: {
-            kind: 'episode',
-            streamId: item.episodeId,
-            extension: item.containerExtension || 'mp4',
-            title: item.name,
-            seriesId: item.seriesId,
-            thumbnail: item.thumbnail,
-            resume: {
-              progress: item.progress ?? 0,
-              totalDuration: item.totalDuration,
-            },
-          },
-        });
-      } else if (item.type === 'movie') {
-        navigation.navigate('VideoPlayer', {
-          request: {
-            kind: 'movie',
-            streamId: item.id,
-            extension: item.containerExtension || 'mp4',
-            title: item.name,
-            thumbnail: item.thumbnail,
-            resume: {
-              progress: item.progress ?? 0,
-              totalDuration: item.totalDuration,
-            },
-          },
-        });
-      } else if (item.type === 'live') {
-        navigation.navigate('VideoPlayer', {
-          request: {
-            kind: 'live',
-            streamId: item.streamId,
-            extension: item.containerExtension,
-            title: item.channelName,
-            channelName: item.channelName,
-            thumbnail: item.thumbnail,
-            categoryId: item.categoryId,
-          },
-        });
-      }
+      navigation.navigate('VideoPlayer', {
+        request: historyEntryToPlaybackRequest(item),
+      });
     },
+    [navigation],
+  );
+
+  const openHistory = useCallback(
+    () => navigation.navigate('WatchHistory'),
     [navigation],
   );
 
@@ -749,6 +715,18 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
               </Text>
               <Text style={styles.continueHeading}>Continue watching</Text>
             </View>
+            <FocusablePressable
+              style={styles.seeAllButton}
+              onPress={openHistory}
+              accessibilityRole="button"
+              accessibilityLabel="See all watch history">
+              <Text style={styles.seeAllText}>See all</Text>
+              <AppIcon
+                name="chevron-right"
+                size={11}
+                color={colors.indigo}
+              />
+            </FocusablePressable>
           </View>
 
           {recentWatches.length > 0 ? (
@@ -1111,6 +1089,18 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: colors.fg,
+  },
+  seeAllButton: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 12,
+  },
+  seeAllText: {
+    color: colors.indigo,
+    fontSize: 13,
+    fontWeight: '700',
   },
   continueCarousel: {
     paddingHorizontal: 20,

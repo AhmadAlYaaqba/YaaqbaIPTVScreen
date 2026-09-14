@@ -1,6 +1,11 @@
 // src/store/slices/userSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { PlayerEngine, DEFAULT_PLAYER_ENGINE } from '../../types/player';
+import {
+  PlayerEngine,
+  DEFAULT_PLAYER_ENGINE,
+  DEFAULT_VIDEO_CONTENT_MODE,
+  VideoContentMode,
+} from '../../types/player';
 
 export interface UserState {
   playlistId: string | null;
@@ -9,6 +14,7 @@ export interface UserState {
   serverDomain: string;
   serverPort: string;
   playerEngine: PlayerEngine;
+  videoContentMode: VideoContentMode;
   useProxy: boolean;
   // Potentially more fields:
   // token?: string;
@@ -22,6 +28,7 @@ const initialState: UserState = {
   serverDomain: '',
   serverPort: '',
   playerEngine: DEFAULT_PLAYER_ENGINE,
+  videoContentMode: DEFAULT_VIDEO_CONTENT_MODE,
   useProxy: true,
 };
 

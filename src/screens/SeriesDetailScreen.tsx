@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import AppIcon from '../components/AppIcon';
 import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -198,7 +198,7 @@ const EpisodeListItem = React.memo(
             }
           />
           <View style={styles.epPlay}>
-            <FontAwesome5 name="play" size={11} color={colors.fg} solid />
+            <AppIcon name="play" size={11} color={colors.fg} />
           </View>
           {progressPercent > 0 && (
             <View style={styles.epProgressTrack}>
@@ -471,6 +471,11 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           title: ep.title || 'Episode',
           expectedDuration: getMediaDurationSeconds(ep, fallbackRuntimeMinutes),
           seriesId,
+          seriesName,
+          episodeNumber: ep.episode_num ?? ep.episode ?? index + 1,
+          seasonNumber: Number.isFinite(Number(selectedSeason))
+            ? Number(selectedSeason)
+            : undefined,
           episodeList: currentEpisodes,
           currentEpisodeIndex: index,
           resume: savedProgress
@@ -489,6 +494,8 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       navigation,
       playbackThumbnail,
       seriesId,
+      seriesName,
+      selectedSeason,
       watchProgress,
     ],
   );
@@ -669,7 +676,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   onPress={handleGoBack}
                   accessibilityRole="button"
                   accessibilityLabel="Back to series">
-                  <FontAwesome5
+                  <AppIcon
                     name="chevron-left"
                     size={17}
                     color={colors.fg}
@@ -694,7 +701,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                           StyleSheet.absoluteFill,
                           styles.heroPlaceholder,
                         ]}>
-                        <FontAwesome5
+                        <AppIcon
                           name="tv"
                           size={24}
                           color={colors.fgSubtle}
@@ -712,11 +719,10 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   <View style={styles.metaRow}>
                     {rating != null && (
                       <View style={styles.metaItem}>
-                        <FontAwesome5
+                        <AppIcon
                           name="star"
                           size={11}
                           color={colors.warning}
-                          solid
                         />
                         <Text style={styles.metaStrong}>{rating}</Text>
                       </View>
@@ -766,11 +772,10 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   onPress={handlePlayFirstEpisode}
                   accessibilityRole="button"
                   accessibilityLabel={playLabel}>
-                  <FontAwesome5
+                  <AppIcon
                     name="play"
                     size={14}
                     color={colors.scene}
-                    solid
                   />
                   <Text style={styles.playText}>{playLabel}</Text>
                 </TVTouchable>
@@ -838,7 +843,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                       <Text style={styles.seasonBtnText}>
                         Season {selectedSeason}
                       </Text>
-                      <FontAwesome5
+                      <AppIcon
                         name={seasonOpen ? 'chevron-up' : 'chevron-down'}
                         size={12}
                         color={colors.fgMuted}

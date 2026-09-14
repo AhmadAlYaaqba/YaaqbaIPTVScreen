@@ -17,6 +17,7 @@ import type {
   PlayerAdapter,
   PlayerAdapterProps,
 } from '../types/player';
+import { getPlayerContentFit } from '../types/player';
 import { getExpoPlaybackContentType } from '../utils/playbackSources';
 
 function createExpoSource(source: PlaybackSource): VideoSource {
@@ -39,6 +40,7 @@ const ExpoVideoPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
       onBuffer,
       onEnd,
       resumePosition,
+      contentMode,
     },
     ref,
   ) => {
@@ -211,7 +213,7 @@ const ExpoVideoPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
         style={styles.player}
         player={player}
         nativeControls={false}
-        contentFit="contain"
+        contentFit={getPlayerContentFit('expo-video', contentMode)}
         allowsPictureInPicture={false}
       />
     );

@@ -1,4 +1,5 @@
 import React, {
+  useEffect,
   useState,
   useCallback,
   useDeferredValue,
@@ -17,7 +18,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import { useFocusEffect } from '@react-navigation/native';
+import AppIcon from '../components/AppIcon';
 
 import { RootState } from '../store';
 import {
@@ -48,6 +50,7 @@ import { TV_NAV_RAIL_WIDTH } from '../tv/TVNavRail';
 import TVCatalogLayout, { TV_CATEGORY_PANE_WIDTH } from '../tv/TVCatalogLayout';
 import TVCatalogHeader from '../tv/TVCatalogHeader';
 import TVTextInput from '../tv/TVTextInput';
+import { storage, type FavoriteChannel } from '../utils/storage';
 
 // TV: pull-to-refresh is touch-only, and clipped (off-screen) cells can't
 // receive D-pad focus, so both are disabled on TV.
@@ -84,6 +87,8 @@ const ChannelCard = React.memo(
     useProxy,
     playlistId,
     hasTVPreferredFocus,
+    isFavorite,
+    onToggleFavorite,
   }: {
     streamId: number;
     name: string;
@@ -99,6 +104,13 @@ const ChannelCard = React.memo(
     useProxy: boolean;
     playlistId: string | null;
     hasTVPreferredFocus?: boolean;
+    isFavorite: boolean;
+    onToggleFavorite: (
+      streamId: number,
+      name: string,
+      rawIcon?: string,
+      extension?: string,
+    ) => void;
   }) => {
     const icon = rawIcon ? proxyStreamUrl(rawIcon, useProxy) : null;
     const number = channelNumber != null ? String(channelNumber) : '';
@@ -106,41 +118,73 @@ const ChannelCard = React.memo(
       () => onPressChannel(streamId, name, rawIcon, extension),
       [extension, name, onPressChannel, rawIcon, streamId],
     );
+    const handleFavorite = useCallback(
+      () => onToggleFavorite(streamId, name, rawIcon, extension),
+      [extension, name, onToggleFavorite, rawIcon, streamId],
+    );
 
     return (
-      <TVTouchable
-        style={styles.card}
-        onPress={handlePress}
-        hasTVPreferredFocus={hasTVPreferredFocus}
-        activeOpacity={0.8}
-        accessibilityRole="button"
-        accessibilityLabel={number ? `${name}, channel ${number}` : name}>
-        <View style={styles.logoTile}>
-          <CachedRemoteImage
-            uri={icon}
-            playlistId={playlistId}
-            contentId={streamId}
-            variant="channel-logo"
-            style={styles.logoImage}
-            contentFit="contain"
-            displayWidth={ITEM_WIDTH * 0.78}
-            displayHeight={ITEM_WIDTH * 0.78}
-            fallback={
-              <View style={styles.logoFallback}>
-                <FontAwesome5 name="tv" size={26} color={colors.fgSubtle} />
-              </View>
-            }
-          />
-        </View>
-        {!!number && (
-          <Text style={styles.cardNumber} numberOfLines={1}>
-            {number}
+      <View style={styles.card}>
+        <TVTouchable
+          style={styles.cardMain}
+          onPress={handlePress}
+          hasTVPreferredFocus={hasTVPreferredFocus}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={number ? `${name}, channel ${number}` : name}>
+          <View style={styles.logoTile}>
+            <CachedRemoteImage
+              uri={icon}
+              playlistId={playlistId}
+              contentId={streamId}
+              variant="channel-logo"
+              style={styles.logoImage}
+              contentFit="contain"
+              displayWidth={ITEM_WIDTH * 0.78}
+              displayHeight={ITEM_WIDTH * 0.78}
+              fallback={
+                <View style={styles.logoFallback}>
+                  <AppIcon name="tv" size={26} color={colors.fgSubtle} />
+                </View>
+              }
+            />
+          </View>
+          {!!number && (
+            <Text style={styles.cardNumber} numberOfLines={1}>
+              {number}
+            </Text>
+          )}
+          <Text style={styles.cardTitle} numberOfLines={1}>
+            {name}
           </Text>
+        </TVTouchable>
+        {/* TV: a button inside the card's own focus area can't be reached with
+            the D-pad, so favorites are toggled from the in-player channel list
+            and the card only shows a badge. */}
+        {IS_TV ? (
+          isFavorite ? (
+            <View pointerEvents="none" style={styles.favoriteBadgeTV}>
+              <AppIcon name="star" size={13} color={colors.warning} />
+            </View>
+          ) : null
+        ) : (
+          <TVTouchable
+            style={[styles.favoriteButton, isFavorite && styles.favoriteActive]}
+            onPress={handleFavorite}
+            focusScale={1.1}
+            accessibilityRole="button"
+            accessibilityLabel={`${isFavorite ? 'Remove' : 'Add'} ${name} ${
+              isFavorite ? 'from' : 'to'
+            } favorites`}
+            accessibilityState={{ selected: isFavorite }}>
+            <AppIcon
+              name="star"
+              size={15}
+              color={isFavorite ? colors.warning : colors.fgMuted}
+            />
+          </TVTouchable>
         )}
-        <Text style={styles.cardTitle} numberOfLines={1}>
-          {name}
-        </Text>
-      </TVTouchable>
+      </View>
     );
   },
 );
@@ -165,6 +209,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
 
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [favorites, setFavorites] = useState<FavoriteChannel[]>([]);
   const searchRef = useRef<TextInput>(null);
 
   const categoriesQuery = useXtreamCategories(session, 'live');
@@ -190,6 +235,21 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
     activeCategory,
   );
   const channels = channelsQuery.data ?? EMPTY_CHANNELS;
+  const favoriteIds = useMemo(
+    () => new Set(favorites.map(item => item.streamId)),
+    [favorites],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      storage.getFavoriteChannels(playlistId).then(setFavorites);
+    }, [playlistId]),
+  );
+
+  useEffect(() => {
+    if (!playlistId || channels.length === 0) return;
+    storage.reconcileFavoriteChannels(channels, playlistId).then(setFavorites);
+  }, [channels, playlistId]);
   const loadingCategories = categoriesQuery.isPending;
   const loading = channelsQuery.isPending;
   const error = getXtreamErrorMessage(
@@ -260,6 +320,24 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
     [activeCategory, navigation, useProxy],
   );
 
+  const handleToggleFavorite = useCallback(
+    (streamId: number, name: string, rawIcon?: string, extension?: string) => {
+      storage
+        .toggleFavoriteChannel(
+          {
+            streamId: String(streamId),
+            name,
+            extension: extension?.replace(/^\./, '') || 'm3u8',
+            icon: rawIcon,
+            categoryId: activeCategory ?? undefined,
+          },
+          playlistId,
+        )
+        .then(setFavorites);
+    },
+    [activeCategory, playlistId],
+  );
+
   const renderChannelCard = useCallback(
     ({ item, index }: { item: XtreamLiveStream; index: number }) => (
       <ChannelCard
@@ -273,9 +351,17 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
         useProxy={useProxy}
         playlistId={playlistId}
         onPressChannel={handleChannelPress}
+        isFavorite={favoriteIds.has(String(item.stream_id))}
+        onToggleFavorite={handleToggleFavorite}
       />
     ),
-    [handleChannelPress, playlistId, useProxy],
+    [
+      favoriteIds,
+      handleChannelPress,
+      handleToggleFavorite,
+      playlistId,
+      useProxy,
+    ],
   );
 
   const deferredSearch = useDeferredValue(search);
@@ -357,7 +443,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
       {searchOpen && (
         <View style={styles.searchBarWrap}>
           <View style={[styles.searchBar, { borderColor: `${ACCENT}55` }]}>
-            <FontAwesome5 name="search" size={15} color={colors.fgSubtle} />
+            <AppIcon name="search" size={15} color={colors.fgSubtle} />
             <TVTextInput
               ref={searchRef}
               value={search}
@@ -379,7 +465,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel="Clear channel search">
-                <FontAwesome5 name="times" size={14} color={colors.fgMuted} />
+                <AppIcon name="times" size={14} color={colors.fgMuted} />
               </TVTouchable>
             )}
           </View>
@@ -670,7 +756,43 @@ const styles = StyleSheet.create({
   },
   card: {
     width: ITEM_WIDTH,
+    position: 'relative',
+  },
+  cardMain: {
+    width: ITEM_WIDTH,
     alignItems: 'stretch',
+  },
+  favoriteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 44,
+    height: 44,
+    zIndex: 4,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(5,7,14,0.76)',
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  favoriteBadgeTV: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    zIndex: 4,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(5,7,14,0.76)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.55)',
+  },
+  favoriteActive: {
+    backgroundColor: 'rgba(245,158,11,0.16)',
+    borderColor: 'rgba(245,158,11,0.55)',
   },
   logoTile: {
     width: '100%',

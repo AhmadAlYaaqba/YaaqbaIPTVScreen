@@ -1,5 +1,11 @@
 // src/components/PlayerControls.tsx
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   View,
   Text,
@@ -19,13 +25,14 @@ import Animated, {
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import AppIcon from './AppIcon';
 
 import FocusablePressable from '../tv/FocusablePressable';
 import {
   formatPlaybackTime,
   getSeekTimeFromPosition,
 } from '../utils/playbackTime';
+import type { VideoContentMode } from '../types/player';
 
 const IS_TV = Platform.isTV;
 
@@ -56,6 +63,15 @@ interface PlayerControlsProps {
   onFallbackAction?: () => void;
   onToggleChannelSwitcher?: () => void;
   onToggleVisibility: () => void;
+  /**
+   * TV: an overlay above the controls (the channel list) owns remote focus.
+   * Controls are unfocusable meanwhile, and reclaim focus when it closes —
+   * otherwise focus is left on the removed overlay and remote keys stop
+   * reaching the player.
+   */
+  tvOverlayOpen?: boolean;
+  contentMode: VideoContentMode;
+  onCycleContentMode: () => void;
   onDoubleTap?: (x: number) => void;
   // Gesture callbacks
   onVerticalPanStart?: (x: number) => void;
@@ -90,6 +106,9 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   onFallbackAction,
   onToggleChannelSwitcher,
   onToggleVisibility,
+  tvOverlayOpen = false,
+  contentMode,
+  onCycleContentMode,
   onDoubleTap,
   onVerticalPanStart,
   onVerticalPanMove,
@@ -101,6 +120,31 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   const playbackProgress = useSharedValue(0);
   const scrubProgress = useSharedValue(0);
   const isScrubbing = useSharedValue(false);
+  const [showContentModeLabel, setShowContentModeLabel] = useState(false);
+  const contentModeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  useEffect(
+    () => () => {
+      if (contentModeTimerRef.current) {
+        clearTimeout(contentModeTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const handleCycleContentMode = useCallback(() => {
+    onCycleContentMode();
+    setShowContentModeLabel(true);
+    if (contentModeTimerRef.current) {
+      clearTimeout(contentModeTimerRef.current);
+    }
+    contentModeTimerRef.current = setTimeout(
+      () => setShowContentModeLabel(false),
+      1600,
+    );
+  }, [onCycleContentMode]);
 
   const onSeekBarLayout = useCallback(
     (event: LayoutChangeEvent) => {
@@ -296,7 +340,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
         <Animated.View
           style={[styles.brightnessContainer, brightnessIndicatorStyle]}
           pointerEvents="none">
-          <FontAwesome5
+          <AppIcon
             name={brightness > 0.5 ? 'sun' : 'moon'}
             size={20}
             color="#fff"
@@ -328,26 +372,27 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
           style={styles.errorOverlay}
           accessibilityRole="alert"
           accessibilityLiveRegion="assertive">
-          <FontAwesome5 name="exclamation-triangle" size={36} color="#FF6B6B" />
+          <AppIcon name="exclamation-triangle" size={36} color="#FF6B6B" />
           <Text style={styles.errorText}>{error}</Text>
           <View style={styles.errorActions}>
-            <Pressable
+            <FocusablePressable
               style={styles.retryButton}
               onPress={onRetry}
+              hasTVPreferredFocus={IS_TV}
               accessibilityRole="button"
               accessibilityLabel="Retry playback">
-              <FontAwesome5 name="redo" size={14} color="#fff" />
+              <AppIcon name="redo" size={14} color="#fff" />
               <Text style={styles.retryText}>Retry</Text>
-            </Pressable>
+            </FocusablePressable>
             {fallbackActionLabel && onFallbackAction ? (
-              <Pressable
+              <FocusablePressable
                 style={[styles.retryButton, styles.fallbackButton]}
                 onPress={onFallbackAction}
                 accessibilityRole="button"
                 accessibilityLabel={fallbackActionLabel}>
-                <FontAwesome5 name="play-circle" size={14} color="#fff" />
+                <AppIcon name="play-circle" size={14} color="#fff" />
                 <Text style={styles.retryText}>{fallbackActionLabel}</Text>
-              </Pressable>
+              </FocusablePressable>
             ) : null}
           </View>
         </View>
@@ -372,13 +417,14 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
           TV: this is the focus holder while controls are hidden. Android only
           routes remote keys into React when a view inside it has focus, and
           Select on it reveals the controls. Hidden buttons are unfocusable so
-          focus never lands on something invisible.
+          focus never lands on something invisible. While an error is shown,
+          its Retry / switch-player buttons hold focus instead.
         */}
         <Pressable
           onPress={onToggleVisibility}
           style={StyleSheet.absoluteFill}
-          focusable={IS_TV ? !visible : undefined}
-          hasTVPreferredFocus={IS_TV && !visible}
+          focusable={IS_TV ? !visible && !error && !tvOverlayOpen : undefined}
+          hasTVPreferredFocus={IS_TV && !visible && !error && !tvOverlayOpen}
           accessibilityRole="button"
           accessibilityLabel="Hide playback controls"
         />
@@ -388,11 +434,11 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
           <FocusablePressable
             onPress={onGoBack}
             style={styles.backButton}
-            focusable={IS_TV ? visible : undefined}
+            focusable={IS_TV ? visible && !tvOverlayOpen : undefined}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Close player">
-            <FontAwesome5 name="arrow-left" size={18} color="#fff" />
+            <AppIcon name="arrow-left" size={18} color="#fff" />
           </FocusablePressable>
           <View style={styles.titleContainer}>
             <Text style={styles.channelName} numberOfLines={1}>
@@ -405,7 +451,27 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
               </View>
             )}
           </View>
-          <View style={styles.topRight} />
+          <View style={styles.topRight}>
+            <FocusablePressable
+              onPress={handleCycleContentMode}
+              style={styles.contentModeButton}
+              focusable={IS_TV ? visible && !tvOverlayOpen : undefined}
+              accessibilityRole="button"
+              accessibilityLabel={`Video aspect ratio: ${contentMode}. Change aspect ratio`}>
+              <AppIcon name="expand-arrows-alt" size={17} color="#fff" />
+            </FocusablePressable>
+            {showContentModeLabel ? (
+              <View style={styles.contentModeLabel} pointerEvents="none">
+                <Text style={styles.contentModeText}>
+                  {contentMode === 'fit'
+                    ? 'Fit'
+                    : contentMode === 'crop'
+                    ? 'Crop'
+                    : 'Stretch'}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
 
         {/* Center controls */}
@@ -414,21 +480,21 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             <FocusablePressable
               onPress={() => onSeek?.(Math.max(0, currentTime - 10))}
               style={styles.seekButton}
-              focusable={IS_TV ? visible : undefined}
+              focusable={IS_TV ? visible && !tvOverlayOpen : undefined}
               accessibilityRole="button"
               accessibilityLabel="Go back 10 seconds">
-              <FontAwesome5 name="backward" size={20} color="#fff" />
+              <AppIcon name="backward" size={20} color="#fff" />
             </FocusablePressable>
           )}
           <FocusablePressable
             onPress={onTogglePlayPause}
             style={styles.playButton}
-            focusable={IS_TV ? visible : undefined}
-            hasTVPreferredFocus={IS_TV && visible}
+            focusable={IS_TV ? visible && !tvOverlayOpen : undefined}
+            hasTVPreferredFocus={IS_TV && visible && !error && !tvOverlayOpen}
             accessibilityRole="button"
             accessibilityLabel={isPaused ? 'Play' : 'Pause'}
             accessibilityState={{ selected: !isPaused }}>
-            <FontAwesome5
+            <AppIcon
               name={isPaused ? 'play' : 'pause'}
               size={24}
               color="#fff"
@@ -438,10 +504,10 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             <FocusablePressable
               onPress={() => onSeek?.(Math.min(duration, currentTime + 10))}
               style={styles.seekButton}
-              focusable={IS_TV ? visible : undefined}
+              focusable={IS_TV ? visible && !tvOverlayOpen : undefined}
               accessibilityRole="button"
               accessibilityLabel="Go forward 10 seconds">
-              <FontAwesome5 name="forward" size={20} color="#fff" />
+              <AppIcon name="forward" size={20} color="#fff" />
             </FocusablePressable>
           )}
         </View>
@@ -491,10 +557,10 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             <FocusablePressable
               onPress={onToggleChannelSwitcher}
               style={styles.channelSwitchButton}
-              focusable={IS_TV ? visible : undefined}
+              focusable={IS_TV ? visible && !tvOverlayOpen : undefined}
               accessibilityRole="button"
               accessibilityLabel="Open channel list">
-              <FontAwesome5 name="list" size={16} color="#fff" />
+              <AppIcon name="list" size={16} color="#fff" />
               <Text style={styles.channelSwitchText}>Channels</Text>
             </FocusablePressable>
           )}
@@ -574,7 +640,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   topRight: {
-    width: 40,
+    width: 44,
+    position: 'relative',
+  },
+  contentModeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contentModeLabel: {
+    position: 'absolute',
+    right: 0,
+    top: 50,
+    minWidth: 72,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: 'rgba(5,7,14,0.9)',
+    alignItems: 'center',
+  },
+  contentModeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
   },
   centerControls: {
     flexDirection: 'row',

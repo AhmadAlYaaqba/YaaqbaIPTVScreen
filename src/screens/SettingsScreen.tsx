@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import AppIcon, { type AppIconName } from '../components/AppIcon';
 import LinearGradient from 'react-native-linear-gradient';
 import Svg, {
   Defs,
@@ -70,7 +70,7 @@ const SWITCH_TRACK = {
 const GRADIENT_START = { x: 0, y: 0 };
 const GRADIENT_END = { x: 1, y: 1 };
 
-const ENGINE_ICONS: Record<PlayerEngine, string> = {
+const ENGINE_ICONS: Record<PlayerEngine, AppIconName> = {
   vlc: 'play-circle',
   native: 'mobile-alt',
   'expo-video': 'bolt',
@@ -223,6 +223,10 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
     navigation.navigate('Login', { initialTab: 'xtream', mode: 'add' });
   }, [navigation]);
 
+  const handleOpenHistory = useCallback(() => {
+    rootNavigation?.navigate('WatchHistory');
+  }, [rootNavigation]);
+
   const handleDeletePlaylist = useCallback(
     (playlist: Playlist) => {
       Alert.alert(
@@ -365,7 +369,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
             }
             accessibilityRole="button"
             accessibilityLabel="Back to home">
-            <FontAwesome5 name="chevron-left" size={17} color={colors.fg} />
+            <AppIcon name="chevron-left" size={17} color={colors.fg} />
           </TVTouchable>
           <View style={styles.headerCopy}>
             <Text style={styles.eyebrow}>SETTINGS</Text>
@@ -393,7 +397,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                 end={GRADIENT_END}
                 style={StyleSheet.absoluteFill}
               />
-              <FontAwesome5 name="sliders-h" size={18} color={colors.fg} />
+              <AppIcon name="sliders-h" size={18} color={colors.fg} />
             </View>
             <View style={styles.heroCopy}>
               <Text style={styles.heroTitle}>Stream controls</Text>
@@ -413,7 +417,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                 onPress={handleAddPlaylist}
                 accessibilityRole="button"
                 accessibilityLabel="Add Xtream playlist">
-                <FontAwesome5 name="plus" size={11} color={colors.indigo} />
+                <AppIcon name="plus" size={11} color={colors.indigo} />
                 <Text style={styles.addPlaylistText}>Add Xtream</Text>
               </TVTouchable>
             </View>
@@ -445,7 +449,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                             styles.playlistIconTile,
                             isActive && styles.playlistIconTileActive,
                           ]}>
-                          <FontAwesome5
+                          <AppIcon
                             name={pl.kind === 'activation' ? 'key' : 'server'}
                             size={14}
                             color={isActive ? colors.indigo : colors.fgMuted}
@@ -464,11 +468,10 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                           </Text>
                         </View>
                         {isActive ? (
-                          <FontAwesome5
+                          <AppIcon
                             name="check-circle"
                             size={18}
                             color={colors.indigo}
-                            solid
                           />
                         ) : null}
                       </TVTouchable>
@@ -478,7 +481,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                         onPress={() => handleDeletePlaylist(pl)}
                         accessibilityRole="button"
                         accessibilityLabel={`Delete ${pl.name}`}>
-                        <FontAwesome5
+                        <AppIcon
                           name="trash-alt"
                           size={14}
                           color={colors.fgSubtle}
@@ -514,7 +517,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                         styles.playlistIconTile,
                         isSelected && styles.playlistIconTileActive,
                       ]}>
-                      <FontAwesome5
+                      <AppIcon
                         name={ENGINE_ICONS[engine]}
                         size={15}
                         color={isSelected ? colors.indigo : colors.fgMuted}
@@ -527,11 +530,10 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                       <Text style={styles.rowHint}>{ENGINE_HINTS[engine]}</Text>
                     </View>
                     {isSelected ? (
-                      <FontAwesome5
+                      <AppIcon
                         name="check-circle"
                         size={18}
                         color={colors.indigo}
-                        solid
                       />
                     ) : null}
                   </TVTouchable>
@@ -545,7 +547,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
             <View style={styles.settingCard}>
               <View style={styles.row}>
                 <View style={styles.proxyIconTile}>
-                  <FontAwesome5
+                  <AppIcon
                     name="shield-alt"
                     size={16}
                     color={colors.cyan}
@@ -574,7 +576,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
             <View style={styles.settingCard}>
               <View style={styles.tmdbHeader}>
                 <View style={styles.tmdbIconTile}>
-                  <FontAwesome5 name="film" size={16} color={colors.cyan} />
+                  <AppIcon name="film" size={16} color={colors.cyan} />
                 </View>
                 <View style={styles.rowContent}>
                   <Text style={styles.rowLabel}>TMDB API key</Text>
@@ -607,7 +609,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                   accessibilityLabel={
                     showTmdbApiKey ? 'Hide TMDB API key' : 'Show TMDB API key'
                   }>
-                  <FontAwesome5
+                  <AppIcon
                     name={showTmdbApiKey ? 'eye-slash' : 'eye'}
                     size={14}
                     color={colors.fgMuted}
@@ -630,7 +632,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                   {isSavingTmdbKey ? (
                     <ActivityIndicator size="small" color={colors.fg} />
                   ) : (
-                    <FontAwesome5 name="lock" size={13} color={colors.fg} />
+                    <AppIcon name="lock" size={13} color={colors.fg} />
                   )}
                   <Text style={styles.tmdbSaveText}>Save key</Text>
                 </TVTouchable>
@@ -661,6 +663,33 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
             </View>
           </View>
 
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>LIBRARY</Text>
+            <View style={styles.settingCard}>
+              <TVTouchable
+                style={styles.row}
+                activeOpacity={0.8}
+                onPress={handleOpenHistory}
+                accessibilityRole="button"
+                accessibilityLabel="Open watch history">
+                <View style={styles.historyIconTile}>
+                  <AppIcon name="history" size={16} color={colors.indigo} />
+                </View>
+                <View style={styles.rowContent}>
+                  <Text style={styles.rowLabel}>Watch history</Text>
+                  <Text style={styles.rowHint}>
+                    Review, resume, or remove watched content.
+                  </Text>
+                </View>
+                <AppIcon
+                  name="chevron-right"
+                  size={14}
+                  color={colors.fgSubtle}
+                />
+              </TVTouchable>
+            </View>
+          </View>
+
           <View style={styles.actionSection}>
             <TVTouchable
               style={styles.logoutButton}
@@ -668,7 +697,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
               onPress={handleLogout}
               accessibilityRole="button"
               accessibilityLabel="Log out">
-              <FontAwesome5
+              <AppIcon
                 name="sign-out-alt"
                 size={16}
                 color={colors.danger}
@@ -997,6 +1026,15 @@ const styles = StyleSheet.create({
   actionSection: {
     marginTop: 30,
     paddingHorizontal: 20,
+  },
+  historyIconTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(139,123,255,0.14)',
+    marginRight: 12,
   },
   logoutButton: {
     flexDirection: 'row',

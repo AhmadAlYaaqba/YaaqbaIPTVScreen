@@ -6,7 +6,10 @@ import {
 import {
   PlayerEngine,
   DEFAULT_PLAYER_ENGINE,
+  DEFAULT_VIDEO_CONTENT_MODE,
+  VideoContentMode,
   isPlayerEngine,
+  isVideoContentMode,
 } from '../../types/player';
 
 export type PlaylistKind = 'activation' | 'xtream';
@@ -27,6 +30,8 @@ export interface PlaylistStoreShape {
   activeId: string | null;
   /** Selected player engine (device-wide, like useVLC before it). */
   playerEngine: PlayerEngine;
+  /** Device-wide video scaling preference. */
+  videoContentMode: VideoContentMode;
   /**
    * Legacy boolean kept in the persisted shape purely so a rollback to an
    * older build still reads a sane value. Derived from playerEngine on write.
@@ -42,6 +47,7 @@ const EMPTY_STORE: PlaylistStoreShape = {
   playlists: [],
   activeId: null,
   playerEngine: DEFAULT_PLAYER_ENGINE,
+  videoContentMode: DEFAULT_VIDEO_CONTENT_MODE,
   useVLC: DEFAULT_PLAYER_ENGINE === 'vlc',
 };
 
@@ -73,10 +79,14 @@ export function normalizePlaylistStore(raw: any): PlaylistStoreShape {
         ? 'vlc'
         : 'native'
       : DEFAULT_PLAYER_ENGINE;
+  const videoContentMode = isVideoContentMode(raw.videoContentMode)
+    ? raw.videoContentMode
+    : DEFAULT_VIDEO_CONTENT_MODE;
   return {
     playlists,
     activeId,
     playerEngine,
+    videoContentMode,
     useVLC: playerEngine === 'vlc',
   };
 }
@@ -207,6 +217,13 @@ export async function setGlobalPlayerEngine(
   await writeStore({ ...store, playerEngine, useVLC: playerEngine === 'vlc' });
 }
 
+export async function setGlobalVideoContentMode(
+  videoContentMode: VideoContentMode,
+): Promise<void> {
+  const store = await readStore();
+  await writeStore({ ...store, videoContentMode });
+}
+
 /** Persist a per-playlist preference change (e.g. useProxy) for the active playlist. */
 export async function updateActivePlaylist(
   changes: Partial<Omit<Playlist, 'id'>>,
@@ -271,6 +288,7 @@ export async function migrateLegacyCredentials(): Promise<Playlist | null> {
       playlists: [playlist],
       activeId: playlist.id,
       playerEngine,
+      videoContentMode: store.videoContentMode,
       useVLC: playerEngine === 'vlc',
     });
     return playlist;

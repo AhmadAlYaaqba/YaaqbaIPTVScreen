@@ -12,7 +12,14 @@ import {
 } from '../utils/playbackSources';
 import { getSanitizedPlaybackError } from '../utils/playbackDiagnostics';
 
-const LIVE_STALL_TIMEOUT_MS = 12000;
+// IPTV manifests commonly use 6–10 second segments. Give a live stream enough
+// time to recover across two segments before replacing a source that may still
+// be decoding successfully.
+export const LIVE_STALL_TIMEOUT_MS = 20000;
+export const LIVE_ERROR_RECOVERY_GRACE_MS = 3000;
+export const BUFFERING_INDICATOR_DELAY_MS = 600;
+export const BUFFERING_ACTIVITY_GRACE_MS = 1500;
+const PLAYBACK_PROGRESS_EPSILON_SECONDS = 0.05;
 
 export interface UseVideoPlayerOptions {
   request: PlaybackRequest;
@@ -95,8 +102,18 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   const bufferStallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const bufferingIndicatorTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const liveErrorGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const currentProgressRef = useRef(initialProgress);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const appStateRef = useRef<AppStateStatus>(
+    typeof AppState.currentState === 'string'
+      ? AppState.currentState
+      : 'active',
+  );
   const sourceIndexRef = useRef(0);
   const retriesUsedRef = useRef(0);
   const isOfflineRef = useRef(isOffline);
@@ -107,6 +124,11 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   const lastProgressSecondRef = useRef(Math.floor(initialProgress));
   const loadStartedAtRef = useRef(Date.now());
   const completedSourceTokenRef = useRef<string | null>(null);
+  const lastMediaTimeRef = useRef<number | null>(null);
+  const lastPlaybackActivityAtRef = useRef(0);
+  const hasConfirmedPlaybackRef = useRef(false);
+  const liveStallWatchActiveRef = useRef(false);
+  const resumeRecoveryOnForegroundRef = useRef(false);
 
   const requestIsCurrent = activeRequestKey === requestKey;
   const effectiveSourceIndex = requestIsCurrent ? currentSourceIndex : 0;
@@ -128,6 +150,65 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       clearTimeout(bufferStallTimerRef.current);
       bufferStallTimerRef.current = null;
     }
+  }, []);
+
+  const clearBufferingIndicatorTimer = useCallback(() => {
+    if (bufferingIndicatorTimerRef.current) {
+      clearTimeout(bufferingIndicatorTimerRef.current);
+      bufferingIndicatorTimerRef.current = null;
+    }
+  }, []);
+
+  const clearLiveErrorGraceTimer = useCallback(() => {
+    if (liveErrorGraceTimerRef.current) {
+      clearTimeout(liveErrorGraceTimerRef.current);
+      liveErrorGraceTimerRef.current = null;
+    }
+  }, []);
+
+  const resetSourceHealth = useCallback(() => {
+    clearBufferStallTimer();
+    clearBufferingIndicatorTimer();
+    clearLiveErrorGraceTimer();
+    liveStallWatchActiveRef.current = false;
+    hasConfirmedPlaybackRef.current = false;
+    lastMediaTimeRef.current = null;
+    lastPlaybackActivityAtRef.current = 0;
+  }, [
+    clearBufferStallTimer,
+    clearBufferingIndicatorTimer,
+    clearLiveErrorGraceTimer,
+  ]);
+
+  const scheduleBufferingIndicator = useCallback(() => {
+    if (bufferingIndicatorTimerRef.current || isOfflineRef.current) {
+      return;
+    }
+
+    const showWhenPlaybackIsActuallyIdle = () => {
+      const elapsedSinceProgress =
+        Date.now() - lastPlaybackActivityAtRef.current;
+      if (
+        hasConfirmedPlaybackRef.current &&
+        elapsedSinceProgress < BUFFERING_ACTIVITY_GRACE_MS
+      ) {
+        bufferingIndicatorTimerRef.current = setTimeout(
+          showWhenPlaybackIsActuallyIdle,
+          BUFFERING_ACTIVITY_GRACE_MS - elapsedSinceProgress,
+        );
+        return;
+      }
+
+      bufferingIndicatorTimerRef.current = null;
+      if (!isOfflineRef.current) {
+        setIsBuffering(true);
+      }
+    };
+
+    bufferingIndicatorTimerRef.current = setTimeout(
+      showWhenPlaybackIsActuallyIdle,
+      BUFFERING_INDICATOR_DELAY_MS,
+    );
   }, []);
 
   const pushDebugEntry = useCallback(
@@ -152,7 +233,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     }
 
     clearReconnectTimer();
-    clearBufferStallTimer();
+    resetSourceHealth();
     sourceIndexRef.current = 0;
     retriesUsedRef.current = 0;
     cycleExhaustedRef.current = false;
@@ -173,11 +254,11 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     setDebugEntries([]);
   }, [
     activeRequestKey,
-    clearBufferStallTimer,
     clearReconnectTimer,
     initialDuration,
     initialProgress,
     requestKey,
+    resetSourceHealth,
   ]);
 
   useEffect(() => {
@@ -229,7 +310,11 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   const handlePlaybackFailure = useCallback(
     (failureReason: string) => {
       clearBufferStallTimer();
+      clearBufferingIndicatorTimer();
+      clearLiveErrorGraceTimer();
+      liveStallWatchActiveRef.current = false;
       setLastFailureReason(failureReason);
+      setIsBuffering(false);
 
       if (cycleExhaustedRef.current || reconnectTimerRef.current) {
         return;
@@ -267,6 +352,8 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
             setIsReconnecting(true);
             return;
           }
+          resetSourceHealth();
+          setIsBuffering(true);
           setSourceRevision(previous => previous + 1);
           setIsReconnecting(false);
         }, decision.delayMs);
@@ -280,6 +367,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         setReconnectAttempt(0);
         setError(null);
         setIsReconnecting(false);
+        resetSourceHealth();
         setIsBuffering(true);
         setSourceRevision(previous => previous + 1);
         return;
@@ -291,7 +379,89 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       setIsBuffering(false);
       onSourceExhausted?.();
     },
-    [autoReconnect, clearBufferStallTimer, onSourceExhausted, sources.length],
+    [
+      autoReconnect,
+      clearBufferStallTimer,
+      clearBufferingIndicatorTimer,
+      clearLiveErrorGraceTimer,
+      onSourceExhausted,
+      resetSourceHealth,
+      sources.length,
+    ],
+  );
+
+  const confirmPlaybackHealthy = useCallback(
+    (keepLiveStallWatch = false) => {
+      if (isOfflineRef.current) {
+        return;
+      }
+
+      clearReconnectTimer();
+      clearBufferingIndicatorTimer();
+      clearLiveErrorGraceTimer();
+      if (!keepLiveStallWatch) {
+        liveStallWatchActiveRef.current = false;
+        clearBufferStallTimer();
+      }
+      retriesUsedRef.current = 0;
+      cycleExhaustedRef.current = false;
+      setReconnectAttempt(0);
+      setIsReconnecting(false);
+      setIsBuffering(false);
+      setError(null);
+    },
+    [
+      clearBufferStallTimer,
+      clearBufferingIndicatorTimer,
+      clearLiveErrorGraceTimer,
+      clearReconnectTimer,
+    ],
+  );
+
+  const armLiveStallTimer = useCallback(() => {
+    clearBufferStallTimer();
+    bufferStallTimerRef.current = setTimeout(() => {
+      bufferStallTimerRef.current = null;
+      if (
+        !liveStallWatchActiveRef.current ||
+        isOfflineRef.current ||
+        appStateRef.current !== 'active'
+      ) {
+        return;
+      }
+      liveStallWatchActiveRef.current = false;
+      handlePlaybackFailure(
+        `Live stream stalled for ${LIVE_STALL_TIMEOUT_MS / 1000} seconds`,
+      );
+    }, LIVE_STALL_TIMEOUT_MS);
+  }, [clearBufferStallTimer, handlePlaybackFailure]);
+
+  const handlePlayerError = useCallback(
+    (failureReason: string) => {
+      const playbackWasRecentlyActive =
+        isLive &&
+        hasConfirmedPlaybackRef.current &&
+        Date.now() - lastPlaybackActivityAtRef.current <=
+          LIVE_ERROR_RECOVERY_GRACE_MS * 2;
+
+      if (!playbackWasRecentlyActive) {
+        handlePlaybackFailure(failureReason);
+        return;
+      }
+
+      // Some live engines report a recoverable transport error before they
+      // finish resynchronizing. Keep the current source alive briefly; real
+      // progress or a ready/buffer-end event cancels this pending failure.
+      if (liveErrorGraceTimerRef.current) {
+        return;
+      }
+      setLastFailureReason(failureReason);
+      liveErrorGraceTimerRef.current = setTimeout(() => {
+        liveErrorGraceTimerRef.current = null;
+        handlePlaybackFailure(failureReason);
+      }, LIVE_ERROR_RECOVERY_GRACE_MS);
+    },
+    [handlePlaybackFailure, isLive],
   );
 
   const onError = useCallback(
@@ -333,13 +503,13 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
           errorCode: diagnostic.code,
         });
       }
-      handlePlaybackFailure(errorMessage);
+      handlePlayerError(errorMessage);
     },
     [
       connection.password,
       connection.username,
       currentSource,
-      handlePlaybackFailure,
+      handlePlayerError,
       playerEngine,
       pushDebugEntry,
       request.kind,
@@ -349,19 +519,17 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
 
   const onLoad = useCallback(
     (data: { duration?: number }) => {
-      clearReconnectTimer();
-      clearBufferStallTimer();
+      hasConfirmedPlaybackRef.current = true;
+      lastPlaybackActivityAtRef.current = Date.now();
+      lastMediaTimeRef.current = null;
+      liveStallWatchActiveRef.current = false;
+      confirmPlaybackHealthy();
       const loadedDuration = Number(data.duration);
       setDuration(
         Number.isFinite(loadedDuration) && loadedDuration > 0
           ? loadedDuration
           : initialDuration,
       );
-      setError(null);
-      setIsReconnecting(false);
-      setReconnectAttempt(0);
-      setIsBuffering(false);
-
       if (__DEV__) {
         console.info('[PlayerTiming]', {
           engine: playerEngine,
@@ -392,8 +560,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       }
     },
     [
-      clearBufferStallTimer,
-      clearReconnectTimer,
+      confirmPlaybackHealthy,
       currentSource,
       initialDuration,
       playerEngine,
@@ -405,11 +572,31 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
 
   const onProgress = useCallback(
     (data: { currentTime?: number; seekableDuration?: number }) => {
+      const reportedTime = Number(data.currentTime);
+      const previousTime = lastMediaTimeRef.current;
+      const playbackAdvanced =
+        Number.isFinite(reportedTime) &&
+        (previousTime === null ||
+          Math.abs(reportedTime - previousTime) >=
+            PLAYBACK_PROGRESS_EPSILON_SECONDS);
+
+      if (playbackAdvanced) {
+        lastMediaTimeRef.current = reportedTime;
+        lastPlaybackActivityAtRef.current = Date.now();
+        hasConfirmedPlaybackRef.current = true;
+        confirmPlaybackHealthy(isLive && liveStallWatchActiveRef.current);
+        if (isLive && liveStallWatchActiveRef.current) {
+          // A stale "buffering" signal must not win while timestamps continue
+          // advancing. Keep watching and fail only after progress truly stops.
+          armLiveStallTimer();
+        }
+      }
+
       if (isLive) {
         return;
       }
 
-      const nextTime = data.currentTime || 0;
+      const nextTime = Number.isFinite(reportedTime) ? reportedTime : 0;
       const seekableDuration = Number(data.seekableDuration);
       if (
         duration <= 0 &&
@@ -425,7 +612,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         setCurrentTime(nextTime);
       }
     },
-    [duration, isLive],
+    [armLiveStallTimer, confirmPlaybackHealthy, duration, isLive],
   );
 
   const onEnd = useCallback(() => {
@@ -435,7 +622,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
 
     completedSourceTokenRef.current = sourceToken;
     clearReconnectTimer();
-    clearBufferStallTimer();
+    resetSourceHealth();
     setIsBuffering(false);
     setIsReconnecting(false);
 
@@ -445,13 +632,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       setCurrentTime(duration);
     }
     setIsCompleted(true);
-  }, [
-    clearBufferStallTimer,
-    clearReconnectTimer,
-    duration,
-    isLive,
-    sourceToken,
-  ]);
+  }, [clearReconnectTimer, duration, isLive, resetSourceHealth, sourceToken]);
 
   const recordSeek = useCallback(
     (time: number) => {
@@ -473,20 +654,37 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
 
   const onBuffer = useCallback(
     (data: { isBuffering: boolean }) => {
-      setIsBuffering(data.isBuffering);
-
-      if (!data.isBuffering || !isLive || isOfflineRef.current) {
+      if (!data.isBuffering) {
+        liveStallWatchActiveRef.current = false;
         clearBufferStallTimer();
+        clearBufferingIndicatorTimer();
+        if (isOfflineRef.current) {
+          setIsBuffering(false);
+        } else {
+          confirmPlaybackHealthy();
+        }
         return;
       }
 
-      clearBufferStallTimer();
-      bufferStallTimerRef.current = setTimeout(() => {
-        bufferStallTimerRef.current = null;
-        handlePlaybackFailure('Live stream stalled for 12 seconds');
-      }, LIVE_STALL_TIMEOUT_MS);
+      if (isOfflineRef.current) {
+        return;
+      }
+
+      scheduleBufferingIndicator();
+
+      if (isLive && !liveStallWatchActiveRef.current) {
+        liveStallWatchActiveRef.current = true;
+        armLiveStallTimer();
+      }
     },
-    [clearBufferStallTimer, handlePlaybackFailure, isLive],
+    [
+      armLiveStallTimer,
+      clearBufferStallTimer,
+      clearBufferingIndicatorTimer,
+      confirmPlaybackHealthy,
+      isLive,
+      scheduleBufferingIndicator,
+    ],
   );
 
   const togglePlayPause = useCallback(() => {
@@ -495,7 +693,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
 
   const retry = useCallback(() => {
     clearReconnectTimer();
-    clearBufferStallTimer();
+    resetSourceHealth();
     sourceIndexRef.current = 0;
     retriesUsedRef.current = 0;
     cycleExhaustedRef.current = false;
@@ -507,26 +705,25 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     setIsBuffering(false);
     setIsCompleted(false);
     if (!isOfflineRef.current) {
+      setIsBuffering(true);
       setSourceRevision(previous => previous + 1);
     }
-  }, [clearBufferStallTimer, clearReconnectTimer]);
+  }, [clearReconnectTimer, resetSourceHealth]);
 
-  const setPlaybackCompleted = useCallback(
-    (completed: boolean) => {
-      if (!completed) {
-        completedSourceTokenRef.current = null;
-      }
-      setIsCompleted(completed);
-    },
-    [],
-  );
+  const setPlaybackCompleted = useCallback((completed: boolean) => {
+    if (!completed) {
+      completedSourceTokenRef.current = null;
+    }
+    setIsCompleted(completed);
+  }, []);
 
   useEffect(() => {
     if (isOffline) {
       wasOfflineRef.current = true;
       clearReconnectTimer();
-      clearBufferStallTimer();
+      resetSourceHealth();
       setIsReconnecting(true);
+      setIsBuffering(false);
       return;
     }
 
@@ -537,41 +734,72 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     wasOfflineRef.current = false;
     setIsReconnecting(false);
     if (!cycleExhaustedRef.current) {
+      resetSourceHealth();
       setError(null);
+      setIsBuffering(true);
       setSourceRevision(previous => previous + 1);
     }
-  }, [isOffline, clearBufferStallTimer, clearReconnectTimer]);
+  }, [isOffline, clearReconnectTimer, resetSourceHealth]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener(
       'change',
       (nextState: AppStateStatus) => {
-        const wasBackgrounded =
-          appStateRef.current.match(/inactive|background/);
+        const wasBackgrounded = /inactive|background/.test(appStateRef.current);
         appStateRef.current = nextState;
+
+        if (/inactive|background/.test(nextState)) {
+          resumeRecoveryOnForegroundRef.current = Boolean(
+            reconnectTimerRef.current ||
+              liveErrorGraceTimerRef.current ||
+              liveStallWatchActiveRef.current,
+          );
+          clearReconnectTimer();
+          resetSourceHealth();
+          setIsBuffering(false);
+          setIsReconnecting(isOfflineRef.current);
+          return;
+        }
+
+        if (!wasBackgrounded || nextState !== 'active') {
+          return;
+        }
+        if (isOfflineRef.current) {
+          setIsReconnecting(true);
+          return;
+        }
+
+        // Native players normally resume their existing source themselves.
+        // Replacing it on every foreground transition causes an unnecessary
+        // live resync. Resume the fallback cycle only if one was pending.
         if (
-          wasBackgrounded &&
-          nextState === 'active' &&
+          resumeRecoveryOnForegroundRef.current &&
           autoReconnect &&
-          !isOfflineRef.current &&
           !cycleExhaustedRef.current
         ) {
+          resumeRecoveryOnForegroundRef.current = false;
+          resetSourceHealth();
           setError(null);
+          setIsBuffering(true);
           setIsReconnecting(false);
           setSourceRevision(previous => previous + 1);
+        } else {
+          resumeRecoveryOnForegroundRef.current = false;
+          setIsBuffering(false);
+          setIsReconnecting(false);
         }
       },
     );
 
     return () => subscription.remove();
-  }, [autoReconnect]);
+  }, [autoReconnect, clearReconnectTimer, resetSourceHealth]);
 
   useEffect(
     () => () => {
       clearReconnectTimer();
-      clearBufferStallTimer();
+      resetSourceHealth();
     },
-    [clearBufferStallTimer, clearReconnectTimer],
+    [clearReconnectTimer, resetSourceHealth],
   );
 
   const bufferConfig: BufferConfig | undefined =
