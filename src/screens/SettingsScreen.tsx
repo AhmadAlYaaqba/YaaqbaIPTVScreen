@@ -6,8 +6,6 @@ import {
   StyleSheet,
   Switch,
   ScrollView,
-  TouchableOpacity,
-  TextInput,
   Alert,
   Platform,
 } from 'react-native';
@@ -40,6 +38,8 @@ import {
 } from '../types/player';
 import { colors, gradients, radii } from '../theme/colors';
 import AmbientGlow from '../components/mirror/AmbientGlow';
+import TVTouchable from '../tv/TVTouchable';
+import TVTextInput from '../tv/TVTextInput';
 import TmdbLogo from '../components/TmdbLogo';
 import {
   clearStoredTmdbApiKey,
@@ -355,7 +355,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
       <GridBg />
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <TouchableOpacity
+          <TVTouchable
             style={styles.backBtn}
             activeOpacity={0.75}
             onPress={() =>
@@ -366,7 +366,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
             accessibilityRole="button"
             accessibilityLabel="Back to home">
             <FontAwesome5 name="chevron-left" size={17} color={colors.fg} />
-          </TouchableOpacity>
+          </TVTouchable>
           <View style={styles.headerCopy}>
             <Text style={styles.eyebrow}>SETTINGS</Text>
             <Text style={styles.headerTitle}>Playback setup</Text>
@@ -407,7 +407,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
           <View style={styles.section}>
             <View style={styles.playlistSectionHeader}>
               <Text style={styles.sectionTitle}>PLAYLISTS</Text>
-              <TouchableOpacity
+              <TVTouchable
                 style={styles.addPlaylistBtn}
                 activeOpacity={0.8}
                 onPress={handleAddPlaylist}
@@ -415,7 +415,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                 accessibilityLabel="Add Xtream playlist">
                 <FontAwesome5 name="plus" size={11} color={colors.indigo} />
                 <Text style={styles.addPlaylistText}>Add Xtream</Text>
-              </TouchableOpacity>
+              </TVTouchable>
             </View>
             <View style={styles.settingCard}>
               {playlists.length === 0 ? (
@@ -431,7 +431,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                         index < playlists.length - 1 &&
                           styles.playlistRowDivider,
                       ]}>
-                      <TouchableOpacity
+                      <TVTouchable
                         style={styles.playlistMain}
                         activeOpacity={0.8}
                         onPress={() => handleSwitchPlaylist(pl)}
@@ -471,8 +471,8 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                             solid
                           />
                         ) : null}
-                      </TouchableOpacity>
-                      <TouchableOpacity
+                      </TVTouchable>
+                      <TVTouchable
                         style={styles.playlistDeleteBtn}
                         activeOpacity={0.7}
                         onPress={() => handleDeletePlaylist(pl)}
@@ -483,7 +483,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                           size={14}
                           color={colors.fgSubtle}
                         />
-                      </TouchableOpacity>
+                      </TVTouchable>
                     </View>
                   );
                 })
@@ -497,7 +497,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
               {PLAYER_ENGINES.map((engine, index) => {
                 const isSelected = engine === playerEngine;
                 return (
-                  <TouchableOpacity
+                  <TVTouchable
                     key={engine}
                     style={[
                       styles.playlistRow,
@@ -534,7 +534,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                         solid
                       />
                     ) : null}
-                  </TouchableOpacity>
+                  </TVTouchable>
                 );
               })}
             </View>
@@ -586,7 +586,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
               </View>
 
               <View style={styles.tmdbInputRow}>
-                <TextInput
+                <TVTextInput
                   value={tmdbApiKey}
                   onChangeText={setTmdbApiKey}
                   editable={!isLoadingTmdbKey && !isSavingTmdbKey}
@@ -599,7 +599,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                   style={styles.tmdbInput}
                   accessibilityLabel="TMDB API key"
                 />
-                <TouchableOpacity
+                <TVTouchable
                   style={styles.tmdbVisibilityButton}
                   activeOpacity={0.75}
                   onPress={() => setShowTmdbApiKey(value => !value)}
@@ -612,11 +612,11 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                     size={14}
                     color={colors.fgMuted}
                   />
-                </TouchableOpacity>
+                </TVTouchable>
               </View>
 
               <View style={styles.tmdbActions}>
-                <TouchableOpacity
+                <TVTouchable
                   style={[
                     styles.tmdbSaveButton,
                     !canSaveTmdbApiKey && styles.tmdbSaveButtonDisabled,
@@ -633,9 +633,9 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                     <FontAwesome5 name="lock" size={13} color={colors.fg} />
                   )}
                   <Text style={styles.tmdbSaveText}>Save key</Text>
-                </TouchableOpacity>
+                </TVTouchable>
 
-                <TouchableOpacity
+                <TVTouchable
                   style={styles.tmdbClearButton}
                   activeOpacity={0.75}
                   disabled={isLoadingTmdbKey || isSavingTmdbKey}
@@ -646,7 +646,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                     disabled: isLoadingTmdbKey || isSavingTmdbKey,
                   }}>
                   <Text style={styles.tmdbClearText}>Clear</Text>
-                </TouchableOpacity>
+                </TVTouchable>
               </View>
 
               <View style={styles.tmdbAttribution}>
@@ -662,7 +662,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
           </View>
 
           <View style={styles.actionSection}>
-            <TouchableOpacity
+            <TVTouchable
               style={styles.logoutButton}
               activeOpacity={0.82}
               onPress={handleLogout}
@@ -674,7 +674,7 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                 color={colors.danger}
               />
               <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
+            </TVTouchable>
           </View>
         </ScrollView>
       </SafeAreaView>
