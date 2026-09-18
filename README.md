@@ -54,8 +54,11 @@ Hard-won rules: keep a focusable view alive at all times (remote keys are droppe
 npm run verify              # typecheck + lint + jest
 npm start                   # Expo CLI dev server (Metro on 8081)
 npm run android / npm run ios
-npm run build:android-apk-release
+npm run build:android-apk-release   # R8 + resource shrinking; writes android/app/build/outputs/mapping/release/mapping.txt
+npm run build:android-aab-release   # use this for Play: the universal APK is ~300 MB because libvlc is ~50 MB per ABI × 4
 ```
+
+Release builds need the Gradle daemon heap in `android/gradle.properties` (`-Xmx4096m -XX:MaxMetaspaceSize=1024m`): R8 and the library lint-vital tasks run out of Metaspace at the stock 512 MB. For a store artifact, prefer the AAB (Play serves one ABI per device) or build with `-PreactNativeArchitectures=armeabi-v7a,arm64-v8a`; x86/x86_64 are only needed for emulators.
 
 ## Verification matrix
 
