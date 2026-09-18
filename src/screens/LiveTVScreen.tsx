@@ -16,7 +16,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
+import { useSelector, shallowEqual } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 import AppIcon from '../components/AppIcon';
 
@@ -64,6 +64,18 @@ const ACCENT = sectionAccents.live;
 // the live window size so a tablet reflows when it is rotated or resized.
 const H_PAD = IS_TV ? 24 : 20;
 const GUTTER = IS_TV ? 16 : 10;
+// Card = square logo tile + fixed number row + one title line. The rows below
+// the tile have fixed heights so every grid row measures the same and the
+// list can use getItemLayout (which also keeps D-pad scrolling exact on TV).
+const CARD_NUMBER_ROW_HEIGHT = 14;
+const CARD_NUMBER_ROW_MARGIN_TOP = 8;
+const CARD_TITLE_LINE_HEIGHT = 16;
+const CARD_TITLE_MARGIN_TOP = 2;
+const CARD_EXTRA_HEIGHT =
+  CARD_NUMBER_ROW_MARGIN_TOP +
+  CARD_NUMBER_ROW_HEIGHT +
+  CARD_TITLE_MARGIN_TOP +
+  CARD_TITLE_LINE_HEIGHT;
 const EMPTY_CATEGORIES: XtreamCategory[] = [];
 const EMPTY_CHANNELS: XtreamLiveStream[] = [];
 const channelKeyExtractor = (item: XtreamLiveStream) => String(item.stream_id);
@@ -150,11 +162,13 @@ const ChannelCard = React.memo(
               }
             />
           </View>
-          {!!number && (
-            <Text style={styles.cardNumber} numberOfLines={1}>
-              {number}
-            </Text>
-          )}
+          <View style={styles.cardNumberRow}>
+            {!!number && (
+              <Text style={styles.cardNumber} numberOfLines={1}>
+                {number}
+              </Text>
+            )}
+          </View>
           <Text style={styles.cardTitle} numberOfLines={1}>
             {name}
           </Text>
@@ -192,7 +206,7 @@ const ChannelCard = React.memo(
 
 const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
   const { playlistId, username, password, serverDomain, serverPort, useProxy } =
-    useSelector((state: RootState) => state.user);
+    useSelector((state: RootState) => state.user, shallowEqual);
   const session = useMemo<XtreamSession | null>(
     () =>
       playlistId
@@ -209,6 +223,18 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
   );
 
   const { columns, itemWidth } = useGridMetrics(H_PAD, GUTTER);
+  const cardHeight = itemWidth + CARD_EXTRA_HEIGHT;
+  const rowHeight = cardHeight + GUTTER; // + columnWrapper marginBottom
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<XtreamLiveStream> | null | undefined, index: number) => ({
+      length: rowHeight,
+      // With numColumns > 1, FlatList hands VirtualizedList one item per
+      // row, so `index` is already the row index.
+      offset: rowHeight * index,
+      index,
+    }),
+    [rowHeight],
+  );
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [favorites, setFavorites] = useState<FavoriteChannel[]>([]);
@@ -531,7 +557,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
           <CatalogGridSkeleton
             accent={ACCENT}
             itemWidth={itemWidth}
-            itemHeight={itemWidth + 34}
+            itemHeight={cardHeight}
             gutter={GUTTER}
           />
         </SafeAreaView>
@@ -571,7 +597,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
             <CatalogGridSkeleton
               accent={ACCENT}
               itemWidth={itemWidth}
-              itemHeight={itemWidth + 34}
+              itemHeight={cardHeight}
               gutter={GUTTER}
             />
           ) : channels.length === 0 && (isOffline || channelsError) ? (
@@ -594,6 +620,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
               keyExtractor={channelKeyExtractor}
               renderItem={renderChannelCard}
               numColumns={columns}
+              getItemLayout={getItemLayout}
               columnWrapperStyle={styles.columnWrapper}
               contentContainerStyle={styles.gridContent}
               showsVerticalScrollIndicator={false}
@@ -823,17 +850,23 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     backgroundColor: 'rgba(255,255,255,0.03)',
   },
+  cardNumberRow: {
+    height: CARD_NUMBER_ROW_HEIGHT,
+    marginTop: CARD_NUMBER_ROW_MARGIN_TOP,
+    justifyContent: 'center',
+  },
   cardNumber: {
     fontFamily: MONO,
     fontSize: 10,
+    lineHeight: CARD_NUMBER_ROW_HEIGHT,
     color: colors.fgSubtle,
-    marginTop: 8,
   },
   cardTitle: {
     fontFamily: FONT,
     fontSize: 12,
+    lineHeight: CARD_TITLE_LINE_HEIGHT,
     fontWeight: '600',
     color: colors.fg,
-    marginTop: 2,
+    marginTop: CARD_TITLE_MARGIN_TOP,
   },
 });

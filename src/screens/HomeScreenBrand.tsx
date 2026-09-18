@@ -27,7 +27,7 @@ import Svg, {
   Mask,
 } from 'react-native-svg';
 import AppIcon from '../components/AppIcon';
-import { useSelector } from 'react-redux';
+import { useSelector, shallowEqual } from 'react-redux';
 import { useIsFocused } from '@react-navigation/native';
 
 import type { TabParamList, TabScreenProps } from '../navigation/types';
@@ -281,11 +281,7 @@ const SubscriptionRetryCard = React.memo(
   ({ onRetry }: { onRetry: () => void }) => (
     <View style={styles.subCard}>
       <View style={styles.subscriptionErrorRow}>
-        <AppIcon
-          name="exclamation-circle"
-          size={18}
-          color={colors.warning}
-        />
+        <AppIcon name="exclamation-circle" size={18} color={colors.warning} />
         <View style={styles.subscriptionErrorCopy}>
           <Text style={styles.subscriptionErrorTitle}>
             Subscription information unavailable
@@ -613,7 +609,7 @@ function EmptyContinue() {
 export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
   const isFocused = useIsFocused();
   const { playlistId, username, password, serverDomain, serverPort, useProxy } =
-    useSelector((s: RootState) => s.user);
+    useSelector((s: RootState) => s.user, shallowEqual);
   const session = useMemo<XtreamSession | null>(
     () =>
       playlistId
@@ -629,9 +625,11 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
     [playlistId, username, password, serverDomain, serverPort, useProxy],
   );
   const accountQuery = useXtreamAccountInfo(session, isFocused);
-  const subscription = accountQuery.data
-    ? createSubscriptionSummary(accountQuery.data)
-    : null;
+  const accountInfo = accountQuery.data;
+  const subscription = useMemo(
+    () => (accountInfo ? createSubscriptionSummary(accountInfo) : null),
+    [accountInfo],
+  );
 
   const [recentWatches, setRecentWatches] = useState<LatestWatched[]>([]);
 
@@ -721,11 +719,7 @@ export default function HomeScreenBrand({ navigation }: HomeScreenProps) {
               accessibilityRole="button"
               accessibilityLabel="See all watch history">
               <Text style={styles.seeAllText}>See all</Text>
-              <AppIcon
-                name="chevron-right"
-                size={11}
-                color={colors.indigo}
-              />
+              <AppIcon name="chevron-right" size={11} color={colors.indigo} />
             </FocusablePressable>
           </View>
 

@@ -34,6 +34,7 @@ const PANEL_WIDTH = Math.min(
   480,
 );
 const CHANNEL_SKELETON_ITEMS = Array.from({ length: 10 }, (_, index) => index);
+const EMPTY_SWITCHER_CHANNELS: SwitcherChannel[] = [];
 const IS_TV = Platform.isTV;
 const TV_ITEM_HEIGHT = 60;
 
@@ -201,13 +202,6 @@ export default React.memo(function ChannelSwitcher({
         easing: Easing.out(Easing.cubic),
       });
       backdropOpacity.value = withTiming(1, { duration: 200 });
-      Promise.all([
-        storage.reconcileFavoriteChannels(channels, playlistId),
-        storage.getRecentChannels(playlistId),
-      ]).then(([nextFavorites, nextRecents]) => {
-        setFavorites(nextFavorites);
-        setRecents(nextRecents);
-      });
     } else {
       translateX.value = withTiming(PANEL_WIDTH, {
         duration: 200,
@@ -215,7 +209,31 @@ export default React.memo(function ChannelSwitcher({
       });
       backdropOpacity.value = withTiming(0, { duration: 150 });
     }
-  }, [backdropOpacity, channels, playlistId, translateX, visible]);
+  }, [backdropOpacity, translateX, visible]);
+
+  // Favorites and recents are read only while the panel is open. The reads are
+  // async, so results that land after it closed or unmounted are ignored.
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+    let cancelled = false;
+    Promise.all([
+      storage.reconcileFavoriteChannels(channels, playlistId),
+      storage.getRecentChannels(playlistId),
+    ])
+      .then(([nextFavorites, nextRecents]) => {
+        if (cancelled) {
+          return;
+        }
+        setFavorites(nextFavorites);
+        setRecents(nextRecents);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [channels, playlistId, visible]);
 
   const panelStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
@@ -224,20 +242,23 @@ export default React.memo(function ChannelSwitcher({
     opacity: backdropOpacity.value,
   }));
 
+  // Mounted whenever the stream is live but rendered only while open: skip
+  // mapping a multi-thousand-channel category while hidden.
   const categoryChannels = useMemo<SwitcherChannel[]>(
     () =>
-      channels.map(item => ({
-        streamId: String(item.stream_id),
-        name: item.name,
-        thumbnail: item.stream_icon || item.icon,
-        extension:
-          item.container_extension?.replace(/^\./, '') || 'm3u8',
-        categoryId:
-          item.category_id != null
-            ? String(item.category_id)
-            : currentCategoryId,
-      })),
-    [channels, currentCategoryId],
+      !visible
+        ? EMPTY_SWITCHER_CHANNELS
+        : channels.map(item => ({
+            streamId: String(item.stream_id),
+            name: item.name,
+            thumbnail: item.stream_icon || item.icon,
+            extension: item.container_extension?.replace(/^\./, '') || 'm3u8',
+            categoryId:
+              item.category_id != null
+                ? String(item.category_id)
+                : currentCategoryId,
+          })),
+    [channels, currentCategoryId, visible],
   );
   const favoriteChannels = useMemo<SwitcherChannel[]>(
     () =>
@@ -265,8 +286,8 @@ export default React.memo(function ChannelSwitcher({
     segment === 'category'
       ? categoryChannels
       : segment === 'favorites'
-        ? favoriteChannels
-        : recentChannels;
+      ? favoriteChannels
+      : recentChannels;
   const favoriteIds = useMemo(
     () => new Set(favorites.map(item => item.streamId)),
     [favorites],
@@ -351,12 +372,12 @@ export default React.memo(function ChannelSwitcher({
     segment === 'favorites'
       ? 'No favorite channels yet'
       : segment === 'recent'
-        ? 'No recently viewed channels'
-        : isOffline
-          ? 'Channels unavailable offline'
-          : error
-            ? 'Could not load channels'
-            : 'No channels in this category';
+      ? 'No recently viewed channels'
+      : isOffline
+      ? 'Channels unavailable offline'
+      : error
+      ? 'Could not load channels'
+      : 'No channels in this category';
 
   return (
     <View style={styles.overlay}>
@@ -426,12 +447,12 @@ export default React.memo(function ChannelSwitcher({
                 segment === 'favorites'
                   ? 'star'
                   : segment === 'recent'
-                    ? 'history'
-                    : isOffline
-                      ? 'wifi'
-                      : error
-                        ? 'exclamation-circle'
-                        : 'inbox'
+                  ? 'history'
+                  : isOffline
+                  ? 'wifi'
+                  : error
+                  ? 'exclamation-circle'
+                  : 'inbox'
               }
               size={28}
               color={error ? colors.danger : colors.fgSubtle}

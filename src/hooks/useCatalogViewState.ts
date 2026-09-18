@@ -302,9 +302,12 @@ export function useCatalogViewState({
     [activeCategoryId, contextKey, mediaType, playlistId],
   );
 
-  const activeCategoryName =
-    categories.find(category => category.category_id === activeCategoryId)
-      ?.category_name ?? '';
+  const activeCategoryName = useMemo(
+    () =>
+      categories.find(category => category.category_id === activeCategoryId)
+        ?.category_name ?? '',
+    [activeCategoryId, categories],
+  );
 
   const contentOffset = useMemo(
     () => ({

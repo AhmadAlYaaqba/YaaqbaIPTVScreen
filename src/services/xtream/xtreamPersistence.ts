@@ -46,6 +46,16 @@ export function isPersistableXtreamCatalogKey(queryKey: QueryKey): boolean {
 }
 
 export function utf8ByteLength(value: string): number {
+  // Hermes (RN 0.74+) and Node ship TextEncoder; counting natively is far
+  // cheaper than a per-character JS loop over a multi-megabyte snapshot.
+  const NativeTextEncoder = (
+    globalThis as {
+      TextEncoder?: new () => { encode(input: string): Uint8Array };
+    }
+  ).TextEncoder;
+  if (typeof NativeTextEncoder === 'function') {
+    return new NativeTextEncoder().encode(value).byteLength;
+  }
   let bytes = 0;
   for (let index = 0; index < value.length; index += 1) {
     const code = value.charCodeAt(index);
@@ -178,11 +188,16 @@ export async function hydrateXtreamQueryCache(
       }
     });
 
-    const cleanedSnapshot = createXtreamSnapshot(validEntries, now);
-    if (cleanedSnapshot) {
-      await AsyncStorage.setItem(XTREAM_PERSISTENCE_KEY, cleanedSnapshot);
-    } else {
-      await AsyncStorage.removeItem(XTREAM_PERSISTENCE_KEY);
+    // The snapshot was capped when it was written; rewrite it only when
+    // expired entries were dropped, so a cold start does not re-serialize up
+    // to 3 MB before the first screen can render.
+    if (validEntries.length !== parsed.entries.length) {
+      const cleanedSnapshot = createXtreamSnapshot(validEntries, now);
+      if (cleanedSnapshot) {
+        await AsyncStorage.setItem(XTREAM_PERSISTENCE_KEY, cleanedSnapshot);
+      } else {
+        await AsyncStorage.removeItem(XTREAM_PERSISTENCE_KEY);
+      }
     }
   } catch (error) {
     await AsyncStorage.removeItem(XTREAM_PERSISTENCE_KEY);

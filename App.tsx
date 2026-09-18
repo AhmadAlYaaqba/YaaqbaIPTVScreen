@@ -3,20 +3,21 @@ if (__DEV__) {
   require('./ReactotronConfig');
 }
 
-import React, {useEffect, useState} from 'react';
-import {Platform, StyleSheet} from 'react-native';
-import {Provider} from 'react-redux';
-import {store} from './src/store';
-import {NavigationContainer} from '@react-navigation/native';
-import {QueryClientProvider} from '@tanstack/react-query';
-import {SafeAreaProvider} from 'react-native-safe-area-context';
-import {GestureHandlerRootView} from 'react-native-gesture-handler';
+import React, { useEffect, useState } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
+import { Provider } from 'react-redux';
+import { store } from './src/store';
+import { NavigationContainer } from '@react-navigation/native';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Orientation from 'react-native-orientation-locker';
 
 import RootNavigator from './RootNavigator';
 import AppErrorBoundary from './src/components/AppErrorBoundary';
-import {IS_TABLET} from './src/utils/device';
-import {queryClient} from './src/services/queryClient';
+import { IS_TABLET } from './src/utils/device';
+import { colors } from './src/theme/colors';
+import { queryClient } from './src/services/queryClient';
 import {
   hydrateXtreamQueryCache,
   subscribeToXtreamQueryPersistence,
@@ -65,7 +66,11 @@ const App = () => {
                 </NavigationContainer>
               </SafeAreaProvider>
             </AppErrorBoundary>
-          ) : null}
+          ) : (
+            // Branded ground while the catalog cache hydrates instead of a
+            // white/transparent frame.
+            <View style={styles.splash} />
+          )}
         </QueryClientProvider>
       </Provider>
     </GestureHandlerRootView>
@@ -77,5 +82,9 @@ export default App;
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  splash: {
+    flex: 1,
+    backgroundColor: colors.bg,
   },
 });

@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppIcon from '../components/AppIcon';
 import LinearGradient from 'react-native-linear-gradient';
-import { useSelector } from 'react-redux';
+import { useSelector, shallowEqual } from 'react-redux';
 
 import { RootState } from '../store';
 import {
@@ -172,7 +172,7 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
   const searchRef = useRef<TextInput>(null);
 
   const { playlistId, username, password, serverDomain, serverPort, useProxy } =
-    useSelector((s: RootState) => s.user);
+    useSelector((s: RootState) => s.user, shallowEqual);
   const session = useMemo<XtreamSession | null>(
     () =>
       playlistId
@@ -190,6 +190,19 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
 
   const { columns, itemWidth } = useGridMetrics(H_PAD, GUTTER);
   const posterHeight = itemWidth * POSTER_RATIO;
+  // Poster cards are a fixed box (the title is overlaid inside the poster), so
+  // every row has the same height and the list can skip per-cell measurement.
+  const rowHeight = posterHeight + GUTTER + 2; // + columnWrapper marginBottom
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<XtreamSeriesItem> | null | undefined, index: number) => ({
+      length: rowHeight,
+      // With numColumns > 1, FlatList hands VirtualizedList one item per
+      // row, so `index` is already the row index.
+      offset: rowHeight * index,
+      index,
+    }),
+    [rowHeight],
+  );
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -532,6 +545,7 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
               keyExtractor={seriesKeyExtractor}
               renderItem={renderItem}
               numColumns={columns}
+              getItemLayout={getItemLayout}
               columnWrapperStyle={styles.columnWrapper}
               contentContainerStyle={styles.gridContent}
               showsVerticalScrollIndicator={false}

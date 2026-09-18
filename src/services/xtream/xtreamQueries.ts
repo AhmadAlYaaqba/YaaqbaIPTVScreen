@@ -61,10 +61,18 @@ export function useXtreamCategories(
   });
 }
 
+export interface XtreamContentQueryOptions {
+  /** Default true. The player passes false so entering it does not refetch. */
+  refetchOnMount?: boolean;
+  /** Default true. The player passes false so reconnects stay cheap. */
+  refetchOnReconnect?: boolean;
+}
+
 export function useXtreamCategoryContent<M extends XtreamMediaType>(
   session: XtreamSession | null,
   mediaType: M,
   categoryId: string | null,
+  options: XtreamContentQueryOptions = {},
 ) {
   const playlistId = session?.playlistId ?? 'no-playlist';
   return useQuery<XtreamContentByMedia[M][]>({
@@ -78,8 +86,8 @@ export function useXtreamCategoryContent<M extends XtreamMediaType>(
     enabled: isSessionReady(session) && Boolean(categoryId),
     staleTime: XTREAM_CONTENT_STALE_TIME_MS,
     gcTime: XTREAM_CACHE_GC_TIME_MS,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
+    refetchOnMount: options.refetchOnMount ?? true,
+    refetchOnReconnect: options.refetchOnReconnect ?? true,
   });
 }
 

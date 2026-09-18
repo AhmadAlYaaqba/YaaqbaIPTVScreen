@@ -23,7 +23,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
+import { useSelector, shallowEqual } from 'react-redux';
 import AppIcon from '../components/AppIcon';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -200,7 +200,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
   const searchRef = useRef<TextInput>(null);
 
   const { playlistId, username, password, serverDomain, serverPort, useProxy } =
-    useSelector((s: RootState) => s.user);
+    useSelector((s: RootState) => s.user, shallowEqual);
   const session = useMemo<XtreamSession | null>(
     () =>
       playlistId
@@ -219,6 +219,22 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
   const { width: windowWidth } = useWindowDimensions();
   const { columns, itemWidth } = useGridMetrics(H_PAD, GUTTER);
   const posterHeight = itemWidth * POSTER_RATIO;
+  // Poster cards are a fixed box (the title is overlaid inside the poster), so
+  // every row has the same height and the list can skip per-cell measurement.
+  const rowHeight = posterHeight + GUTTER + 2; // + columnWrapper marginBottom
+  const getItemLayout = useCallback(
+    (
+      _data: ArrayLike<XtreamMovieStream> | null | undefined,
+      index: number,
+    ) => ({
+      length: rowHeight,
+      // With numColumns > 1, FlatList hands VirtualizedList one item per
+      // row, so `index` is already the row index.
+      offset: rowHeight * index,
+      index,
+    }),
+    [rowHeight],
+  );
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<any>(null);
@@ -673,6 +689,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
               keyExtractor={movieKeyExtractor}
               renderItem={renderMovie}
               numColumns={columns}
+              getItemLayout={getItemLayout}
               columnWrapperStyle={styles.columnWrapper}
               contentContainerStyle={styles.gridContent}
               showsVerticalScrollIndicator={false}
@@ -755,11 +772,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                         IS_TV && styles.modalPosterTV,
                         styles.posterPlaceholder,
                       ]}>
-                      <AppIcon
-                        name="film"
-                        size={40}
-                        color={colors.fgSubtle}
-                      />
+                      <AppIcon name="film" size={40} color={colors.fgSubtle} />
                     </View>
                   }
                 />
@@ -769,11 +782,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                   <View style={styles.modalMetaRow}>
                     {modalRating != null && (
                       <>
-                        <AppIcon
-                          name="star"
-                          size={13}
-                          color={colors.warning}
-                        />
+                        <AppIcon name="star" size={13} color={colors.warning} />
                         <Text style={styles.modalMetaText}>
                           {' '}
                           {modalRating.toFixed(1)}
@@ -865,11 +874,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                   focusScale={1}
                   accessibilityRole="button"
                   accessibilityLabel={`Play ${selectedMovie.name}`}>
-                  <AppIcon
-                    name="play"
-                    size={14}
-                    color={colors.scene}
-                  />
+                  <AppIcon name="play" size={14} color={colors.scene} />
                   <Text style={styles.playText}>Play Movie</Text>
                 </TVTouchable>
               </View>

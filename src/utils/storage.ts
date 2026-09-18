@@ -61,16 +61,15 @@ export type WatchHistoryEntry =
 
 type WritableHistoryEntry<T extends WatchHistoryEntry> =
   T extends WatchHistoryEntry
-  ? Omit<
-      T,
-      'schemaVersion' | 'completed' | 'containerExtension' | 'streamId'
-    > &
-      {
+    ? Omit<
+        T,
+        'schemaVersion' | 'completed' | 'containerExtension' | 'streamId'
+      > & {
         completed?: boolean;
         containerExtension?: string;
         streamId?: string;
       }
-  : never;
+    : never;
 
 export type WatchHistoryInput = WritableHistoryEntry<WatchHistoryEntry>;
 export type RecentlyWatched = WatchHistoryEntry;
@@ -141,9 +140,7 @@ function optionalNumber(value: unknown): number | undefined {
 
 function normalizeExtension(value: unknown, fallback: string): string {
   const extension = optionalString(value)?.replace(/^\./, '').toLowerCase();
-  return extension && /^[a-z0-9]{1,10}$/.test(extension)
-    ? extension
-    : fallback;
+  return extension && /^[a-z0-9]{1,10}$/.test(extension) ? extension : fallback;
 }
 
 function extractVodStreamId(value: string | undefined): string | null {
@@ -249,15 +246,13 @@ function normalizeHistoryEntry(raw: any): WatchHistoryEntry | null {
   };
 }
 
-export function watchHistoryIdentity(
-  item: {
-    type: WatchHistoryEntry['type'];
-    id?: string;
-    streamId?: string;
-    seriesId?: string;
-    episodeId?: string;
-  },
-): string {
+export function watchHistoryIdentity(item: {
+  type: WatchHistoryEntry['type'];
+  id?: string;
+  streamId?: string;
+  seriesId?: string;
+  episodeId?: string;
+}): string {
   if (item.type === 'series') {
     return `series:${item.seriesId ?? item.id}:${item.episodeId}`;
   }
@@ -346,8 +341,8 @@ function historyLimitForKey(baseKey: StorageBaseKey): number {
   return baseKey === STORAGE_KEYS.WATCH_HISTORY
     ? HISTORY_LIMIT
     : baseKey === STORAGE_KEYS.LATEST_WATCHED
-      ? CONTINUE_WATCHING_LIMIT
-      : 30;
+    ? CONTINUE_WATCHING_LIMIT
+    : 30;
 }
 
 function mergeLegacyValue(
@@ -427,7 +422,12 @@ async function readHistory(playlistId?: string | null) {
     ...parseJson<unknown[]>(values.get(latestKey) ?? null, []),
   ];
   const normalized = normalizeHistoryList(combined, HISTORY_LIMIT);
-  await AsyncStorage.setItem(historyKey, JSON.stringify(normalized.items));
+  // Reads used to rewrite the list unconditionally on every screen focus;
+  // only persist when the merge/normalization changed what is stored.
+  const nextJson = JSON.stringify(normalized.items);
+  if (nextJson !== values.get(historyKey)) {
+    await AsyncStorage.setItem(historyKey, nextJson);
+  }
   if (values.get(recentKey)) await AsyncStorage.removeItem(recentKey);
   return normalized.items;
 }
@@ -536,7 +536,9 @@ export const storage = {
       return parseProgressMap(
         await AsyncStorage.getItem(
           scopedKey(
-            isMovie ? STORAGE_KEYS.MOVIE_PROGRESS : STORAGE_KEYS.SERIES_PROGRESS,
+            isMovie
+              ? STORAGE_KEYS.MOVIE_PROGRESS
+              : STORAGE_KEYS.SERIES_PROGRESS,
           ),
         ),
       );
@@ -609,9 +611,7 @@ export const storage = {
       const seriesProgress = parseProgressMap(values.get(seriesKey) ?? null);
       const items = normalized.items
         .filter(
-          (
-            item,
-          ): item is MovieHistoryEntry | SeriesHistoryEntry =>
+          (item): item is MovieHistoryEntry | SeriesHistoryEntry =>
             item.type !== 'live' && !item.completed,
         )
         .map(item => {
@@ -714,12 +714,7 @@ export const storage = {
     const movieKey = scopedKey(STORAGE_KEYS.MOVIE_PROGRESS);
     const seriesKey = scopedKey(STORAGE_KEYS.SERIES_PROGRESS);
     const values = new Map(
-      await AsyncStorage.multiGet([
-        historyKey,
-        latestKey,
-        movieKey,
-        seriesKey,
-      ]),
+      await AsyncStorage.multiGet([historyKey, latestKey, movieKey, seriesKey]),
     );
     const identity = watchHistoryIdentity(item);
     const withoutItem = (raw: unknown, limit: number) =>
@@ -770,10 +765,12 @@ export const storage = {
     playlistId?: string | null,
   ): Promise<FavoriteChannel[]> => {
     const key = scopedKey(STORAGE_KEYS.FAVORITE_CHANNELS, playlistId);
-    const favorites = normalizeFavorites(
-      parseJson<unknown>(await AsyncStorage.getItem(key), []),
-    );
-    await AsyncStorage.setItem(key, JSON.stringify(favorites));
+    const raw = await AsyncStorage.getItem(key);
+    const favorites = normalizeFavorites(parseJson<unknown>(raw, []));
+    const nextJson = JSON.stringify(favorites);
+    if (nextJson !== raw) {
+      await AsyncStorage.setItem(key, nextJson);
+    }
     return favorites;
   },
 
@@ -806,11 +803,14 @@ export const storage = {
   ): Promise<FavoriteChannel[]> => {
     const key = scopedKey(STORAGE_KEYS.FAVORITE_CHANNELS, playlistId);
     const favorites = await storage.getFavoriteChannels(playlistId);
+    if (favorites.length === 0) return favorites;
+    // One pass over the category instead of a scan per favorite.
+    const byStreamId = new Map(
+      channels.map(channel => [String(channel.stream_id), channel] as const),
+    );
     let changed = false;
     const next = favorites.map(favorite => {
-      const fresh = channels.find(
-        channel => String(channel.stream_id) === favorite.streamId,
-      );
+      const fresh = byStreamId.get(favorite.streamId);
       if (!fresh) return favorite;
       const updated = {
         ...favorite,
@@ -822,8 +822,16 @@ export const storage = {
         ),
         categoryId: optionalString(fresh.category_id) ?? favorite.categoryId,
       };
-      if (JSON.stringify(updated) !== JSON.stringify(favorite)) changed = true;
-      return updated;
+      if (
+        updated.name !== favorite.name ||
+        updated.icon !== favorite.icon ||
+        updated.extension !== favorite.extension ||
+        updated.categoryId !== favorite.categoryId
+      ) {
+        changed = true;
+        return updated;
+      }
+      return favorite;
     });
     if (changed) await AsyncStorage.setItem(key, JSON.stringify(next));
     return next;

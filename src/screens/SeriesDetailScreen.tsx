@@ -20,7 +20,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppIcon from '../components/AppIcon';
-import { useSelector } from 'react-redux';
+import { useSelector, shallowEqual } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 
 import type { RootScreenProps } from '../navigation/types';
@@ -233,7 +233,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const { width } = useWindowDimensions();
 
   const { playlistId, username, password, serverDomain, serverPort, useProxy } =
-    useSelector((s: RootState) => s.user);
+    useSelector((s: RootState) => s.user, shallowEqual);
   const session = useMemo<XtreamSession | null>(
     () =>
       playlistId
@@ -377,14 +377,16 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const plot = info.plot || tmdbDetails?.overview || tmdbMatch?.overview || '';
 
-  const xtreamGenres: string[] = info.genre
-    ? String(info.genre)
-        .split(/[,/|]/)
-        .map((g: string) => g.trim())
-        .filter(Boolean)
-    : [];
-  const genres =
-    xtreamGenres.length > 0 ? xtreamGenres : tmdbDetails?.genres ?? [];
+  const tmdbGenres = tmdbDetails?.genres;
+  const genres = useMemo<string[]>(() => {
+    const xtreamGenres: string[] = info.genre
+      ? String(info.genre)
+          .split(/[,/|]/)
+          .map((g: string) => g.trim())
+          .filter(Boolean)
+      : [];
+    return xtreamGenres.length > 0 ? xtreamGenres : tmdbGenres ?? [];
+  }, [info.genre, tmdbGenres]);
 
   const castMembers = useMemo<CastMember[]>(() => {
     if (tmdbDetails?.cast?.length) {
@@ -677,11 +679,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   onPress={handleGoBack}
                   accessibilityRole="button"
                   accessibilityLabel="Back to series">
-                  <AppIcon
-                    name="chevron-left"
-                    size={17}
-                    color={colors.fg}
-                  />
+                  <AppIcon name="chevron-left" size={17} color={colors.fg} />
                 </TVTouchable>
               </View>
 
@@ -702,11 +700,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                           StyleSheet.absoluteFill,
                           styles.heroPlaceholder,
                         ]}>
-                        <AppIcon
-                          name="tv"
-                          size={24}
-                          color={colors.fgSubtle}
-                        />
+                        <AppIcon name="tv" size={24} color={colors.fgSubtle} />
                       </View>
                     }
                   />
@@ -720,11 +714,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   <View style={styles.metaRow}>
                     {rating != null && (
                       <View style={styles.metaItem}>
-                        <AppIcon
-                          name="star"
-                          size={11}
-                          color={colors.warning}
-                        />
+                        <AppIcon name="star" size={11} color={colors.warning} />
                         <Text style={styles.metaStrong}>{rating}</Text>
                       </View>
                     )}
@@ -773,11 +763,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                   onPress={handlePlayFirstEpisode}
                   accessibilityRole="button"
                   accessibilityLabel={playLabel}>
-                  <AppIcon
-                    name="play"
-                    size={14}
-                    color={colors.scene}
-                  />
+                  <AppIcon name="play" size={14} color={colors.scene} />
                   <Text style={styles.playText}>{playLabel}</Text>
                 </TVTouchable>
               </View>

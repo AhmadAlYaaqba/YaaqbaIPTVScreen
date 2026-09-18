@@ -91,6 +91,11 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   const [error, setError] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(initialDuration);
+  // Read by onProgress so its identity does not churn on duration updates.
+  const durationRef = useRef(duration);
+  useEffect(() => {
+    durationRef.current = duration;
+  }, [duration]);
   const [currentTime, setCurrentTime] = useState(initialProgress);
   const [isCompleted, setIsCompleted] = useState(false);
   const [lastFailureReason, setLastFailureReason] = useState<string | null>(
@@ -276,17 +281,18 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     }
     lastRequestLogKeyRef.current = logKey;
     loadStartedAtRef.current = Date.now();
-    if (__DEV__) console.info('[PlayerTiming]', {
-      engine: playerEngine,
-      platform: Platform.OS,
-      mediaKind: request.kind,
-      event: 'source-request',
-      extension: currentSource.extension,
-      delivery: currentSource.delivery,
-      sourceAttempt: effectiveSourceIndex + 1,
-      sourceCount: sources.length,
-      retryAttempt: reconnectAttempt,
-    });
+    if (__DEV__)
+      console.info('[PlayerTiming]', {
+        engine: playerEngine,
+        platform: Platform.OS,
+        mediaKind: request.kind,
+        event: 'source-request',
+        extension: currentSource.extension,
+        delivery: currentSource.delivery,
+        sourceAttempt: effectiveSourceIndex + 1,
+        sourceCount: sources.length,
+        retryAttempt: reconnectAttempt,
+      });
     pushDebugEntry({
       label: currentSource.label,
       engine: playerEngine,
@@ -603,7 +609,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
       const nextTime = Number.isFinite(reportedTime) ? reportedTime : 0;
       const seekableDuration = Number(data.seekableDuration);
       if (
-        duration <= 0 &&
+        durationRef.current <= 0 &&
         Number.isFinite(seekableDuration) &&
         seekableDuration > 0
       ) {
@@ -616,7 +622,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         setCurrentTime(nextTime);
       }
     },
-    [armLiveStallTimer, confirmPlaybackHealthy, duration, isLive],
+    [armLiveStallTimer, confirmPlaybackHealthy, isLive],
   );
 
   const onEnd = useCallback(() => {
@@ -806,32 +812,51 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     [clearReconnectTimer, resetSourceHealth],
   );
 
-  const bufferConfig: BufferConfig | undefined =
-    Platform.OS !== 'android'
-      ? undefined
-      : isLive
-      ? {
-          minBufferMs: 15000,
-          maxBufferMs: 50000,
-          bufferForPlaybackMs: 2500,
-          bufferForPlaybackAfterRebufferMs: 5000,
-          backBufferDurationMs: 0,
-          cacheSizeMB: 0,
-          live: {
-            targetOffsetMs: 6000,
-            minOffsetMs: 4000,
-            maxOffsetMs: 10000,
-            minPlaybackSpeed: 0.97,
-            maxPlaybackSpeed: 1.03,
+  // Memoized: a fresh object every render defeated PlayerAdapterView's memo.
+  const bufferConfig = useMemo<BufferConfig | undefined>(
+    () =>
+      Platform.OS !== 'android'
+        ? undefined
+        : isLive
+        ? {
+            minBufferMs: 15000,
+            maxBufferMs: 50000,
+            bufferForPlaybackMs: 2500,
+            bufferForPlaybackAfterRebufferMs: 5000,
+            backBufferDurationMs: 0,
+            cacheSizeMB: 0,
+            live: {
+              targetOffsetMs: 6000,
+              minOffsetMs: 4000,
+              maxOffsetMs: 10000,
+              minPlaybackSpeed: 0.97,
+              maxPlaybackSpeed: 1.03,
+            },
+          }
+        : {
+            minBufferMs: 15000,
+            maxBufferMs: 50000,
+            bufferForPlaybackMs: 2500,
+            bufferForPlaybackAfterRebufferMs: 5000,
+            cacheSizeMB: 200,
           },
-        }
-      : {
-          minBufferMs: 15000,
-          maxBufferMs: 50000,
-          bufferForPlaybackMs: 2500,
-          bufferForPlaybackAfterRebufferMs: 5000,
-          cacheSizeMB: 200,
-        };
+    [isLive],
+  );
+
+  // Position a newly applied source starts from. Keyed on the source token
+  // (new request or retry) instead of recomputed on every progress tick, so
+  // the adapter props stay referentially stable during playback. On the first
+  // render of a new request the progress ref still belongs to the previous
+  // request, hence the requestIsCurrent guard.
+  const resumePosition = useMemo(
+    () =>
+      getPlaybackResumePosition(
+        initialProgress,
+        requestIsCurrent ? currentProgressRef.current : initialProgress,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sourceToken keys the recompute on purpose
+    [initialProgress, requestIsCurrent, sourceToken],
+  );
 
   return {
     currentProgressRef,
@@ -847,10 +872,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     shouldPause: isPaused || isOffline,
     duration: requestIsCurrent ? duration : initialDuration,
     currentTime: effectiveCurrentTime,
-    resumePosition: getPlaybackResumePosition(
-      initialProgress,
-      effectiveCurrentTime,
-    ),
+    resumePosition,
     isCompleted,
     bufferConfig,
     debugEntries,

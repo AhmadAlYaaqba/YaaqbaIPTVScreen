@@ -11,7 +11,7 @@ import Orientation from 'react-native-orientation-locker';
 import { IS_TABLET } from '../utils/device';
 import { useFocusEffect } from '@react-navigation/native';
 import type { RootScreenProps } from '../navigation/types';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { AppDispatch, RootState } from '../store';
 import { storage } from '../utils/storage';
 import {
@@ -59,6 +59,13 @@ const SHOW_STREAM_DEBUG_OVERLAY =
   __DEV__ && process.env.EXPO_PUBLIC_STREAM_DEBUG === '1';
 
 const CONTROLS_TIMEOUT = 5000; // Auto-hide controls after 5 seconds
+// The player only needs the channel list data it already has cached; a full
+// category refetch on mount / on reconnect would compete with stream startup
+// and with the reconnect logic on the JS thread.
+const PLAYER_LIVE_QUERY_OPTIONS = {
+  refetchOnMount: false,
+  refetchOnReconnect: false,
+} as const;
 const EMPTY_CHANNELS: XtreamLiveStream[] = [];
 
 const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
@@ -76,7 +83,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     serverDomain,
     serverPort,
     videoContentMode,
-  } = useSelector((state: RootState) => state.user);
+  } = useSelector((state: RootState) => state.user, shallowEqual);
   const [sessionPlayerEngine, setSessionPlayerEngine] =
     useState<PlayerEngine>(playerEngine);
 
@@ -142,6 +149,7 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     session,
     'live',
     isLive ? categoryId ?? null : null,
+    PLAYER_LIVE_QUERY_OPTIONS,
   );
   const liveChannels = liveChannelsQuery.data ?? EMPTY_CHANNELS;
   const liveChannelsError = getXtreamErrorMessage(liveChannelsQuery.error);
@@ -167,6 +175,10 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   });
   const playerRef = useRef<PlayerAdapter>(null);
   const recordSeek = player.recordSeek;
+  const onPlayerLoad = player.onLoad;
+  // Stable ref object; reading it keeps callbacks off the per-second
+  // currentTime state so the memoized player subtree is not re-rendered.
+  const currentProgressRef = player.currentProgressRef;
 
   // Engine fallback offered once every source has failed. VLC and the system
   // player cover different provider quirks (raw TS vs. clean HLS/MP4), so each
@@ -232,8 +244,8 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   });
   const seekByDoubleTap = gestures.handleDoubleTap;
   const handleDoubleTap = useCallback(
-    (x: number) => seekByDoubleTap(x, player.currentTime),
-    [player.currentTime, seekByDoubleTap],
+    (x: number) => seekByDoubleTap(x, currentProgressRef.current),
+    [currentProgressRef, seekByDoubleTap],
   );
 
   // Show controls initially, then auto-hide
@@ -504,18 +516,22 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const handlePlayerLoad = useCallback(
     (data: { duration: number }) => {
-      player.onLoad(data);
+      onPlayerLoad(data);
       if (recordedPlaybackKeyRef.current === progressContentKey) return;
       recordedPlaybackKeyRef.current = progressContentKey;
       const item = playbackRequestToHistoryInput(
         playbackRequest,
-        playbackRequest.kind === 'live' ? 0 : player.currentProgressRef.current,
+        playbackRequest.kind === 'live' ? 0 : currentProgressRef.current,
         data.duration,
       );
-      storage.saveWatchHistory(item);
-      storage.saveLatestWatched(item);
+      Promise.all([
+        storage.saveWatchHistory(item),
+        storage.saveLatestWatched(item),
+      ]).catch(error => {
+        if (__DEV__) console.warn('Could not record playback start:', error);
+      });
     },
-    [playbackRequest, player, progressContentKey],
+    [currentProgressRef, onPlayerLoad, playbackRequest, progressContentKey],
   );
 
   // --- Channel switch ---
@@ -762,7 +778,9 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
             ? `Try with ${PLAYER_ENGINE_LABELS[fallbackEngine]} player`
             : undefined
         }
-        onFallbackAction={player.error ? handleTryWithFallbackEngine : undefined}
+        onFallbackAction={
+          player.error ? handleTryWithFallbackEngine : undefined
+        }
         onToggleVisibility={toggleControls}
         tvOverlayOpen={channelSwitcherVisible}
         contentMode={videoContentMode}
