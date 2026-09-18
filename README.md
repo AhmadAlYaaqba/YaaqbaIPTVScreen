@@ -42,6 +42,12 @@ Hard-won rules: keep a focusable view alive at all times (remote keys are droppe
 - `@react-native-tvos+virtualized-lists+*.patch` — TV only. The fork wraps every list's ScrollView in an unstyled `TVFocusGuideView`, which collapses `flex: 1` lists to ~2px. The patch splits the list style into outer (guide) and inner (ScrollView) halves. **Re-derive on every fork upgrade.**
 - No Expo patches are needed while the version pairing rule above holds.
 
+## R8 / release builds
+
+Release builds run R8 with `shrinkResources`. **react-native-video is built on `androidx.media3`, which ships no consumer ProGuard rules and loads its renderers, extractors and data sources by class reference**, so `android/app/proguard-rules.pro` keeps the whole package (`-keep class androidx.media3.** { *; }`). Without that keep, R8 strips the reflectively-loaded engine pieces and the native player opens but never fetches or decodes — a silent black screen on release only. libvlc (JNI) is kept the same way.
+
+Release live playback is verified end-to-end on the Google TV emulator against a real Xtream account (native/ExoPlayer engine, `.ts` live stream decoding on screen).
+
 ## Build environment (macOS)
 
 - Node ≥ 22.13, npm with `legacy-peer-deps=true` (already in `.npmrc`).
