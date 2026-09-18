@@ -135,8 +135,12 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   const effectiveCurrentTime = requestIsCurrent ? currentTime : initialProgress;
   const currentSource = sources[effectiveSourceIndex] ?? sources[0];
   const sourceToken = `${requestKey}:${sourceRevision}`;
-  sourceIndexRef.current = effectiveSourceIndex;
-  isOfflineRef.current = isOffline;
+  // Mirrors for event callbacks. Written in an effect, not during render:
+  // React 19 may discard or double-invoke renders.
+  useEffect(() => {
+    sourceIndexRef.current = effectiveSourceIndex;
+    isOfflineRef.current = isOffline;
+  }, [effectiveSourceIndex, isOffline]);
 
   const clearReconnectTimer = useCallback(() => {
     if (reconnectTimerRef.current) {

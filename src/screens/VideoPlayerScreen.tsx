@@ -35,6 +35,7 @@ import { useBackHandler } from '../tv/useBackHandler';
 import type { TVRemoteAction } from '../tv/remoteActions';
 import PlayerAdapterView from '../components/PlayerAdapterView';
 import {
+  PLAYER_ENGINE_LABELS,
   VIDEO_CONTENT_MODES,
   type PlaybackRequest,
   type PlayerAdapter,
@@ -79,10 +80,18 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   const [sessionPlayerEngine, setSessionPlayerEngine] =
     useState<PlayerEngine>(playerEngine);
 
+  // A new route param (navigating to the player again while it is mounted)
+  // restarts playback on the configured engine. The engine is read through a
+  // ref so a Redux preference change alone can no longer revert an in-session
+  // channel switch or engine fallback.
+  const preferredEngineRef = useRef(playerEngine);
+  useEffect(() => {
+    preferredEngineRef.current = playerEngine;
+  }, [playerEngine]);
   useEffect(() => {
     setPlaybackRequest(route.params.request);
-    setSessionPlayerEngine(playerEngine);
-  }, [playerEngine, route.params.request]);
+    setSessionPlayerEngine(preferredEngineRef.current);
+  }, [route.params.request]);
   const connection = useMemo(
     () => ({
       domain: serverDomain,
@@ -159,10 +168,13 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   const playerRef = useRef<PlayerAdapter>(null);
   const recordSeek = player.recordSeek;
 
-  const handleTryWithVlc = useCallback(() => {
-    if (playbackRequest.kind === 'live') {
-      return;
-    }
+  // Engine fallback offered once every source has failed. VLC and the system
+  // player cover different provider quirks (raw TS vs. clean HLS/MP4), so each
+  // falls back to the other; Expo Video falls back to VLC. Live streams switch
+  // engines in place; VOD carries its resume position across.
+  const fallbackEngine: PlayerEngine =
+    sessionPlayerEngine === 'vlc' ? 'native' : 'vlc';
+  const handleTryWithFallbackEngine = useCallback(() => {
     setPlaybackRequest(current =>
       createVlcFallbackRequest(
         current,
@@ -170,8 +182,8 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         player.duration,
       ),
     );
-    setSessionPlayerEngine('vlc');
-  }, [playbackRequest.kind, player.currentProgressRef, player.duration]);
+    setSessionPlayerEngine(fallbackEngine);
+  }, [fallbackEngine, player.currentProgressRef, player.duration]);
 
   // --- Controls auto-hide logic ---
   const resetControlsTimeout = useCallback(() => {
@@ -366,32 +378,41 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     };
   }, [flushProgress, isLive]);
 
+  // Latest flush for the subscriptions below. They must not re-run on every
+  // request/title change: the focus-effect cleanup stops the player, and a
+  // re-run on a channel switch tore the freshly applied source down again.
+  const flushProgressRef = useRef(flushProgress);
+  useEffect(() => {
+    flushProgressRef.current = flushProgress;
+  }, [flushProgress]);
+
   useEffect(() => {
     if (isLive) {
       return;
     }
     const subscription = AppState.addEventListener('change', nextState => {
       if (nextState === 'inactive' || nextState === 'background') {
-        flushProgress();
+        flushProgressRef.current();
       }
     });
     return () => subscription.remove();
-  }, [flushProgress, isLive]);
+  }, [isLive]);
 
   // --- Stop playback and flush progress when the screen loses focus ---
   // Pressing back blurs the screen immediately (before the exit animation and
   // before unmount), while the native player view is still alive to receive the
-  // command. This is more reliable than relying on unmount alone.
+  // command. This is more reliable than relying on unmount alone. The callback
+  // has stable identity so this runs only on a real blur/unmount.
   useFocusEffect(
     useCallback(() => {
       return () => {
-        flushProgress();
+        flushProgressRef.current();
         // VLC engines need an explicit stop; the native (ExoPlayer/AVPlayer)
         // players stop themselves and expose stop as a pause. Optional in the
         // PlayerHandle contract, hence the ?. on the method itself.
         playerRef.current?.stop?.();
       };
-    }, [flushProgress]),
+    }, []),
   );
 
   // --- Auto-play next episode ---
@@ -737,15 +758,11 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         onSeekInteractionEnd={resetControlsTimeout}
         onRetry={player.retry}
         fallbackActionLabel={
-          player.error && !isLive && sessionPlayerEngine === 'expo-video'
-            ? 'Try with VLC'
+          player.error
+            ? `Try with ${PLAYER_ENGINE_LABELS[fallbackEngine]} player`
             : undefined
         }
-        onFallbackAction={
-          player.error && !isLive && sessionPlayerEngine === 'expo-video'
-            ? handleTryWithVlc
-            : undefined
-        }
+        onFallbackAction={player.error ? handleTryWithFallbackEngine : undefined}
         onToggleVisibility={toggleControls}
         tvOverlayOpen={channelSwitcherVisible}
         contentMode={videoContentMode}

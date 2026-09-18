@@ -136,6 +136,14 @@ const ExpoVideoPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
             break;
           case 'readyToPlay':
             onBufferRef.current({ isBuffering: false });
+            // Re-apply the pause intent: a play/pause toggled while the player
+            // was still loading is otherwise dropped, leaving React state and
+            // the native player out of sync.
+            if (isPausedRef.current) {
+              player.pause();
+            } else {
+              player.play();
+            }
             break;
           case 'error':
             onBufferRef.current({ isBuffering: false });

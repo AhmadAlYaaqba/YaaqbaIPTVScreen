@@ -14,6 +14,7 @@ import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import Orientation from 'react-native-orientation-locker';
 
 import RootNavigator from './RootNavigator';
+import AppErrorBoundary from './src/components/AppErrorBoundary';
 import {IS_TABLET} from './src/utils/device';
 import {queryClient} from './src/services/queryClient';
 import {
@@ -57,11 +58,13 @@ const App = () => {
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
           {isXtreamCacheReady ? (
-            <SafeAreaProvider>
-              <NavigationContainer>
-                <RootNavigator />
-              </NavigationContainer>
-            </SafeAreaProvider>
+            <AppErrorBoundary>
+              <SafeAreaProvider>
+                <NavigationContainer>
+                  <RootNavigator />
+                </NavigationContainer>
+              </SafeAreaProvider>
+            </AppErrorBoundary>
           ) : null}
         </QueryClientProvider>
       </Provider>

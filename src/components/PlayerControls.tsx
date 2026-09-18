@@ -114,6 +114,33 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   onVerticalPanMove,
   onVerticalPanEnd,
 }) => {
+  // TV focus gating. Exactly one group is focusable at a time: the invisible
+  // focus holder while controls are hidden, the controls while visible, or the
+  // Retry / fallback buttons while an error is shown; nothing while an overlay
+  // (the channel list) owns focus.
+  const tvControlsFocusable = IS_TV ? visible && !tvOverlayOpen : undefined;
+  const tvHolderFocusable = IS_TV
+    ? !visible && !error && !tvOverlayOpen
+    : undefined;
+  const focusHolderRef = useRef<View>(null);
+  const playButtonRef = useRef<View>(null);
+  const wasOverlayOpenRef = useRef(tvOverlayOpen);
+
+  // Android only routes remote keys to JS while some view holds focus. When
+  // the overlay that owned focus unmounts, nothing does, and hasTVPreferredFocus
+  // is a mount-time hint that does not move focus on an existing view, so ask
+  // for it explicitly (react-native-tvos exposes requestTVFocus on View refs).
+  useEffect(() => {
+    const wasOpen = wasOverlayOpenRef.current;
+    wasOverlayOpenRef.current = tvOverlayOpen;
+    if (!IS_TV || !wasOpen || tvOverlayOpen || error) {
+      return;
+    }
+    const target = visible ? playButtonRef.current : focusHolderRef.current;
+    (target as unknown as { requestTVFocus?: () => void } | null)
+      ?.requestTVFocus?.();
+  }, [error, tvOverlayOpen, visible]);
+
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(-10);
   const seekBarWidth = useSharedValue(0);
@@ -421,10 +448,11 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
           its Retry / switch-player buttons hold focus instead.
         */}
         <Pressable
+          ref={focusHolderRef}
           onPress={onToggleVisibility}
           style={StyleSheet.absoluteFill}
-          focusable={IS_TV ? !visible && !error && !tvOverlayOpen : undefined}
-          hasTVPreferredFocus={IS_TV && !visible && !error && !tvOverlayOpen}
+          focusable={tvHolderFocusable}
+          hasTVPreferredFocus={tvHolderFocusable === true}
           accessibilityRole="button"
           accessibilityLabel="Hide playback controls"
         />
@@ -434,7 +462,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
           <FocusablePressable
             onPress={onGoBack}
             style={styles.backButton}
-            focusable={IS_TV ? visible && !tvOverlayOpen : undefined}
+            focusable={tvControlsFocusable}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Close player">
@@ -455,7 +483,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             <FocusablePressable
               onPress={handleCycleContentMode}
               style={styles.contentModeButton}
-              focusable={IS_TV ? visible && !tvOverlayOpen : undefined}
+              focusable={tvControlsFocusable}
               accessibilityRole="button"
               accessibilityLabel={`Video aspect ratio: ${contentMode}. Change aspect ratio`}>
               <AppIcon name="expand-arrows-alt" size={17} color="#fff" />
@@ -480,17 +508,18 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             <FocusablePressable
               onPress={() => onSeek?.(Math.max(0, currentTime - 10))}
               style={styles.seekButton}
-              focusable={IS_TV ? visible && !tvOverlayOpen : undefined}
+              focusable={tvControlsFocusable}
               accessibilityRole="button"
               accessibilityLabel="Go back 10 seconds">
               <AppIcon name="backward" size={20} color="#fff" />
             </FocusablePressable>
           )}
           <FocusablePressable
+            ref={playButtonRef}
             onPress={onTogglePlayPause}
             style={styles.playButton}
-            focusable={IS_TV ? visible && !tvOverlayOpen : undefined}
-            hasTVPreferredFocus={IS_TV && visible && !error && !tvOverlayOpen}
+            focusable={tvControlsFocusable}
+            hasTVPreferredFocus={tvControlsFocusable === true && !error}
             accessibilityRole="button"
             accessibilityLabel={isPaused ? 'Play' : 'Pause'}
             accessibilityState={{ selected: !isPaused }}>
@@ -504,7 +533,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             <FocusablePressable
               onPress={() => onSeek?.(Math.min(duration, currentTime + 10))}
               style={styles.seekButton}
-              focusable={IS_TV ? visible && !tvOverlayOpen : undefined}
+              focusable={tvControlsFocusable}
               accessibilityRole="button"
               accessibilityLabel="Go forward 10 seconds">
               <AppIcon name="forward" size={20} color="#fff" />
@@ -557,7 +586,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
             <FocusablePressable
               onPress={onToggleChannelSwitcher}
               style={styles.channelSwitchButton}
-              focusable={IS_TV ? visible && !tvOverlayOpen : undefined}
+              focusable={tvControlsFocusable}
               accessibilityRole="button"
               accessibilityLabel="Open channel list">
               <AppIcon name="list" size={16} color="#fff" />

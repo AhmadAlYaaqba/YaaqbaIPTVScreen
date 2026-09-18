@@ -30,12 +30,18 @@ function createNativeSource(
   source: PlaybackSource,
   isLive: boolean,
   bufferConfig?: BufferConfig,
+  resumePositionSeconds = 0,
 ): ReactVideoSource {
   return {
     uri: source.uri,
     type: source.type,
     ...(Platform.OS === 'android' ? { bufferConfig } : {}),
-    startPosition: isLive ? undefined : 0,
+    // Milliseconds. Starting at the resume point directly avoids a flash of
+    // the file's first frame plus a second buffering round-trip from a
+    // post-load seek, on every resume and on every source retry.
+    startPosition: isLive
+      ? undefined
+      : Math.max(0, Math.round(resumePositionSeconds * 1000)),
   };
 }
 
@@ -77,6 +83,7 @@ const NativeVideoPlayer = forwardRef<PlayerAdapter, NativeVideoPlayerProps>(
             nextSource,
             isLiveRef.current,
             bufferConfigRef.current,
+            nextResumePosition,
           ),
         );
       },
@@ -105,12 +112,9 @@ const NativeVideoPlayer = forwardRef<PlayerAdapter, NativeVideoPlayerProps>(
     const handleLoad = useCallback(
       (data: OnLoadData) => {
         encounteredErrorRef.current = false;
-        if (!isLive && pendingResumeRef.current > 0) {
-          videoRef.current?.seek(pendingResumeRef.current);
-        }
         onLoad({ duration: data.duration || 0 });
       },
-      [isLive, onLoad],
+      [onLoad],
     );
 
     const handleProgress = useCallback(

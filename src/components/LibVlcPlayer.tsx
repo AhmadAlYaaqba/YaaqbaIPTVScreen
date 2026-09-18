@@ -44,6 +44,7 @@ const LibVlcPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
     const suppressStoppedRef = useRef(false);
     const encounteredErrorRef = useRef(false);
     const lastAppliedTokenRef = useRef(sourceToken);
+    const isPausedRef = useRef(isPaused);
     const sourceRef = useRef(source);
     const resumePositionRef = useRef(resumePosition);
     const [activeSource, setActiveSource] = useState(source);
@@ -127,6 +128,7 @@ const LibVlcPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
     }, []);
 
     useEffect(() => {
+      isPausedRef.current = isPaused;
       if (!loadedRef.current) {
         return;
       }
@@ -155,6 +157,11 @@ const LibVlcPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
           suppressStoppedRef.current = false;
           encounteredErrorRef.current = false;
           loadedRef.current = true;
+          // VLC autoplays the new media; honour a pause requested while it
+          // was still opening (the isPaused effect skips unloaded media).
+          if (isPausedRef.current) {
+            vlcRef.current?.pause().catch(() => undefined);
+          }
           onLoad({ duration: durationMsRef.current / 1000 });
         }}
         onTimeChanged={event => {
@@ -182,6 +189,16 @@ const LibVlcPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
           onBuffer({ isBuffering: false });
         }}
         onPaused={() => onBuffer({ isBuffering: false })}
+        onBackground={() => {
+          // Parity with the system player (playInBackground=false): audio must
+          // not keep streaming while the app is in the background.
+          vlcRef.current?.pause().catch(() => undefined);
+        }}
+        onForeground={() => {
+          if (loadedRef.current && !isPausedRef.current) {
+            vlcRef.current?.play().catch(() => undefined);
+          }
+        }}
         onStopped={() => {
           if (!suppressStoppedRef.current && !encounteredErrorRef.current) {
             onBuffer({ isBuffering: false });
