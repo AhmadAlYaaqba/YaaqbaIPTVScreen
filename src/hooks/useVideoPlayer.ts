@@ -272,7 +272,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     }
     lastRequestLogKeyRef.current = logKey;
     loadStartedAtRef.current = Date.now();
-    console.info('[PlayerTiming]', {
+    if (__DEV__) console.info('[PlayerTiming]', {
       engine: playerEngine,
       platform: Platform.OS,
       mediaKind: request.kind,
@@ -832,7 +832,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   return {
     currentProgressRef,
     currentSource,
-    currentSourceIndex: effectiveSourceIndex,
     sourceToken,
     isReconnecting,
     reconnectAttempt,
@@ -850,7 +849,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     ),
     isCompleted,
     bufferConfig,
-    sources,
     debugEntries,
     onError,
     onLoad,
@@ -861,7 +859,6 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     togglePlayPause,
     retry,
     setIsPaused,
-    setDuration,
     setIsCompleted: setPlaybackCompleted,
   };
 }

@@ -999,7 +999,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   posterPlaceholder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,

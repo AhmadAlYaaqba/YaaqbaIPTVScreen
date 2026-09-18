@@ -32,11 +32,6 @@ export interface PlaylistStoreShape {
   playerEngine: PlayerEngine;
   /** Device-wide video scaling preference. */
   videoContentMode: VideoContentMode;
-  /**
-   * Legacy boolean kept in the persisted shape purely so a rollback to an
-   * older build still reads a sane value. Derived from playerEngine on write.
-   */
-  useVLC: boolean;
 }
 
 const PLAYLIST_SERVICE = 'my-iptv-playlists';
@@ -48,7 +43,6 @@ const EMPTY_STORE: PlaylistStoreShape = {
   activeId: null,
   playerEngine: DEFAULT_PLAYER_ENGINE,
   videoContentMode: DEFAULT_VIDEO_CONTENT_MODE,
-  useVLC: DEFAULT_PLAYER_ENGINE === 'vlc',
 };
 
 let cachedStore: PlaylistStoreShape | undefined;
@@ -87,7 +81,6 @@ export function normalizePlaylistStore(raw: any): PlaylistStoreShape {
     activeId,
     playerEngine,
     videoContentMode,
-    useVLC: playerEngine === 'vlc',
   };
 }
 
@@ -214,7 +207,7 @@ export async function setGlobalPlayerEngine(
   playerEngine: PlayerEngine,
 ): Promise<void> {
   const store = await readStore();
-  await writeStore({ ...store, playerEngine, useVLC: playerEngine === 'vlc' });
+  await writeStore({ ...store, playerEngine });
 }
 
 export async function setGlobalVideoContentMode(
@@ -289,7 +282,6 @@ export async function migrateLegacyCredentials(): Promise<Playlist | null> {
       activeId: playlist.id,
       playerEngine,
       videoContentMode: store.videoContentMode,
-      useVLC: playerEngine === 'vlc',
     });
     return playlist;
   } catch (error) {

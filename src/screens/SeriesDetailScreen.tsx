@@ -1190,7 +1190,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   castAvatarFallback: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface2,

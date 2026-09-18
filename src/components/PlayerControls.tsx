@@ -575,18 +575,18 @@ export default React.memo(PlayerControls);
 const styles = StyleSheet.create({
   // Transparent touch zone — only active when controls hidden
   touchZone: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 50,
     backgroundColor: 'transparent',
   },
   // Visual brightness overlay — darkens the screen
   brightnessOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'black',
     zIndex: 2,
   },
   controlsContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'space-between',
     zIndex: 40,
   },
@@ -796,13 +796,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   bufferingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 5,
   },
   reconnectOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.7)',
@@ -815,7 +815,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   errorOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.85)',

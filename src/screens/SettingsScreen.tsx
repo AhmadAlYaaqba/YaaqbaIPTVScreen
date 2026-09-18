@@ -30,7 +30,6 @@ import {
   clearUserCredentials,
   setUserPreferences,
 } from '../store/slices/userSlice';
-import { resetIptv } from '../store/slices/iptvSlice';
 import {
   PlayerEngine,
   PLAYER_ENGINES,
@@ -246,7 +245,6 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
                 await clearCatalogViewState(playlist.id);
 
                 if (wasActive) {
-                  dispatch(resetIptv());
                   dispatch(clearUserCredentials());
                   rootNavigation?.reset({
                     index: 0,
@@ -339,7 +337,6 @@ const SettingsScreen: React.FC<TabScreenProps<'Settings'>> = ({
             // user can resume them from the login screen.
             await clearActivePlaylist();
             storage.setActivePlaylistId(null);
-            dispatch(resetIptv());
             dispatch(clearUserCredentials());
             rootNavigation?.reset({
               index: 0,

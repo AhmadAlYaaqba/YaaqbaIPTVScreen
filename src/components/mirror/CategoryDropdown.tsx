@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scrim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   panel: {
     position: 'absolute',

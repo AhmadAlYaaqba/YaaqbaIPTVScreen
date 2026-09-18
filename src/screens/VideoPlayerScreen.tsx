@@ -43,7 +43,7 @@ import {
 import { setUserPreferences } from '../store/slices/userSlice';
 import { setGlobalVideoContentMode } from '../services/playlists/playlistStore';
 import { playbackRequestToHistoryInput } from '../utils/historyPlayback';
-// import DevStreamDebugOverlay from '../components/DevStreamDebugOverlay';
+import DevStreamDebugOverlay from '../components/DevStreamDebugOverlay';
 
 // Hooks
 import { useVideoPlayer } from '../hooks/useVideoPlayer';
@@ -51,6 +51,11 @@ import { usePlayerGestures } from '../hooks/usePlayerGestures';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 type Props = RootScreenProps<'VideoPlayer'>;
+
+// Dev-only stream overlay; enable with EXPO_PUBLIC_STREAM_DEBUG=1 in .env.
+// Dead-code-eliminated from release bundles by the __DEV__ guard.
+const SHOW_STREAM_DEBUG_OVERLAY =
+  __DEV__ && process.env.EXPO_PUBLIC_STREAM_DEBUG === '1';
 
 const CONTROLS_TIMEOUT = 5000; // Auto-hide controls after 5 seconds
 const EMPTY_CHANNELS: XtreamLiveStream[] = [];
@@ -769,18 +774,17 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         />
       )}
 
-      {/* {__DEV__ && isLive ? (
+      {SHOW_STREAM_DEBUG_OVERLAY ? (
         <DevStreamDebugOverlay
-          playerName={activePlayerName}
-          requestUrl={player.currentSource.uri}
-          sourceLabel={activeSourceLabel}
+          playerName={sessionPlayerEngine}
+          sourceLabel={player.currentSource.label}
           isBuffering={player.isBuffering}
           isReconnecting={player.isReconnecting}
           reconnectAttempt={player.reconnectAttempt}
           lastFailureReason={player.lastFailureReason}
           debugEntries={player.debugEntries}
         />
-      ) : null} */}
+      ) : null}
     </View>
   );
 };

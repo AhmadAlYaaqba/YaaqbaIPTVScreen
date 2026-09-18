@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     elevation: 16,
   },
   tintOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(14, 20, 40, 0.72)',
   },
   tabBarInner: {

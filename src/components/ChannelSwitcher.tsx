@@ -454,9 +454,9 @@ export default React.memo(function ChannelSwitcher({
 });
 
 const styles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 200, elevation: 200 },
+  overlay: { ...StyleSheet.absoluteFill, zIndex: 200, elevation: 200 },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   panel: {

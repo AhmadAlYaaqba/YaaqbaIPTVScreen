@@ -146,7 +146,6 @@ const NativeVideoPlayer = forwardRef<PlayerAdapter, NativeVideoPlayerProps>(
         style={styles.video}
         fullscreenAutorotate
         fullscreenOrientation="landscape"
-        enterPictureInPictureOnLeave
         controls={false}
         resizeMode={getPlayerContentFit('native', contentMode)}
         paused={isPaused}

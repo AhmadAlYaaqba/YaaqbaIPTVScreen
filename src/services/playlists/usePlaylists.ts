@@ -3,7 +3,6 @@ import { useDispatch } from 'react-redux';
 
 import { AppDispatch } from '../../store';
 import { setUserCredentials } from '../../store/slices/userSlice';
-import { resetIptv } from '../../store/slices/iptvSlice';
 import { storage } from '../../utils/storage';
 import { parseServerUrl } from '../../utils/xtream';
 import {
@@ -68,7 +67,6 @@ export function usePlaylists() {
         dispatch,
         store.videoContentMode,
       );
-      dispatch(resetIptv());
       navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     },
     [dispatch],

@@ -122,7 +122,7 @@ const FocusablePressable = React.forwardRef<View, FocusablePressableProps>(
 
 const styles = StyleSheet.create({
   ring: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderWidth: RING_WIDTH,
     borderColor: colors.fg,
   },
