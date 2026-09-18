@@ -149,7 +149,7 @@ const LibVlcPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
         contentFit={getPlayerContentFit('vlc', contentMode)}
         time={startTimeMs}
         onFirstPlay={event => {
-          const { length } = event;
+          const { length } = event.media;
           durationMsRef.current = length > 0 ? length : 0;
           lastPositionMsRef.current = startTimeMs;
           suppressStoppedRef.current = false;
@@ -173,7 +173,7 @@ const LibVlcPlayer = forwardRef<PlayerAdapter, PlayerAdapterProps>(
           });
         }}
         onBuffering={event => {
-          const progress = event.progress ?? 0;
+          const progress = event.value ?? 0;
           onBuffer({ isBuffering: progress < 100 });
         }}
         onPlaying={() => {

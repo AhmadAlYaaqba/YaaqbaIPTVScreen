@@ -11,7 +11,8 @@ Provider-agnostic Xtream-codes IPTV client. One codebase, three targets:
 ## Stack
 
 - **Bare React Native** (not an Expo-managed app; never run `expo prebuild`). `react-native` is aliased to the `react-native-tvos` fork so Android TV focus APIs exist; the same RN core version as upstream.
-- **Expo modules** are injected only for `expo-video`, `expo-image` and `expo-libvlc-player` (installed with `install-expo-modules`). `babel-preset-expo` + `expo/metro-config` are the build presets.
+- **Version pairing rule**: keep `react-native-tvos` on exactly the RN version the installed Expo SDK bundles (SDK 57 → RN 0.86.3 → `react-native-tvos@0.86.3-0`). Any other pairing needs patch-package shims for Expo. Metro packages are pinned to Expo's exact metro version via `overrides` in package.json so only one copy is installed.
+- **Expo modules** are injected only for `expo-video`, `expo-image` and `expo-libvlc-player` (installed with `install-expo-modules`). `babel-preset-expo` + `expo/metro-config` are the build presets, and the dev server must be **Expo CLI** (`npm start` → `expo start`): Expo 57 emits packed source maps that only Expo's Metro server and `export:embed` can read, so `react-native start` serves bundles but fails on source maps and LogBox symbolication.
 - **New Architecture + Hermes** on both platforms.
 - **Data**: `@tanstack/react-query` owns all Xtream catalog data (`src/services/xtream/`), persisted to AsyncStorage by `xtreamPersistence.ts`. Redux (`src/store/`) holds only the active session (`userSlice`). Playlists/credentials live in the Keychain (`src/services/playlists/`). Watch progress, history and favorites are in `src/utils/storage.ts`.
 - **TMDB** enrichment is optional; the API key is entered in Settings and stored in the Keychain. `.env` only carries `EXPO_PUBLIC_*` base URLs (inlined at build time, so never put secrets there).
@@ -39,19 +40,19 @@ Hard-won rules: keep a focusable view alive at all times (remote keys are droppe
 ## Patches (`patches/`, applied by `patch-package` on install)
 
 - `@react-native-tvos+virtualized-lists+*.patch` — TV only. The fork wraps every list's ScrollView in an unstyled `TVFocusGuideView`, which collapses `flex: 1` lists to ~2px. The patch splits the list style into outer (guide) and inner (ScrollView) halves. **Re-derive on every fork upgrade.**
-- Any `expo*` patches present are version-pinned shims for an RN version that no Expo SDK targets; delete them when the app moves to an SDK that bundles the same RN version.
+- No Expo patches are needed while the version pairing rule above holds.
 
 ## Build environment (macOS)
 
 - Node ≥ 22.13, npm with `legacy-peer-deps=true` (already in `.npmrc`).
 - Android: `JAVA_HOME` from Android Studio's bundled JBR, `ANDROID_HOME=~/Library/Android/sdk`. TV emulator: a Google TV 1080p AVD (API 34). Debug install: `adb install -r android/app/build/outputs/apk/debug/app-debug.apk` then `adb reverse tcp:8081 tcp:8081`.
-- iOS pods: Homebrew Ruby + `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8`, then `cd ios && bundle exec pod install`. React core is built from source (`RCT_USE_PREBUILT_RNCORE=0` in the Podfile) so the tvos fork is not shadowed by an upstream prebuilt.
+- iOS: deployment target 16.4 (Expo 57 minimum). Pods: Homebrew Ruby + `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8`, then `cd ios && bundle exec pod install`. React core is built from source (`RCT_USE_PREBUILT_RNCORE=0` in the Podfile) so the tvos fork is not shadowed by an upstream prebuilt.
 
 ## Scripts
 
 ```bash
 npm run verify              # typecheck + lint + jest
-npm start                   # Metro
+npm start                   # Expo CLI dev server (Metro on 8081)
 npm run android / npm run ios
 npm run build:android-apk-release
 ```
@@ -64,7 +65,8 @@ Run after any player, list, or native change:
 - **Android phone emulator**: portrait lock, catalog tabs, system-bar insets, VOD resume + next episode, live channel switch, background → foreground, all three engines.
 - **iPhone + iPad simulators**: landscape lock on iPhone only, iPad rotation + grid reflow, VLC live + VOD, background → foreground, engine fallback on an unreachable stream.
 - JS bundle sanity without a device:
-  `npx react-native bundle --entry-file index.js --platform ios --dev true --bundle-output /tmp/check.bundle --assets-dest /tmp/a`
+  `npx expo export:embed --platform ios --dev true --entry-file index.js --bundle-output /tmp/check.bundle --assets-dest /tmp/a`
+  (`react-native bundle` is not supported on Expo 57 metro-config; see the Stack section)
 
 ## Roadmap (not started)
 
