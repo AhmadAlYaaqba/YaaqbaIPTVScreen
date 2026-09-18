@@ -7,9 +7,18 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# Add any project specific keep options here:
--keep class com.google.android.exoplayer2.** { *; }
--keep class com.google.android.exoplayer2.source.** { *; }
--keep class com.google.android.exoplayer2.upstream.** { *; }
--keep class com.google.android.exoplayer2.extractor.** { *; }
--dontwarn com.google.android.exoplayer2.**
+# React Native / Hermes, Expo modules (expo-modules-core, expo-video,
+# expo-libvlc-player), Media3 and Reanimated all ship their own consumer keep
+# rules, which R8 merges automatically. The rules below cover the two players
+# this app depends on beyond that.
+
+# libvlc is driven through JNI from org.videolan.libvlc; nothing may be
+# stripped or renamed there.
+-keep class org.videolan.libvlc.** { *; }
+-dontwarn org.videolan.**
+
+# react-native-video (Media3) ships no consumer rules of its own. Its view
+# manager and module are referenced by generated code, but keep the package
+# so Media3 reflection-based renderer/extractor lookups keep working.
+-keep class com.brentvatne.** { *; }
+-dontwarn com.brentvatne.**
