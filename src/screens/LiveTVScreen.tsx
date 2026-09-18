@@ -13,7 +13,6 @@ import {
   FlatList,
   RefreshControl,
   TextInput,
-  Dimensions,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -41,13 +40,13 @@ import {
   CatalogStatus,
 } from '../components/catalog/CatalogStates';
 import { useCatalogViewState } from '../hooks/useCatalogViewState';
+import { useGridMetrics } from '../hooks/useGridMetrics';
 import type { CategoryDropdownViewport } from '../utils/categoryDropdownState';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import type { TabScreenProps } from '../navigation/types';
 import CachedRemoteImage from '../components/CachedRemoteImage';
 import TVTouchable from '../tv/TVTouchable';
-import { TV_NAV_RAIL_WIDTH } from '../tv/TVNavRail';
-import TVCatalogLayout, { TV_CATEGORY_PANE_WIDTH } from '../tv/TVCatalogLayout';
+import TVCatalogLayout from '../tv/TVCatalogLayout';
 import TVCatalogHeader from '../tv/TVCatalogHeader';
 import TVTextInput from '../tv/TVTextInput';
 import { storage, type FavoriteChannel } from '../utils/storage';
@@ -59,16 +58,12 @@ const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 
 const ACCENT = sectionAccents.live;
-const { width: WINDOW_WIDTH } = Dimensions.get('window');
-// TV: the nav rail takes part of the width, and a 10-foot grid shows more,
-// smaller cards (smaller logos also keep image memory down on 2 GB devices).
-// TV also reserves the persistent category column (TVCatalogLayout).
-const width =
-  WINDOW_WIDTH - (IS_TV ? TV_NAV_RAIL_WIDTH + TV_CATEGORY_PANE_WIDTH : 0);
+// TV: the nav rail and the category column take part of the width, and a
+// 10-foot grid shows more, smaller cards (smaller logos also keep image memory
+// down on 2 GB devices). Card width comes from useGridMetrics, which follows
+// the live window size so a tablet reflows when it is rotated or resized.
 const H_PAD = IS_TV ? 24 : 20;
 const GUTTER = IS_TV ? 16 : 10;
-const COLUMNS = IS_TV ? 4 : 3;
-const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
 const EMPTY_CATEGORIES: XtreamCategory[] = [];
 const EMPTY_CHANNELS: XtreamLiveStream[] = [];
 const channelKeyExtractor = (item: XtreamLiveStream) => String(item.stream_id);
@@ -87,6 +82,7 @@ const ChannelCard = React.memo(
     useProxy,
     playlistId,
     hasTVPreferredFocus,
+    itemWidth,
     isFavorite,
     onToggleFavorite,
   }: {
@@ -104,6 +100,7 @@ const ChannelCard = React.memo(
     useProxy: boolean;
     playlistId: string | null;
     hasTVPreferredFocus?: boolean;
+    itemWidth: number;
     isFavorite: boolean;
     onToggleFavorite: (
       streamId: number,
@@ -118,13 +115,17 @@ const ChannelCard = React.memo(
       () => onPressChannel(streamId, name, rawIcon, extension),
       [extension, name, onPressChannel, rawIcon, streamId],
     );
+    const cardStyle = useMemo(
+      () => [styles.card, { width: itemWidth }],
+      [itemWidth],
+    );
     const handleFavorite = useCallback(
       () => onToggleFavorite(streamId, name, rawIcon, extension),
       [extension, name, onToggleFavorite, rawIcon, streamId],
     );
 
     return (
-      <View style={styles.card}>
+      <View style={cardStyle}>
         <TVTouchable
           style={styles.cardMain}
           onPress={handlePress}
@@ -140,8 +141,8 @@ const ChannelCard = React.memo(
               variant="channel-logo"
               style={styles.logoImage}
               contentFit="contain"
-              displayWidth={ITEM_WIDTH * 0.78}
-              displayHeight={ITEM_WIDTH * 0.78}
+              displayWidth={itemWidth * 0.78}
+              displayHeight={itemWidth * 0.78}
               fallback={
                 <View style={styles.logoFallback}>
                   <AppIcon name="tv" size={26} color={colors.fgSubtle} />
@@ -207,6 +208,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
     [playlistId, username, password, serverDomain, serverPort, useProxy],
   );
 
+  const { columns, itemWidth } = useGridMetrics(H_PAD, GUTTER);
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [favorites, setFavorites] = useState<FavoriteChannel[]>([]);
@@ -348,6 +350,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
         rawIcon={item.stream_icon || item.icon}
         extension={item.container_extension}
         channelNumber={item.num}
+        itemWidth={itemWidth}
         useProxy={useProxy}
         playlistId={playlistId}
         onPressChannel={handleChannelPress}
@@ -359,6 +362,7 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
       favoriteIds,
       handleChannelPress,
       handleToggleFavorite,
+      itemWidth,
       playlistId,
       useProxy,
     ],
@@ -526,8 +530,8 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
         <SafeAreaView style={styles.safe}>
           <CatalogGridSkeleton
             accent={ACCENT}
-            itemWidth={ITEM_WIDTH}
-            itemHeight={ITEM_WIDTH + 34}
+            itemWidth={itemWidth}
+            itemHeight={itemWidth + 34}
             gutter={GUTTER}
           />
         </SafeAreaView>
@@ -566,8 +570,8 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
           {loading && channels.length === 0 ? (
             <CatalogGridSkeleton
               accent={ACCENT}
-              itemWidth={ITEM_WIDTH}
-              itemHeight={ITEM_WIDTH + 34}
+              itemWidth={itemWidth}
+              itemHeight={itemWidth + 34}
               gutter={GUTTER}
             />
           ) : channels.length === 0 && (isOffline || channelsError) ? (
@@ -584,12 +588,12 @@ const LiveTVScreen: React.FC<TabScreenProps<'LiveTV'>> = ({ navigation }) => {
             />
           ) : (
             <FlatList
-              key={listKey}
+              key={`${listKey}-${columns}`}
               style={styles.grid}
               data={filteredChannels}
               keyExtractor={channelKeyExtractor}
               renderItem={renderChannelCard}
-              numColumns={COLUMNS}
+              numColumns={columns}
               columnWrapperStyle={styles.columnWrapper}
               contentContainerStyle={styles.gridContent}
               showsVerticalScrollIndicator={false}
@@ -755,11 +759,10 @@ const styles = StyleSheet.create({
     marginBottom: GUTTER,
   },
   card: {
-    width: ITEM_WIDTH,
     position: 'relative',
   },
   cardMain: {
-    width: ITEM_WIDTH,
+    width: '100%',
     alignItems: 'stretch',
   },
   favoriteButton: {

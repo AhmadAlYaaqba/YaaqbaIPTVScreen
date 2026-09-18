@@ -12,11 +12,11 @@ import {
   FlatList,
   RefreshControl,
   TextInput,
-  Dimensions,
   Modal,
   Alert,
   Platform,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import {
@@ -49,6 +49,7 @@ import {
   CatalogStatus,
 } from '../components/catalog/CatalogStates';
 import { useCatalogViewState } from '../hooks/useCatalogViewState';
+import { useGridMetrics } from '../hooks/useGridMetrics';
 import type { CategoryDropdownViewport } from '../utils/categoryDropdownState';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { useTmdbDetails, useTmdbMatch } from '../hooks/useTmdbMatch';
@@ -56,8 +57,7 @@ import { getTenPointRating } from '../utils/rating';
 import type { TabScreenProps } from '../navigation/types';
 import CachedRemoteImage from '../components/CachedRemoteImage';
 import TVTouchable from '../tv/TVTouchable';
-import { TV_NAV_RAIL_WIDTH } from '../tv/TVNavRail';
-import TVCatalogLayout, { TV_CATEGORY_PANE_WIDTH } from '../tv/TVCatalogLayout';
+import TVCatalogLayout from '../tv/TVCatalogLayout';
 import TVCatalogHeader from '../tv/TVCatalogHeader';
 import TVTextInput from '../tv/TVTextInput';
 
@@ -68,17 +68,13 @@ const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 
 const ACCENT = sectionAccents.movies;
-const { width: WINDOW_WIDTH } = Dimensions.get('window');
-// TV: the nav rail takes part of the width, and a 10-foot grid shows more,
-// smaller posters (which also keeps image memory down on 2 GB devices).
-// TV also reserves the persistent category column (TVCatalogLayout).
-const width =
-  WINDOW_WIDTH - (IS_TV ? TV_NAV_RAIL_WIDTH + TV_CATEGORY_PANE_WIDTH : 0);
+// TV: the nav rail and the category column take part of the width, and a
+// 10-foot grid shows more, smaller posters (which also keeps image memory down
+// on 2 GB devices). Poster width comes from useGridMetrics, which follows the
+// live window size so a tablet reflows when it is rotated or resized.
 const H_PAD = IS_TV ? 24 : 20;
 const GUTTER = IS_TV ? 16 : 12;
-const COLUMNS = IS_TV ? 4 : 3;
-const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
-const POSTER_HEIGHT = ITEM_WIDTH * 1.5; // 2:3 portrait
+const POSTER_RATIO = 1.5; // 2:3 portrait
 const MODAL_POSTER_TV_HEIGHT = 190;
 const EMPTY_CATEGORIES: XtreamCategory[] = [];
 const EMPTY_MOVIES: XtreamMovieStream[] = [];
@@ -99,6 +95,7 @@ const MoviePoster = React.memo(
     progressPercent,
     playlistId,
     hasTVPreferredFocus,
+    itemWidth,
   }: {
     streamId: number;
     name: string;
@@ -110,6 +107,7 @@ const MoviePoster = React.memo(
     progressPercent: number;
     playlistId: string | null;
     hasTVPreferredFocus?: boolean;
+    itemWidth: number;
   }) => {
     const xtreamYear =
       releaseYear && /^\d{4}$/.test(String(releaseYear))
@@ -123,10 +121,19 @@ const MoviePoster = React.memo(
       () => onPressMovie(streamId),
       [onPressMovie, streamId],
     );
+    const posterHeight = itemWidth * POSTER_RATIO;
+    const cardStyle = useMemo(
+      () => [styles.card, { width: itemWidth }],
+      [itemWidth],
+    );
+    const posterStyle = useMemo(
+      () => [styles.poster, { height: posterHeight }],
+      [posterHeight],
+    );
 
     return (
       <TVTouchable
-        style={styles.card}
+        style={cardStyle}
         onPress={handlePress}
         activeOpacity={0.85}
         hasTVPreferredFocus={hasTVPreferredFocus}
@@ -136,15 +143,15 @@ const MoviePoster = React.memo(
             ? `${name}, ${Math.round(progressPercent)} percent watched`
             : name
         }>
-        <View style={styles.poster}>
+        <View style={posterStyle}>
           <CachedRemoteImage
             uri={posterUri}
             playlistId={playlistId}
             contentId={streamId}
             variant="poster"
             style={StyleSheet.absoluteFill}
-            displayWidth={ITEM_WIDTH}
-            displayHeight={POSTER_HEIGHT}
+            displayWidth={itemWidth}
+            displayHeight={posterHeight}
             fallback={
               <View style={styles.posterPlaceholder}>
                 <AppIcon name="film" size={26} color={colors.fgSubtle} />
@@ -209,6 +216,9 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
     [playlistId, username, password, serverDomain, serverPort, useProxy],
   );
 
+  const { width: windowWidth } = useWindowDimensions();
+  const { columns, itemWidth } = useGridMetrics(H_PAD, GUTTER);
+  const posterHeight = itemWidth * POSTER_RATIO;
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<any>(null);
@@ -356,12 +366,13 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
           ratingValue={item.rating}
           useProxy={useProxy}
           playlistId={playlistId}
+          itemWidth={itemWidth}
           progressPercent={progressPercent}
           onPressMovie={handleMoviePress}
         />
       );
     },
-    [handleMoviePress, playlistId, useProxy, watchProgress],
+    [handleMoviePress, itemWidth, playlistId, useProxy, watchProgress],
   );
 
   const handleRefresh = useCallback(() => {
@@ -598,8 +609,8 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
         <SafeAreaView style={styles.safe}>
           <CatalogGridSkeleton
             accent={ACCENT}
-            itemWidth={ITEM_WIDTH}
-            itemHeight={POSTER_HEIGHT}
+            itemWidth={itemWidth}
+            itemHeight={posterHeight}
             gutter={GUTTER}
           />
         </SafeAreaView>
@@ -638,8 +649,8 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
           {loadingMovies && movies.length === 0 ? (
             <CatalogGridSkeleton
               accent={ACCENT}
-              itemWidth={ITEM_WIDTH}
-              itemHeight={POSTER_HEIGHT}
+              itemWidth={itemWidth}
+              itemHeight={posterHeight}
               gutter={GUTTER}
             />
           ) : movies.length === 0 && (isOffline || moviesError) ? (
@@ -656,12 +667,12 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
             />
           ) : (
             <FlatList
-              key={listKey}
+              key={`${listKey}-${columns}`}
               style={styles.grid}
               data={filteredMovies}
               keyExtractor={movieKeyExtractor}
               renderItem={renderMovie}
-              numColumns={COLUMNS}
+              numColumns={columns}
               columnWrapperStyle={styles.columnWrapper}
               contentContainerStyle={styles.gridContent}
               showsVerticalScrollIndicator={false}
@@ -735,7 +746,7 @@ const MoviesScreen: React.FC<TabScreenProps<'Movies'>> = ({ navigation }) => {
                   variant={modalBackdropUri ? 'backdrop' : 'poster'}
                   style={[styles.modalPoster, IS_TV && styles.modalPosterTV]}
                   priority="high"
-                  displayWidth={width}
+                  displayWidth={windowWidth}
                   displayHeight={IS_TV ? MODAL_POSTER_TV_HEIGHT : 320}
                   fallback={
                     <View
@@ -978,11 +989,9 @@ const styles = StyleSheet.create({
   },
   card: {
     alignItems: 'stretch',
-    width: ITEM_WIDTH,
   },
   poster: {
     width: '100%',
-    height: POSTER_HEIGHT,
     borderRadius: radii.md,
     overflow: 'hidden',
     backgroundColor: colors.surface,

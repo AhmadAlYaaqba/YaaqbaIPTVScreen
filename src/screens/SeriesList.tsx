@@ -12,7 +12,6 @@ import {
   TextInput,
   FlatList,
   RefreshControl,
-  Dimensions,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -40,14 +39,14 @@ import {
   CatalogStatus,
 } from '../components/catalog/CatalogStates';
 import { useCatalogViewState } from '../hooks/useCatalogViewState';
+import { useGridMetrics } from '../hooks/useGridMetrics';
 import type { CategoryDropdownViewport } from '../utils/categoryDropdownState';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { getTenPointRating } from '../utils/rating';
 import type { TabScreenProps } from '../navigation/types';
 import CachedRemoteImage from '../components/CachedRemoteImage';
 import TVTouchable from '../tv/TVTouchable';
-import { TV_NAV_RAIL_WIDTH } from '../tv/TVNavRail';
-import TVCatalogLayout, { TV_CATEGORY_PANE_WIDTH } from '../tv/TVCatalogLayout';
+import TVCatalogLayout from '../tv/TVCatalogLayout';
 import TVCatalogHeader from '../tv/TVCatalogHeader';
 import TVTextInput from '../tv/TVTextInput';
 
@@ -58,17 +57,13 @@ const FONT = Platform.select({ ios: 'System', android: 'sans-serif' });
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 
 const ACCENT = sectionAccents.series;
-const { width: WINDOW_WIDTH } = Dimensions.get('window');
-// TV: the nav rail takes part of the width, and a 10-foot grid shows more,
-// smaller posters (which also keeps image memory down on 2 GB devices).
-// TV also reserves the persistent category column (TVCatalogLayout).
-const width =
-  WINDOW_WIDTH - (IS_TV ? TV_NAV_RAIL_WIDTH + TV_CATEGORY_PANE_WIDTH : 0);
+// TV: the nav rail and the category column take part of the width, and a
+// 10-foot grid shows more, smaller posters (which also keeps image memory down
+// on 2 GB devices). Poster width comes from useGridMetrics, which follows the
+// live window size so a tablet reflows when it is rotated or resized.
 const H_PAD = IS_TV ? 24 : 20;
 const GUTTER = IS_TV ? 16 : 12;
-const COLUMNS = IS_TV ? 4 : 3;
-const ITEM_WIDTH = (width - H_PAD * 2 - GUTTER * (COLUMNS - 1)) / COLUMNS;
-const POSTER_HEIGHT = ITEM_WIDTH * 1.5; // 2:3 portrait
+const POSTER_RATIO = 1.5; // 2:3 portrait
 const EMPTY_CATEGORIES: XtreamCategory[] = [];
 const EMPTY_SERIES: XtreamSeriesItem[] = [];
 const seriesKeyExtractor = (item: XtreamSeriesItem) => String(item.series_id);
@@ -88,6 +83,7 @@ const SeriesPoster = React.memo(
     useProxy,
     playlistId,
     hasTVPreferredFocus,
+    itemWidth,
   }: {
     seriesId: string;
     name: string;
@@ -99,6 +95,7 @@ const SeriesPoster = React.memo(
     useProxy: boolean;
     playlistId: string | null;
     hasTVPreferredFocus?: boolean;
+    itemWidth: number;
   }) => {
     const yearMatch = yearValue ? String(yearValue).match(/\d{4}/) : null;
     const raw = cover?.trim();
@@ -108,24 +105,33 @@ const SeriesPoster = React.memo(
       () => onPressSeries(seriesId),
       [onPressSeries, seriesId],
     );
+    const posterHeight = itemWidth * POSTER_RATIO;
+    const cardStyle = useMemo(
+      () => [styles.card, { width: itemWidth }],
+      [itemWidth],
+    );
+    const posterStyle = useMemo(
+      () => [styles.poster, { height: posterHeight }],
+      [posterHeight],
+    );
 
     return (
       <TVTouchable
-        style={styles.card}
+        style={cardStyle}
         onPress={handlePress}
         activeOpacity={0.85}
         hasTVPreferredFocus={hasTVPreferredFocus}
         accessibilityRole="button"
         accessibilityLabel={name}>
-        <View style={styles.poster}>
+        <View style={posterStyle}>
           <CachedRemoteImage
             uri={posterUri}
             playlistId={playlistId}
             contentId={seriesId}
             variant="poster"
             style={StyleSheet.absoluteFill}
-            displayWidth={ITEM_WIDTH}
-            displayHeight={POSTER_HEIGHT}
+            displayWidth={itemWidth}
+            displayHeight={posterHeight}
             fallback={
               <View style={styles.posterPlaceholder}>
                 <AppIcon name="tv" size={26} color={colors.fgSubtle} />
@@ -182,6 +188,8 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
     [playlistId, username, password, serverDomain, serverPort, useProxy],
   );
 
+  const { columns, itemWidth } = useGridMetrics(H_PAD, GUTTER);
+  const posterHeight = itemWidth * POSTER_RATIO;
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -303,10 +311,11 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
         ratingFiveBased={item.rating_5based}
         useProxy={useProxy}
         playlistId={playlistId}
+        itemWidth={itemWidth}
         onPressSeries={handleSeriesPress}
       />
     ),
-    [handleSeriesPress, playlistId, useProxy],
+    [handleSeriesPress, itemWidth, playlistId, useProxy],
   );
 
   const handleRefresh = useCallback(() => {
@@ -459,8 +468,8 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
         <SafeAreaView style={styles.safe}>
           <CatalogGridSkeleton
             accent={ACCENT}
-            itemWidth={ITEM_WIDTH}
-            itemHeight={POSTER_HEIGHT}
+            itemWidth={itemWidth}
+            itemHeight={posterHeight}
             gutter={GUTTER}
           />
         </SafeAreaView>
@@ -499,8 +508,8 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
           {loading && seriesItems.length === 0 ? (
             <CatalogGridSkeleton
               accent={ACCENT}
-              itemWidth={ITEM_WIDTH}
-              itemHeight={POSTER_HEIGHT}
+              itemWidth={itemWidth}
+              itemHeight={posterHeight}
               gutter={GUTTER}
             />
           ) : seriesItems.length === 0 && (isOffline || seriesError) ? (
@@ -517,12 +526,12 @@ const SeriesHomeScreen: React.FC<TabScreenProps<'Series'>> = ({
             />
           ) : (
             <FlatList
-              key={listKey}
+              key={`${listKey}-${columns}`}
               style={styles.grid}
               data={filtered}
               keyExtractor={seriesKeyExtractor}
               renderItem={renderItem}
-              numColumns={COLUMNS}
+              numColumns={columns}
               columnWrapperStyle={styles.columnWrapper}
               contentContainerStyle={styles.gridContent}
               showsVerticalScrollIndicator={false}
@@ -674,11 +683,9 @@ const styles = StyleSheet.create({
   },
   card: {
     alignItems: 'stretch',
-    width: ITEM_WIDTH,
   },
   poster: {
     width: '100%',
-    height: POSTER_HEIGHT,
     borderRadius: radii.md,
     overflow: 'hidden',
     backgroundColor: colors.surface,

@@ -14,6 +14,7 @@ import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import Orientation from 'react-native-orientation-locker';
 
 import RootNavigator from './RootNavigator';
+import {IS_TABLET} from './src/utils/device';
 import {queryClient} from './src/services/queryClient';
 import {
   hydrateXtreamQueryCache,
@@ -23,12 +24,12 @@ import {
 const App = () => {
   const [isXtreamCacheReady, setIsXtreamCacheReady] = useState(false);
 
-  // Portrait is the app-wide default; only the video player locks to landscape
-  // (and restores portrait on exit). Without this, the locker defaults to
-  // "all orientations" and non-player screens could rotate freely.
-  // TVs are always landscape, so orientation is never locked there.
+  // Portrait is the app-wide default on phones; only the video player locks to
+  // landscape (and restores portrait on exit). Without this, the locker
+  // defaults to "all orientations" and non-player screens could rotate freely.
+  // TVs are always landscape, and iPads rotate freely, so neither is locked.
   useEffect(() => {
-    if (!Platform.isTV) {
+    if (!Platform.isTV && !IS_TABLET) {
       Orientation.lockToPortrait();
     }
   }, []);

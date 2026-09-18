@@ -25,8 +25,14 @@ import {
   type RecentChannel,
 } from '../utils/storage';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PANEL_WIDTH = Math.round(SCREEN_WIDTH * 0.68);
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+// The panel slides in over a landscape player, so it is sized from the short
+// side of the screen (on a phone that is the width this always used) and
+// capped, so it does not take half of a tablet.
+const PANEL_WIDTH = Math.min(
+  Math.round(Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.68),
+  480,
+);
 const CHANNEL_SKELETON_ITEMS = Array.from({ length: 10 }, (_, index) => index);
 const IS_TV = Platform.isTV;
 const TV_ITEM_HEIGHT = 60;

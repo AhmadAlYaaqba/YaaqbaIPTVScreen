@@ -12,7 +12,7 @@ import {
   ScrollView,
   FlatList,
   type ListRenderItem,
-  Dimensions,
+  useWindowDimensions,
   Platform,
   Pressable,
   RefreshControl,
@@ -65,7 +65,6 @@ type Props = RootScreenProps<'SeriesDetail'>;
 export type SeriesDetailRouteProp = Props['route'];
 export type SeriesDetailNavProp = Props['navigation'];
 
-const { width } = Dimensions.get('window');
 const THUMB_W = 124;
 // TV: a 16:11 hero is taller than a 16:9 screen; cap it so the title and
 // Play button stay above the fold.
@@ -230,6 +229,8 @@ const EpisodeListItem = React.memo(
 const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const { seriesId, seriesName, baseInfo } = route.params;
   const insets = useSafeAreaInsets();
+  // Live window width: a tablet reflows when it is rotated or resized.
+  const { width } = useWindowDimensions();
 
   const { playlistId, username, password, serverDomain, serverPort, useProxy } =
     useSelector((s: RootState) => s.user);
@@ -853,7 +854,7 @@ const SeriesDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                     {seasonOpen && (
                       <>
                         <Pressable
-                          style={styles.seasonScrim}
+                          style={[styles.seasonScrim, { width }]}
                           onPress={() => setSeasonOpen(false)}
                           accessible={false}
                         />
@@ -1257,7 +1258,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 40,
     right: -20,
-    width: width,
     height: 2000,
     zIndex: 1,
   },

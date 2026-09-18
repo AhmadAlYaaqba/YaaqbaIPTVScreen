@@ -7,6 +7,8 @@ import React, {
 } from 'react';
 import { AppState, View, StyleSheet, StatusBar, Platform } from 'react-native';
 import Orientation from 'react-native-orientation-locker';
+
+import { IS_TABLET } from '../utils/device';
 import { useFocusEffect } from '@react-navigation/native';
 import type { RootScreenProps } from '../navigation/types';
 import { useDispatch, useSelector } from 'react-redux';
@@ -248,14 +250,15 @@ const VideoPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
     StatusBar.setHidden(true);
-    // TVs are always landscape; locking there is unnecessary.
-    if (!Platform.isTV) {
+    // TVs are always landscape, and iPads keep whatever orientation the user
+    // is holding; locking either is unnecessary.
+    if (!Platform.isTV && !IS_TABLET) {
       Orientation.lockToLandscape();
     }
 
     return () => {
       StatusBar.setHidden(false);
-      if (!Platform.isTV) {
+      if (!Platform.isTV && !IS_TABLET) {
         Orientation.lockToPortrait();
       }
     };
